@@ -7,7 +7,7 @@ import polars as pl
 
 from jevtrader.states import state_table
 
-SHRINK_K = 50  # pseudo-observations at the base rate
+SHRINK_K = 50
 BLOCK = 20
 REPS = 2000
 

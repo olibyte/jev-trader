@@ -23,7 +23,6 @@ def test_empirical_table_shrinks_toward_the_base_rate():
 
     by_key = {key: (p, n) for key, p, n in table.iter_rows()}
     assert table.height == 960
-    # base = 3 ups / 6 labelled = 0.5, so each state gets 2 pseudo-rows at 0.5.
     assert by_key[A] == (pytest.approx(4 / 6), 4), "(3 + 1) / (4 + 2)"
     assert by_key[B] == (0.25, 2), "(0 + 1) / (2 + 2)"
     assert by_key[C] == (0.5, 0), "an unseen state scores the base rate"

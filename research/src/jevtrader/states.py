@@ -19,12 +19,11 @@ from jevtrader.data import UNIVERSE, atomic_write, forward_return
 STATE_VERSION = "states/v1"
 HORIZON = 20
 ATR_WINDOW = 252
-# BIL supplies the cash return. It is never traded, so it gets no states.
-STUDY = tuple(s for s in UNIVERSE if s != "BIL")
+CASH = "BIL"
+STUDY = tuple(s for s in UNIVERSE if s != CASH)
 
 Split = Literal["warmup", "fit", "validate", "holdout"]
-# A date belongs to the last split that starts on or before it. Earlier dates are warmup.
-SPLITS: tuple[tuple[Split, date], ...] = (
+SPLIT_STARTS: tuple[tuple[Split, date], ...] = (
     ("fit", date(2008, 1, 1)),
     ("validate", date(2015, 1, 1)),
     ("holdout", date(2019, 1, 1)),
@@ -32,7 +31,7 @@ SPLITS: tuple[tuple[Split, date], ...] = (
 
 
 @dataclass(frozen=True)
-class State:  # No ticker, date, or price level, so Jev cannot recall history.
+class State:
     rsi14: Literal["OVERSOLD", "WEAK", "NEUTRAL", "STRONG", "OVERBOUGHT"]
     vs_sma200: Literal["ABOVE", "BELOW"]
     sma50_vs_sma200: Literal["ABOVE", "BELOW"]
@@ -48,7 +47,6 @@ ALL_STATES = tuple(State(*levels) for levels in itertools.product(*DIMENSIONS.va
 
 VoteTable = Mapping[str, Mapping[str, int]]
 
-# Follow the move: price above its averages, rising momentum, and band breakouts vote up.
 VOTE_TREND: VoteTable = {
     "rsi14": {"OVERSOLD": -1, "WEAK": -1, "NEUTRAL": 0, "STRONG": 1, "OVERBOUGHT": 1},
     "vs_sma200": {"ABOVE": 1, "BELOW": -1},
@@ -58,7 +56,6 @@ VOTE_TREND: VoteTable = {
     "atr_regime": {"LOW": 0, "NORMAL": 0, "HIGH": 0},
 }
 
-# Fade short-term extremes and turning momentum. The long averages carry no vote.
 VOTE_REVERT: VoteTable = {
     "rsi14": {"OVERSOLD": 1, "WEAK": 0, "NEUTRAL": 0, "STRONG": 0, "OVERBOUGHT": -1},
     "vs_sma200": {"ABOVE": 0, "BELOW": 0},
@@ -67,9 +64,6 @@ VOTE_REVERT: VoteTable = {
     "bollinger": {"BELOW_LOWER": 1, "LOWER_HALF": 0, "UPPER_HALF": 0, "ABOVE_UPPER": -1},
     "atr_regime": {"LOW": 0, "NORMAL": 0, "HIGH": 0},
 }
-
-
-# Pure core
 
 
 def state_key(state: State) -> str:
@@ -100,8 +94,7 @@ def _ema(x: pl.Expr, span: int) -> pl.Expr:
     return x.ewm_mean(span=span, adjust=False, min_samples=span)
 
 
-def _cases(*cases: tuple[pl.Expr, str]) -> pl.Expr:
-    """First matching level. No `otherwise`, so a null indicator gives a null level."""
+def _first_level_or_null(*cases: tuple[pl.Expr, str]) -> pl.Expr:
     (first, level), *rest = cases
     expr = pl.when(first).then(pl.lit(level))
     for condition, level in rest:
@@ -135,27 +128,29 @@ def levels(bars: pl.DataFrame) -> pl.DataFrame:
     rank = (_wilder(true_range) / close).rolling_rank(ATR_WINDOW, method="max")
 
     columns = {
-        "rsi14": _cases(
+        "rsi14": _first_level_or_null(
             (rsi < 30, "OVERSOLD"),
             (rsi < 45, "WEAK"),
             (rsi <= 55, "NEUTRAL"),
             (rsi < 70, "STRONG"),
             (rsi >= 70, "OVERBOUGHT"),
         ),
-        "vs_sma200": _cases((close > sma200, "ABOVE"), (close <= sma200, "BELOW")),
-        "sma50_vs_sma200": _cases((sma50 > sma200, "ABOVE"), (sma50 <= sma200, "BELOW")),
+        "vs_sma200": _first_level_or_null((close > sma200, "ABOVE"), (close <= sma200, "BELOW")),
+        "sma50_vs_sma200": _first_level_or_null(
+            (sma50 > sma200, "ABOVE"), (sma50 <= sma200, "BELOW")
+        ),
         "macd_hist": pl.concat_str(
-            _cases((hist > 0, "POS"), (hist <= 0, "NEG")),
-            _cases((hist > prev_hist, "RISING"), (hist <= prev_hist, "FALLING")),
+            _first_level_or_null((hist > 0, "POS"), (hist <= 0, "NEG")),
+            _first_level_or_null((hist > prev_hist, "RISING"), (hist <= prev_hist, "FALLING")),
             separator="_",
         ),
-        "bollinger": _cases(
+        "bollinger": _first_level_or_null(
             (close < mid - band, "BELOW_LOWER"),
             (close < mid, "LOWER_HALF"),
             (close <= mid + band, "UPPER_HALF"),
             (close > mid + band, "ABOVE_UPPER"),
         ),
-        "atr_regime": _cases(
+        "atr_regime": _first_level_or_null(
             (rank * 3 <= ATR_WINDOW, "LOW"),
             (rank * 3 <= 2 * ATR_WINDOW, "NORMAL"),
             (rank * 3 > 2 * ATR_WINDOW, "HIGH"),
@@ -169,7 +164,7 @@ def levels(bars: pl.DataFrame) -> pl.DataFrame:
 
 def _split(day: pl.Expr) -> pl.Expr:
     split = pl.when(day.is_not_null()).then(pl.lit("warmup"))
-    for name, start in SPLITS:
+    for name, start in SPLIT_STARTS:
         split = pl.when(day >= start).then(pl.lit(name)).otherwise(split)
     return split
 
@@ -207,9 +202,6 @@ def state_rows(symbol: str, bars: pl.DataFrame) -> pl.DataFrame:
             "up_20",
         )
     )
-
-
-# I/O shell
 
 
 def write_states(symbol: str, data_dir: Path) -> tuple[pl.DataFrame, pl.DataFrame]:

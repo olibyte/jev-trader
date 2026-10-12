@@ -7,7 +7,9 @@ import pytest
 
 from jevtrader.states import (
     ALL_STATES,
+    ATR_WINDOW,
     DIMENSIONS,
+    HORIZON,
     STATE_VERSION,
     VOTE_REVERT,
     VOTE_TREND,
@@ -19,7 +21,7 @@ from jevtrader.states import (
     vote,
 )
 
-FIRST_DEFINED = 264  # ATR from row 13, then a full 252-value window for its rank
+FIRST_DEFINED = 13 + ATR_WINDOW - 1
 
 
 def random_walk(seed: int, n: int = 700) -> pl.DataFrame:
@@ -62,12 +64,12 @@ def test_levels_of_a_steady_rise():
 
     assert levels(bars).row(-1) == (
         date(2005, 10, 9),
-        "OVERBOUGHT",  # no down day, so RSI is 100
+        "OVERBOUGHT",
         "ABOVE",
         "ABOVE",
-        "POS_FALLING",  # MACD climbs toward its steady state and the signal line closes in
-        "UPPER_HALF",  # close is 9.5 above the 20-day mean, under the band at 11.5
-        "LOW",  # true range is a constant 1.5, so ATR as a share of price keeps falling
+        "POS_FALLING",
+        "UPPER_HALF",
+        "LOW",
     )
 
 
@@ -89,8 +91,8 @@ def test_split_follows_the_split_table():
 def test_labels_enter_next_open_and_purge_across_a_split_boundary():
     days = [date(2014, 12, 1) + timedelta(days=i) for i in range(60)]
     opens = [100.0] * 60
-    opens[21] = 125.0  # exit for t=0
-    opens[30] = 80.0  # exit for t=9, on 2014-12-31
+    opens[0 + 1 + HORIZON] = 125.0
+    opens[9 + 1 + HORIZON] = 80.0
     bars = pl.DataFrame({"date": days, "open": opens})
 
     rows = labels(bars)

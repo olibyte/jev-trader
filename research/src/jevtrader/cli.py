@@ -43,7 +43,6 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def online(args: argparse.Namespace) -> int:
-    """Run fetch or adjust-check, the only commands that read the key."""
     key = dotenv_values(REPO_ROOT / ".env").get("TWELVE_DATA_API_KEY")
     if not key:
         print(f"TWELVE_DATA_API_KEY is not set in {REPO_ROOT / '.env'}", file=sys.stderr)
@@ -109,24 +108,23 @@ def ceiling() -> int:
         print("no state rows, run `jt states` first", file=sys.stderr)
         return 2
     scan = pl.scan_parquet(paths)
-    # Holdout rows are filtered out at the scan, so no number below can read a holdout label.
     holdout = scan.filter(pl.col("split") == "holdout").select(pl.len()).collect().item()
-    rows = scan.filter(pl.col("split") != "holdout").collect()
-    if set(rows["state_version"]) != {STATE_VERSION}:
+    dev = scan.filter(pl.col("split") != "holdout").collect()
+    if set(dev["state_version"]) != {STATE_VERSION}:
         print(f"state rows are not {STATE_VERSION}, run `jt states` first", file=sys.stderr)
         return 2
 
     print(f"{'split':<10}{'rows':>7}{'labelled':>10}{'base_up':>9}{'distinct_states':>17}")
     for split in ("warmup", "fit", "validate"):
-        part = rows.filter(pl.col("split") == split)
+        part = dev.filter(pl.col("split") == split)
         up = part["up_20"].drop_nulls()
         distinct = part["state_key"].n_unique()
         print(f"{split:<10}{part.height:>7}{up.len():>10}{up.mean():>9.3f}{distinct:>17}")
     print(f"{'holdout':<10}{holdout:>7}  row count only, holdout labels stay unread")
 
-    fit = rows.filter(pl.col("split") == "fit")
+    fit = dev.filter(pl.col("split") == "fit")
     table = empirical_table(fit)
-    validate = rows.filter(pl.col("split") == "validate", pl.col("up_20").is_not_null()).join(
+    validate = dev.filter(pl.col("split") == "validate", pl.col("up_20").is_not_null()).join(
         table, on="state_key", maintain_order="left"
     )
     seen = table.filter(pl.col("n_dev") > 0).height
