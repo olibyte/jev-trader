@@ -129,7 +129,7 @@ The question is a pair of yes/no (Noul) questions in one request: "higher in 20 
 ## Data pipeline
 
 1. Read `TWELVE_DATA_API_KEY` only. Build request URLs in code. The `.env` URL template puts the key in the URL, so never log a URL and strip the key from archived responses.
-2. Fetch each symbol with `adjust=all` and `order=asc` in two date-range calls. 5,000 daily bars reach back only to about December 2006, and each call costs one credit.
+2. Fetch each symbol with `adjust=all` and `order=asc` in two date-range calls, 1990 to 2009 and 2010 to now. One call returns at most 5,000 bars, so a single call reaches back only to about December 2006. Each call costs one credit, and the plan allows 8 credits per minute.
 3. Archive each raw response as gzipped JSON under `data/raw/{symbol}/`.
 4. Parse the string fields to numbers. Sort ascending. Drop a bar for a session that has not closed.
 5. Validate OHLC invariants, duplicate dates, session alignment against SPY, and overnight moves over 40%.
@@ -157,8 +157,6 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 ## Open questions
 
 - Does OpenRouter require a minimum credit purchase? Unverified.
-- Does Twelve Data have full history for every ETF, and what are the plan's per-minute credit limits? Unverified.
-- Does `python-dotenv` read the indented `KEY = value` lines in `.env`? Milestone 1 tests this.
 - Which disclaimers does a public site that shows trading signals need?
 
 ## Risks
@@ -181,3 +179,6 @@ These risks are ranked by impact on the answer.
 - **2026-10-12.** Jev access goes through OpenRouter. All 960 states are asked once, and the table is frozen.
 - **2026-10-12.** The plan publishes null and inconclusive results.
 - **2026-10-12.** Cut from v1: fsspec, SQLite, exchange_calendars, permanent unadjusted copies, stock split assertions, the memorization probe, the live-testing cron, and logistic regression.
+- **2026-10-12.** Milestone 1 measured the data. Twelve Data has full history: SPY from 1993-01-29, DIA from 1998-01-20, the sector funds from 1998-12-22, QQQ from 1999-03-10, IWM from 2000-05-26, and BIL from 2007-05-30. "The data starts in December 2006" was wrong. It was the reach of one 5,000-bar call. Dev still starts in 2008, because BIL supplies the cash return and starts in May 2007.
+- **2026-10-12.** Adjusted opens scale like adjusted closes. On SPY, the largest gap between the open and close adjustment ratios is 2.2e-7, so fills at the adjusted open are sound.
+- **2026-10-12.** Twelve Data allows 8 credits per minute on the current plan, read from the `api-credits-left` header. A full `jt fetch` costs 28 credits and takes about 3 minutes. python-dotenv reads the indented `.env` lines.
