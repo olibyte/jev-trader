@@ -16,9 +16,12 @@ Check the source before treating a planned command or module as available.
 - `research/src/jevtrader/data.py` owns market-data requests, validation, raw archives, Parquet snapshots, and manifests.
 - `research/src/jevtrader/states.py` owns the indicators, the versioned `State`, the vote tables, the splits, and the purged forward labels.
 - `research/src/jevtrader/evaluate.py` owns the empirical table, AUC, and the joint-date block bootstrap.
-- `research/src/jevtrader/cli.py` owns the `jt` command and reads the API key, clock, and network at the CLI boundary. Only `jt fetch` and `jt adjust-check` read the key.
+- `research/src/jevtrader/jev.py` owns the Jev prompt, the OpenRouter Decisions call, the append-only call log, and the policy table.
+- `research/src/jevtrader/cli.py` owns the `jt` command and reads the API keys, clock, and network at the CLI boundary. Only `jt fetch` and `jt adjust-check` read `TWELVE_DATA_API_KEY`. Only `jt jev-table` without `--offline` reads `OPENROUTER_API_KEY`.
+- `research/jev_calls.jsonl` is the frozen Jev call log. Never edit or regenerate it. Build from it with `jt jev-table --offline`.
 - `research/tests/test_data.py` checks the data pipeline with recorded fixtures and mocked HTTP responses.
 - `research/tests/test_states.py` holds the truncation property test, which fails if an indicator reads a later bar.
+- `research/tests/test_jev.py` checks the Jev call, the call log, and the policy table with mocked HTTP responses.
 - `research/pyproject.toml` defines dependencies and Ruff rules. Keep `research/uv.lock` in sync with dependency changes.
 
 Keep changes focused on the requested task.
@@ -47,6 +50,7 @@ Report what you checked and any check you could not run.
 
 Keep routine tests offline. Use recorded fixtures and mocked HTTP responses.
 Treat `jt fetch` and `jt adjust-check` as live API operations that consume Twelve Data credits.
+Treat `jt jev-table` without `--offline` as a paid OpenRouter operation.
 Keep `.env`, API keys, and generated `data/` files out of git.
 Never print API keys or request URLs that contain them.
 Use [.env.example](.env.example) for the required variable name.

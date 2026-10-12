@@ -5,20 +5,41 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
+import numpy as np
 import polars as pl
 from dotenv import dotenv_values
 
 from jevtrader.data import DATA_DIR, REPO_ROOT, UNIVERSE, DataError, adjust_check, fetch_symbol
 from jevtrader.evaluate import BLOCK, REPS, SHRINK_K, block_bootstrap_auc, empirical_table
+from jevtrader.jev import (
+    CALLS_PATH,
+    POLICY_PATH,
+    PROMPT_VERSION,
+    SAMPLES,
+    JevError,
+    append_call,
+    call_jev,
+    pending,
+    policy_table,
+    read_calls,
+    write_policy,
+)
 from jevtrader.states import (
     ALL_STATES,
     DIMENSIONS,
     STATE_VERSION,
     STUDY,
+    VOTE_REVERT,
+    VOTE_TREND,
+    State,
+    state_key,
     state_table,
+    vote,
     write_states,
 )
 
@@ -34,11 +55,17 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("adjust-check", help="compare SPY adjusted and raw open/close ratios")
     commands.add_parser("states", help="classify each study session into data/states/")
     commands.add_parser("ceiling", help="state census and the validate AUC of empirical_table")
+    jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
+    jev.add_argument("--offline", action="store_true", help="build from the call log only")
+    jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
+    jev.add_argument("--workers", type=int, default=8, help="concurrent calls (default 8)")
     args = parser.parse_args(argv)
     if args.command == "states":
         return states()
     if args.command == "ceiling":
         return ceiling()
+    if args.command == "jev-table":
+        return jev_table(args.offline, args.limit, args.workers)
     return online(args)
 
 
@@ -102,17 +129,28 @@ def states() -> int:
     return 0
 
 
-def ceiling() -> int:
-    paths = [DATA_DIR / "states" / f"{s}.parquet" for s in STUDY]
+def state_paths() -> list[Path]:
+    return [DATA_DIR / "states" / f"{s}.parquet" for s in STUDY]
+
+
+def dev_rows() -> pl.DataFrame | None:
+    paths = state_paths()
     if not all(p.exists() for p in paths):
         print("no state rows, run `jt states` first", file=sys.stderr)
-        return 2
-    scan = pl.scan_parquet(paths)
-    holdout = scan.filter(pl.col("split") == "holdout").select(pl.len()).collect().item()
-    dev = scan.filter(pl.col("split") != "holdout").collect()
+        return None
+    dev = pl.scan_parquet(paths).filter(pl.col("split") != "holdout").collect()
     if set(dev["state_version"]) != {STATE_VERSION}:
         print(f"state rows are not {STATE_VERSION}, run `jt states` first", file=sys.stderr)
+        return None
+    return dev
+
+
+def ceiling() -> int:
+    dev = dev_rows()
+    if dev is None:
         return 2
+    holdout = pl.scan_parquet(state_paths()).filter(pl.col("split") == "holdout")
+    holdout = holdout.select(pl.len()).collect().item()
 
     print(f"{'split':<10}{'rows':>7}{'labelled':>10}{'base_up':>9}{'distinct_states':>17}")
     for split in ("warmup", "fit", "validate"):
@@ -152,6 +190,94 @@ def ceiling() -> int:
         f"  ({REPS} reps, {BLOCK}-session blocks, seed 0)"
     )
     return 0
+
+
+def jev_table(offline: bool, limit: int | None, workers: int) -> int:
+    if not offline:
+        key = dotenv_values(REPO_ROOT / ".env").get("OPENROUTER_API_KEY")
+        if not key:
+            print(f"OPENROUTER_API_KEY is not set in {REPO_ROOT / '.env'}", file=sys.stderr)
+            return 2
+        if ask_jev(key, pending(read_calls(CALLS_PATH))[:limit], workers):
+            return 1
+
+    calls = read_calls(CALLS_PATH)
+    total = len(ALL_STATES) * SAMPLES
+    gaps = len(pending(calls))
+    if gaps:
+        print(f"{total - gaps}/{total} calls logged")
+        return 1
+    dev = dev_rows()
+    if dev is None:
+        return 2
+    try:
+        table = policy_table(calls)
+    except JevError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    changed, sha = write_policy(table, DATA_DIR)
+
+    mine = [c for c in calls if c["prompt_version"] == PROMPT_VERSION]
+    served = ", ".join(sorted({c["model_served"] for c in mine}))
+    cost = sum(c["cost_usd"] for c in calls)
+    print(f"calls {len(mine)} ({PROMPT_VERSION}); model_served {served}; log cost ${cost:.4f}")
+    p_up, p_sd, coherence = (table[c].to_numpy() for c in ("p_up", "p_sd", "coherence"))
+    print(
+        f"sample spread: p_sd median {np.median(p_sd):.3f}, p90 {np.quantile(p_sd, 0.9):.3f}"
+        f", max {p_sd.max():.3f}; p_up min {p_up.min():.3f}, median {np.median(p_up):.3f}"
+        f", max {p_up.max():.3f}"
+    )
+    print(
+        f"coherence |p_hi + p_lo - 1|: mean {coherence.mean():.3f}"
+        f", median {np.median(coherence):.3f}, p90 {np.quantile(coherence, 0.9):.3f}"
+    )
+    r2 = {
+        name: np.corrcoef(p_up, [vote(t, s) for s in ALL_STATES])[0, 1] ** 2
+        for name, t in (("vote_trend", VOTE_TREND), ("vote_revert", VOTE_REVERT))
+    }
+    print(f"R² of p_up on vote_trend {r2['vote_trend']:.3f}, vote_revert {r2['vote_revert']:.3f}")
+
+    validate = dev.filter(pl.col("split") == "validate", pl.col("up_20").is_not_null()).join(
+        table.select("state_key", "p_up"), on="state_key", maintain_order="left"
+    )
+    point, lo, hi = block_bootstrap_auc(
+        validate["date"].to_numpy(), validate["p_up"].to_numpy(), validate["up_20"].to_numpy()
+    )
+    print(
+        f"jev ({PROMPT_VERSION}) validate AUC {point:.3f}  95% CI [{lo:.3f}, {hi:.3f}]"
+        f"  ({REPS} reps, {BLOCK}-session blocks, seed 0)"
+    )
+    status = "changed" if changed else "unchanged"
+    print(f"{DATA_DIR / POLICY_PATH} {status} sha256 {sha}")
+    return 0
+
+
+def ask_jev(key: str, todo: list[tuple[State, int]], workers: int) -> int:
+    """Ask Jev about each (state, sample), logging each answer as it lands. Returns failures."""
+    print(f"asking Jev {len(todo)} pending calls with {workers} workers")
+    failed = 0
+    with httpx.Client(timeout=60) as client, ThreadPoolExecutor(workers) as pool:
+
+        def ask(state: State, sample: int):
+            return call_jev(client, key, state, sample, datetime.now(UTC), time.sleep)
+
+        futures = {pool.submit(ask, s, i): (s, i) for s, i in todo}
+        try:
+            for done, future in enumerate(as_completed(futures), 1):
+                state, sample = futures[future]
+                try:
+                    append_call(CALLS_PATH, future.result())
+                except JevError as e:
+                    print(f"{state_key(state)} sample {sample}: {e}")
+                    failed += 1
+                if done % 100 == 0:
+                    print(f"{done}/{len(todo)} calls done, {failed} failed")
+        finally:
+            # On Ctrl-C, drop the queued calls instead of paying for answers nobody logs.
+            pool.shutdown(cancel_futures=True)
+    if failed:
+        print(f"{failed}/{len(todo)} calls failed, rerun to retry them")
+    return failed
 
 
 if __name__ == "__main__":

@@ -72,9 +72,7 @@ class PolicyRow(TypedDict):  # derived from the JSONL; building fails if model_s
 	prompt_version: str
 	p_up: float  # mean over samples of (p_hi + 1 - p_lo) / 2
 	p_sd: float
-	coherence: float  # |p_hi + p_lo - 1|
-	empirical_p: float  # dev-period up frequency for the state, shrunk toward the base rate
-	n_dev: int
+	coherence: float  # mean over samples of |p_hi + p_lo - 1|
 
 class Decision(TypedDict):  # derived by joining PolicyRow onto StateRow. Never stored as truth.
 	symbol: str
@@ -189,3 +187,7 @@ These risks are ranked by impact on the answer.
 - **2026-10-12.** BIL gets no states. It supplies the cash return and is never traded, so states cover the other 13 symbols.
 - **2026-10-12.** The vote tables are frozen as `states.py` defines them. `vote_trend` reads RSI, both averages, the MACD histogram, and band breakouts as momentum. `vote_revert` fades RSI and band extremes and MACD turns, and gives the averages no vote. Neither votes on the ATR regime.
 - **2026-10-12.** Milestone 2 measured the ceiling. The `empirical_table` validate AUC is 0.489, with a 95% CI of 0.451 to 0.526. The same table scores 0.619 in sample on fit, so the states sort fit outcomes but the sort does not carry to validate. Fit sessions occupy 243 of the 960 states. Validate sessions in a state with at least 30 fit rows make up 90.9% of validate.
+- **2026-10-12.** Prompt version `descriptive/v1` sends the six levels as plain sentences under readable field names (`momentum`, `trend_200d`, `trend_50d_vs_200d`, `macd`, `bollinger`, `volatility`), with each cut point in parentheses. A seed taken from the call key shuffles the field order for each state and sample. The log keeps each request in the order Jev saw it. Building the table fails when a logged request differs from the request the code builds now, so any prompt change needs a new prompt version.
+- **2026-10-12.** The call log is `research/jev_calls.jsonl`, and the policy table is `data/policy/jev.parquet`. `p_sd` is the sample standard deviation (ddof 1) of the per-sample `p_up`. `coherence` is the mean over samples of `|p_hi + p_lo - 1|`. The policy table holds only Jev's answers and reads only the call log. It drops the planned `empirical_p` and `n_dev` columns, because dev-period frequencies read validate labels and could leak into a validate arm. The site export joins `empirical_table` when it needs them.
+- **2026-10-12.** Milestone 3 ran 4,800 calls with no failures. Every call was served by `typesafe/jev-1.13-20260917`, and the total cost was $0.1202, about 594 input tokens and $0.000025 for each call. Jev returns noul probabilities rounded to 2 decimals.
+- **2026-10-12.** Milestone 3 measured Jev on validate. The `jev` validate AUC is 0.490, with a 95% CI of 0.445 to 0.533. That matches the `empirical_table` ceiling of 0.489. Across states, `p_up` runs from 0.257 to 0.683 with a median of 0.478. At the 0.5 threshold, `jev` is long on 56.2% of validate sessions, while 62.0% of validate sessions rose. The R² of `p_up` on the vote count is 0.384 for `vote_revert` and 0.062 for `vote_trend`, so Jev reads the states more like a mean-reversion counter than a trend counter. The median sample spread `p_sd` is 0.019, and the median coherence is 0.030.
