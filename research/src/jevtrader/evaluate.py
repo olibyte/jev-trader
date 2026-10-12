@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import difflib
+import json
+import tomllib
 from collections.abc import Callable, Mapping
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from statistics import NormalDist
 from typing import Literal, NamedTuple
@@ -11,7 +14,7 @@ from typing import Literal, NamedTuple
 import numpy as np
 import polars as pl
 
-from jevtrader.data import REPO_ROOT, atomic_write, forward_return
+from jevtrader.data import atomic_write, forward_return
 from jevtrader.jev import PROMPT_VERSION
 from jevtrader.states import (
     ALL_STATES,
@@ -22,6 +25,7 @@ from jevtrader.states import (
     VOTE_REVERT,
     VOTE_TREND,
     state_key,
+    state_rows,
     state_table,
     vote,
 )
@@ -36,7 +40,10 @@ YEAR = 252
 ALPHA = 0.05
 POWER = 0.8
 CANDIDATE, BASELINE = "jev", "empirical_table"
-PREREG_PATH = REPO_ROOT / "research" / "prereg.toml"
+# Relative to the repository root.
+PREREG_PATH = Path("research") / "prereg.toml"
+HOLDOUT_PATH = Path("research") / "holdout.json"
+HOLDOUT_RUN_PATH = Path("research") / "holdout.manifest.json"
 
 
 def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
@@ -379,17 +386,24 @@ def holdout_blocks(dates: pl.Series) -> int:
     return -(-(dates.n_unique() - (HORIZON + 1)) // BLOCK)
 
 
+def primary_statistic(
+    rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame
+) -> tuple[np.ndarray, Callable[[np.ndarray], float]]:
+    """The labelled dates of `rows` and the weighted auc(CANDIDATE) - auc(BASELINE) on them."""
+    labelled = scored(rows, fit, policy).filter(pl.col("up_20").is_not_null())
+    dates, up = labelled["date"].to_numpy(), labelled["up_20"].to_numpy()
+    first, second = (labelled[ARMS[a].score].to_numpy() for a in (CANDIDATE, BASELINE))
+    return dates, lambda w: auc(first, up, w) - auc(second, up, w)
+
+
 def power(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame, draws: int) -> Power:
     """SE and MDE of the primary metric on the labelled `rows`, fitted on `fit`.
 
     Each bootstrap rep draws `draws` blocks, so the SE is the one expected on a sample of that
     many blocks. MDE = (z(1 - ALPHA / 2) + z(POWER)) * SE.
     """
-    labelled = scored(rows, fit, policy).filter(pl.col("up_20").is_not_null())
-    dates, up = labelled["date"].to_numpy(), labelled["up_20"].to_numpy()
-    first, second = (labelled[ARMS[a].score].to_numpy() for a in (CANDIDATE, BASELINE))
-    diffs = block_bootstrap(dates, lambda w: auc(first, up, w) - auc(second, up, w), draws=draws)
-    se = float(np.std(diffs, ddof=1))
+    dates, statistic = primary_statistic(rows, fit, policy)
+    se = float(np.std(block_bootstrap(dates, statistic, draws=draws), ddof=1))
     z = NormalDist().inv_cdf
     return Power(se, (z(1 - ALPHA / 2) + z(POWER)) * se, n_blocks(dates), draws)
 
@@ -474,3 +488,102 @@ def write_prereg(path: Path, text: str) -> PreregStatus:
     if status == "missing":
         atomic_write(path, text.encode())
     return status
+
+
+def prereg_diff(text: str, policy_sha256: str, market_sha256: Mapping[str, str]) -> list[str]:
+    """Unified diff from the prereg `text` to the one this code renders for these file hashes.
+
+    The model, the holdout end, and the power figures come from `text`, because nothing here can
+    recompute them. Every other line comes from the code and the hashes, so a changed input file,
+    arm rule, or setting shows up in the diff. An empty diff means the prereg matches.
+    """
+    try:
+        recorded = tomllib.loads(text)
+        power = recorded["power"]
+        expected = render_prereg(
+            model_served=recorded["study"]["model_served"],
+            policy_sha256=policy_sha256,
+            market_sha256=market_sha256,
+            holdout_end=recorded["holdout"]["end"],
+            power=Power(
+                power["dev_se"], power["mde"], power["validate_blocks"], power["holdout_blocks"]
+            ),
+        )
+    except (tomllib.TOMLDecodeError, KeyError) as e:
+        return [f"unreadable prereg: {e!r}"]
+    lines = difflib.unified_diff(
+        text.splitlines(), expected.splitlines(), "prereg.toml", "expected", lineterm=""
+    )
+    return list(lines)
+
+
+Outcome = Literal["jev_better", "jev_worse", "inconclusive"]
+
+
+def outcome(primary: Interval) -> Outcome:
+    """The pre-registered rule for the CI of auc(CANDIDATE) - auc(BASELINE)."""
+    if primary.lo > 0:
+        return "jev_better"
+    if primary.hi < 0:
+        return "jev_worse"
+    return "inconclusive"
+
+
+class HoldoutResult(NamedTuple):  # research/holdout.json
+    first: date
+    last: date
+    rows: int
+    labelled: int
+    blocks: int
+    primary: Interval
+    outcome: Outcome
+    arms: dict[str, ArmReport]
+
+
+class HoldoutRun(NamedTuple):  # research/holdout.manifest.json
+    prereg_sha256: str
+    git_commit: str
+    result_sha256: str
+
+
+def holdout_result(
+    market: Mapping[str, pl.DataFrame], policy: pl.DataFrame, end: date
+) -> HoldoutResult:
+    """Every arm fitted on fit + validate and measured on the holdout through `end`.
+
+    market maps each symbol, CASH included, to its bars. Bars after `end` are dropped first, so
+    no state, label, or return reads them.
+    """
+    bars = {s: b.filter(pl.col("date") <= end) for s, b in market.items()}
+    rows = pl.concat(state_rows(s, b) for s, b in bars.items() if s != CASH)
+    fit = rows.filter(pl.col("split").is_in(["fit", "validate"]))
+    test = rows.filter(pl.col("split") == "holdout")
+    dates, statistic = primary_statistic(test, fit, policy)
+    primary = bootstrap_interval(dates, statistic)
+    return HoldoutResult(
+        first=test["date"].min(),
+        last=test["date"].max(),
+        rows=test.height,
+        labelled=len(dates),
+        blocks=n_blocks(dates),
+        primary=primary,
+        outcome=outcome(primary),
+        arms=arm_reports(test, fit, policy, open_returns(bars, end + timedelta(days=1))),
+    )
+
+
+def _plain(value: object) -> object:
+    if isinstance(value, tuple) and hasattr(value, "_asdict"):
+        return {k: _plain(v) for k, v in value._asdict().items()}
+    if isinstance(value, dict):
+        return {str(k): _plain(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_plain(v) for v in value]
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
+def render_json(value: HoldoutResult | HoldoutRun) -> str:
+    """Indented JSON text. The same value gives the same bytes."""
+    return json.dumps(_plain(value), indent=2) + "\n"
