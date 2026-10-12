@@ -15,7 +15,8 @@ Check the source before treating a planned command or module as available.
 
 - `research/src/jevtrader/data.py` owns market-data requests, validation, raw archives, Parquet snapshots, and manifests.
 - `research/src/jevtrader/states.py` owns the indicators, the versioned `State`, the vote tables, the splits, and the purged forward labels.
-- `research/src/jevtrader/evaluate.py` owns the empirical table, AUC, and the joint-date block bootstrap.
+- `research/src/jevtrader/evaluate.py` owns the arm registry, the decisions, the backtest, the metrics, the joint-date block bootstrap, the MDE, and the pre-registration text.
+- `research/prereg.toml` is the committed pre-registration. Never edit it by hand. `jt evaluate --prereg` writes it and refuses to replace a different file.
 - `research/src/jevtrader/jev.py` owns the Jev prompt, the OpenRouter Decisions call, the append-only call log, and the policy table.
 - `research/src/jevtrader/cli.py` owns the `jt` command and reads the API keys, clock, and network at the CLI boundary. Only `jt fetch` and `jt adjust-check` read `TWELVE_DATA_API_KEY`. Only `jt jev-table` without `--offline` reads `OPENROUTER_API_KEY`.
 - `research/jev_calls.jsonl` is the frozen Jev call log. Never edit or regenerate it. Build from it with `jt jev-table --offline`.
