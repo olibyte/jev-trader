@@ -26,7 +26,7 @@ Each module owns one area of the domain. The web app never recomputes an indicat
 | Storage | Local files under `data/` (gitignored), `pathlib` | The site deploys and needs shared files. Then swap the read and write functions for S3. |
 | Jev call log | `jev_calls.jsonl`, append-only, committed to git | The log grows past what git handles well. |
 | Backend | None | Users need parameters that cannot be precomputed. |
-| Hosting | Static export | Same as backend. |
+| Hosting | Host-neutral static export in `web/out/`. No host is chosen yet. | The user picks a host. The site uses no host-specific features, so a move to S3 and CloudFront changes only the deploy step. |
 
 ## Core data shapes
 
@@ -89,7 +89,7 @@ class HoldoutRun(TypedDict):  # research/holdout.manifest.json
 RunManifest = DevRun | HoldoutRun
 ```
 
-The web export lives in `export/v1/`. It holds `manifest.json`, `summary.json` (the primary result, the outcome, and the metrics for each arm), `policy.json` (Jev's rulebook with readable states), and `symbols/{SYMBOL}.json` (bars, decisions, equity curves, and an `inStudy` flag). The site validates every file with zod, and a schema mismatch fails the build.
+The web export lives in `export/v1/` and is committed to git. It holds `manifest.json` (the study versions, the dataset hashes, the two runs, and the hash of every other file), `summary.json` (the primary result, the outcome, and the metrics for each arm, copied from `research/holdout.json`), `policy.json` (Jev's rulebook with readable states, the five logged samples, and each state's development frequency), and `symbols/{SYMBOL}.json` (columnar sessions with bars, states, Jev positions, and forward returns, the holdout equity curves, and an `inStudy` flag). `jt export` writes it. The site validates every file with zod at build time, and a schema mismatch or a file hash that differs from `manifest.json` fails the build.
 
 ## Research method
 
@@ -151,7 +151,7 @@ Each milestone ends in a command that passes or fails.
 3. **Jev policy table.** One smoke call runs first, then 960 states × 5 samples. `jt jev-table --offline` rebuilds a byte-identical policy table with zero network calls. The command prints the sample spread, coherence, vote R², validate AUC, and total cost.
 4. **Dev evaluation and pre-registration.** Golden tests pass: always-long equals buy and hold, and an oracle arm beats every other arm. The dev report and the MDE exist, and `prereg.toml` is committed.
 5. **Holdout.** `jt holdout` writes the result once. A second run exits non-zero. `jt holdout --verify` reruns from the manifest and confirms that the result is byte-identical.
-6. **Web.** `next build` passes with zod validation. Drive the built site and confirm that every number matches `export/`.
+6. **Web.** `jt export` writes `export/v1/`, and a second run changes no files. `next build` passes with zod validation, and a schema mismatch fails the build. Drive the built site and confirm that every number matches `export/`.
 
 ## Jev access
 
@@ -160,7 +160,7 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 ## Open questions
 
 - Does OpenRouter require a minimum credit purchase? Unverified.
-- Which disclaimers does a public site that shows trading signals need?
+- Where does the site deploy? Vercel and a Terraform-managed S3 and CloudFront setup are both open.
 
 ## Risks
 
@@ -218,3 +218,16 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** `jt holdout` writes `research/holdout.json` and then `research/holdout.manifest.json` (`HoldoutRun`), and refuses to run when either file exists. The result holds the window, the row and block counts, the primary CI, the outcome, and every arm's report. It holds no time and no commit, so a rerun at a later commit can match it byte for byte. `jt holdout --verify` requires the prereg hash that the manifest records, reruns the holdout, and exits 0 only when the new bytes match the file and the manifest's `result_sha256`. Both files are meant to be committed after the run.
 - **2026-10-13.** Milestone 5 tests `jt holdout` on synthetic bars and a synthetic policy in a temporary git repository. Nobody runs it on the real data until the user reviews the code. On the real files, `prereg_diff` returns no diff, so the lock passes. That check reads no holdout label.
 - **2026-10-13.** Milestone 5 ran the holdout once, at commit `856de5d`, from 2019-01-02 through 2026-10-09. It used 25,129 labelled rows in 97 blocks. AUC(`jev`) minus AUC(`empirical_table`) is -0.012, with a 95% CI of -0.045 to 0.024, so the pre-registered outcome is "inconclusive". The MDE was 0.032, so the holdout cannot rule out a true difference smaller than that. `jt holdout --verify` reproduced `research/holdout.json` byte for byte.
+- **2026-10-13.** `export/v1/` is committed to git, by the user's decision. Any machine can build the site without `data/` or an API key, and the PR diff shows every published number. The repository is public, so the per-symbol files publish Twelve Data adjusted prices in git history. The spec assumes display and redistribution rights.
+- **2026-10-13.** The host is not chosen. The user asked whether Vercel now makes a later move to Terraform-managed AWS hard. It does not while the site stays a plain static export with no functions, ISR, middleware, or image optimizer. `next.config` sets `output: "export"` and `trailingSlash: true`, so `web/out/` is plain files that S3 can serve.
+- **2026-10-13.** The site shows two disclaimers, chosen by the user. "Research, not investment advice. Nothing here is a recommendation to buy or sell any security." and "Backtests are hypothetical, include modeled trading costs only, and do not predict future returns." It shows no data attribution and no statement of independence from TypeSafe or OpenRouter.
+- **2026-10-13.** `jt export` refuses unless its inputs are the files the holdout read. The sha256 of `research/holdout.json` and of `research/prereg.toml` must match the run manifest, `prereg_diff` must be empty for the market and policy hashes, and the policy table built from `research/jev_calls.jsonl` must equal `data/policy/jev.parquet` byte for byte. Bars are cut at the prereg end, and states are built in memory, as in the holdout.
+- **2026-10-13.** Two runs produce the site's numbers. The holdout run (`856de5d`) produced every metric in `summary.json`, and the export copies them unchanged. The export run derives the development frequencies, the per-symbol sessions, the equity curves, and the Sharpe block count from the same hashed inputs. The export holds no commit and no time, so a rerun at a later commit, or after a squash merge, writes the same bytes. `manifest.json` records the sha256 of every input and every output file instead. The site shows the commit it was built from, which contains those files.
+- **2026-10-13.** `holdout.json` gives no CI for exposure, turnover, max drawdown, or the excess Sharpe at each cost. The site shows them in a separate table labelled as point values with no confidence interval, and does not compute new intervals after the holdout. AUC and Brier skill show the 97 labelled blocks. Excess Sharpe shows the 98 traded blocks that its CI resamples, which the export counts from the same inputs.
+- **2026-10-13.** The development frequency next to Jev's `p_up` counts the labelled fit and validate rows, the set the holdout refit `empirical_table` on: 35,438 rows from 2008-01-02 through 2018-12-31. `policy.json` also carries `empirical_p` on those rows, which is the comparator's score in the holdout.
+- **2026-10-13.** Symbol pages are descriptive. Jev's position is shown for every session from 2008 through the holdout end, because its 0.5 threshold needs no fit. Equity curves cover the holdout only, for `jev`, `empirical_table`, and `buy_hold` at 5 bps, fitted on fit and validate as in the holdout. The shown forward return is `open[t+21] / open[t+1] - 1` without the split purge, and it is null only for the last 21 sessions. The export rounds prices to 4 decimals and forward returns and equity to 6. Metrics stay unrounded.
+- **2026-10-13.** "What Jev saw" shows the six lines of one logged request in the order Jev saw them. `policy.json` stores each sample's field order and answers, and the export fails unless the dimension texts in that order rebuild each logged `request.state`, key order included.
+- **2026-10-13.** The site's only data boundary is `web/src/lib/export.ts`. It checks each file's sha256 against `manifest.json` and parses every file with strict zod objects, so an unknown, renamed, or missing field fails the build. It then checks the cross-file invariants: the symbol files match the study symbols, every state index exists, the columnar arrays have equal lengths, and the candidate and baseline arms exist. Brier skill and calibration are present exactly when an arm's score is a probability. `pnpm check:schema` proves the gate on seven broken copies of the export.
+- **2026-10-13.** Each table and panel carries one "Source" link to its run on the manifest page, instead of one link per cell. The Sharpe block count links to the export run on its own. The symbol panel shows each sample's raw P(higher) and P(lower or equal), not a per-sample `p_up`, so the site computes nothing. It calls the development `n` "labelled symbol-days", because it pools the 13 ETFs.
+- **2026-10-13.** Milestone 6 checks the built site with Playwright. The test reads `export/v1/` itself and formats numbers with its own copy of the rules. It checks every number on the result page, all 960 rulebook rows in the static HTML, the time-travel panel of each symbol on its default day and on 5 seeded days, every hash on the manifest page, both disclaimers, and that pages request nothing beyond the static host. A separate check of the result page against `research/holdout.json` found 0 mismatches in 111 values.
+- **2026-10-13.** `web/` pins next 16.3.6, react 19.3.0, zod 4.6.5, lightweight-charts 5.2.1, and TypeScript 6.0.3. pnpm refuses any package published in the last 14 days. TypeScript 7 needs an opt-in from Next, so the site stays on 6. lightweight-charts shows the TradingView attribution that its license asks for.
