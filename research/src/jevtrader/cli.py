@@ -15,7 +15,20 @@ import polars as pl
 from dotenv import dotenv_values
 
 from jevtrader.data import DATA_DIR, REPO_ROOT, UNIVERSE, DataError, adjust_check, fetch_symbol
-from jevtrader.evaluate import BLOCK, REPS, SHRINK_K, block_bootstrap_auc, empirical_table
+from jevtrader.evaluate import (
+    BLOCK,
+    COST_BPS,
+    COSTS_BPS,
+    LEVEL,
+    REPS,
+    SHRINK_K,
+    Interval,
+    arm_reports,
+    block_bootstrap_auc,
+    empirical_table,
+    n_blocks,
+    open_returns,
+)
 from jevtrader.jev import (
     CALLS_PATH,
     POLICY_PATH,
@@ -31,7 +44,9 @@ from jevtrader.jev import (
 )
 from jevtrader.states import (
     ALL_STATES,
+    CASH,
     DIMENSIONS,
+    SPLIT_STARTS,
     STATE_VERSION,
     STUDY,
     VOTE_REVERT,
@@ -55,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("adjust-check", help="compare SPY adjusted and raw open/close ratios")
     commands.add_parser("states", help="classify each study session into data/states/")
     commands.add_parser("ceiling", help="state census and the validate AUC of empirical_table")
+    commands.add_parser("evaluate", help="fit on fit, report every arm on validate")
     jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
     jev.add_argument("--offline", action="store_true", help="build from the call log only")
     jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
@@ -66,6 +82,8 @@ def main(argv: list[str] | None = None) -> int:
         return ceiling()
     if args.command == "jev-table":
         return jev_table(args.offline, args.limit, args.workers)
+    if args.command == "evaluate":
+        return evaluate()
     return online(args)
 
 
@@ -250,6 +268,71 @@ def jev_table(offline: bool, limit: int | None, workers: int) -> int:
     status = "changed" if changed else "unchanged"
     print(f"{DATA_DIR / POLICY_PATH} {status} sha256 {sha}")
     return 0
+
+
+def evaluate() -> int:
+    dev = dev_rows()
+    if dev is None:
+        return 2
+    if not (DATA_DIR / POLICY_PATH).exists():
+        print("no policy table, run `jt jev-table --offline` first", file=sys.stderr)
+        return 2
+    policy = pl.read_parquet(DATA_DIR / POLICY_PATH)
+    market = {
+        s: pl.read_parquet(DATA_DIR / "market" / f"{s}.parquet", columns=["date", "open"])
+        for s in (*STUDY, CASH)
+    }
+    returns = open_returns(market, dict(SPLIT_STARTS)["holdout"])
+    fit, validate = (dev.filter(pl.col("split") == s) for s in ("fit", "validate"))
+    reports = arm_reports(validate, fit, policy, returns)
+
+    blocks = {}
+    for name, part in (("fit", fit), ("validate", validate)):
+        dates = part["date"]
+        labelled = part.filter(pl.col("up_20").is_not_null())["date"]
+        blocks[name] = n_blocks(labelled.to_numpy())
+        print(
+            f"{name:<9}{dates.min()}..{dates.max()}  {part.height} rows, {labelled.len()} labelled"
+            f" on {labelled.n_unique()} dates = {blocks[name]} blocks"
+        )
+    traded = validate.join(returns, on=["symbol", "date"])["date"]
+    print(f"traded validate dates {traded.n_unique()} = {n_blocks(traded.to_numpy())} blocks")
+    print(f"symbols {' '.join(STUDY)}, cash {CASH}")
+    print(
+        f"{LEVEL:.0%} CIs from {REPS} reps of {BLOCK}-session joint-date blocks, seed 0: auc and"
+        f" bss resample the {blocks['validate']} labelled validate blocks, sharpe_x the"
+        f" {n_blocks(traded.to_numpy())} traded ones. sharpe_x is net of {COST_BPS} bps per switch"
+    )
+
+    print()
+    print(
+        f"{'arm':<16}{'auc':<22}{'bss':<25}{'sharpe_x':<21}"
+        f"{'exposure':>8}{'turnover/yr':>13}{'max_dd':>8}"
+    )
+    for name, r in reports.items():
+        bss = "n/a" if r.brier_skill is None else interval(r.brier_skill, 3)
+        note = "  look-ahead check, not a strategy" if name == "oracle" else ""
+        print(
+            f"{name:<16}{interval(r.auc, 3):<22}{bss:<25}{interval(r.sharpe, 2):<21}"
+            f"{r.exposure:>8.1%}{r.turnover:>13.1f}{r.max_drawdown:>8.1%}{note}"
+        )
+
+    print()
+    print(f"{'excess Sharpe':<16}" + "".join(f"{f'{c} bps':>8}" for c in COSTS_BPS))
+    for name, r in reports.items():
+        print(f"{name:<16}" + "".join(f"{r.sharpe_by_cost[c]:>8.2f}" for c in COSTS_BPS))
+
+    print()
+    print("calibration on labelled validate rows: bin, n, mean score, observed up rate")
+    for name in ("jev", "empirical_table"):
+        print(name)
+        for lo, n, mean, up in reports[name].calibration or []:
+            print(f"  [{lo:.1f}, {lo + 0.1:.1f}){n:>7}{mean:>7.3f}{up:>7.3f}")
+    return 0
+
+
+def interval(i: Interval, digits: int) -> str:
+    return f"{i.point:.{digits}f} [{i.lo:.{digits}f}, {i.hi:.{digits}f}]"
 
 
 def ask_jev(key: str, todo: list[tuple[State, int]], workers: int) -> int:
