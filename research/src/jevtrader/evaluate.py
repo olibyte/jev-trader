@@ -1,15 +1,42 @@
-"""Arm scores and metrics: the shrunk empirical table, AUC, and the joint-date block bootstrap."""
+"""Arms, the backtest, metrics with joint-date block bootstrap CIs, and the pre-registration."""
 
 from __future__ import annotations
+
+from collections.abc import Callable, Mapping
+from datetime import date
+from pathlib import Path
+from statistics import NormalDist
+from typing import Literal, NamedTuple
 
 import numpy as np
 import polars as pl
 
-from jevtrader.states import state_table
+from jevtrader.data import REPO_ROOT, atomic_write, forward_return
+from jevtrader.jev import PROMPT_VERSION
+from jevtrader.states import (
+    ALL_STATES,
+    CASH,
+    HORIZON,
+    SPLIT_STARTS,
+    STATE_VERSION,
+    VOTE_REVERT,
+    VOTE_TREND,
+    state_key,
+    state_table,
+    vote,
+)
 
 SHRINK_K = 50
 BLOCK = 20
 REPS = 2000
+LEVEL = 0.95
+COST_BPS = 5
+COSTS_BPS = (0, 5, 10, 20)
+YEAR = 252
+ALPHA = 0.05
+POWER = 0.8
+CANDIDATE, BASELINE = "jev", "empirical_table"
+PREREG_PATH = REPO_ROOT / "research" / "prereg.toml"
 
 
 def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
@@ -31,6 +58,97 @@ def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
     )
 
 
+class Matched(NamedTuple):
+    """A cut fitted to the mean fit exposure of `arms`."""
+
+    arms: tuple[str, ...]
+
+
+class Arm(NamedTuple):
+    score: str
+    threshold: float | Matched
+    probability: bool
+    lookahead: bool = False
+
+
+ARMS: dict[str, Arm] = {
+    "jev": Arm("p_up", 0.5, True),
+    "jev_matched": Arm("p_up", Matched(("vote_trend", "vote_revert")), True),
+    "empirical_table": Arm("empirical_p", 0.5, True),
+    "vote_trend": Arm("vote_trend", -0.5, False),
+    "vote_revert": Arm("vote_revert", -0.5, False),
+    "sma_filter": Arm("sma50_above_sma200", 0.5, False),
+    "buy_hold": Arm("constant_1", 0.0, False),
+    "random_matched": Arm("uniform_seed0", Matched(("jev",)), False),
+    "oracle": Arm("fwd_ret_20", 0.0, False, lookahead=True),
+}
+
+
+def scored(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame) -> pl.DataFrame:
+    """rows plus every arm's score column. empirical_p is fitted on `fit`."""
+    per_state = pl.DataFrame(
+        {
+            "state_key": [state_key(s) for s in ALL_STATES],
+            "vote_trend": [float(vote(VOTE_TREND, s)) for s in ALL_STATES],
+            "vote_revert": [float(vote(VOTE_REVERT, s)) for s in ALL_STATES],
+            "sma50_above_sma200": [float(s.sma50_vs_sma200 == "ABOVE") for s in ALL_STATES],
+            "uniform_seed0": np.random.default_rng(0).random(len(ALL_STATES)),
+        }
+    )
+    for table in (
+        per_state,
+        policy.select("state_key", "p_up"),
+        empirical_table(fit).select("state_key", "empirical_p"),
+    ):
+        rows = rows.join(table, on="state_key", how="left", maintain_order="left")
+    return rows.with_columns(constant_1=pl.lit(1.0))
+
+
+def _long(score: str, cut: float) -> pl.Expr:
+    return (pl.col(score) > cut).fill_null(False)
+
+
+def matched_cut(score: np.ndarray, target: float) -> float:
+    """The cut whose exposure mean(score > cut) is closest to `target`, a tie to the lower cut.
+
+    The candidates are each distinct score and one below the minimum. A NaN score is flat.
+    """
+    values, counts = np.unique(score[~np.isnan(score)], return_counts=True)
+    cuts = np.concatenate([[values[0] - 1], values])
+    exposure = (counts.sum() - np.concatenate([[0], np.cumsum(counts)])) / len(score)
+    return float(cuts[np.argmin(np.abs(exposure - target))])
+
+
+def thresholds(fit: pl.DataFrame) -> dict[str, float]:
+    """Each arm's cut on scored fit rows."""
+    cuts = {n: a.threshold for n, a in ARMS.items() if not isinstance(a.threshold, Matched)}
+    for name, arm in ARMS.items():
+        if isinstance(arm.threshold, Matched):
+            exposures = [
+                fit.select(_long(ARMS[a].score, cuts[a]).mean()).item() for a in arm.threshold.arms
+            ]
+            cuts[name] = matched_cut(fit[arm.score].to_numpy(), float(np.mean(exposures)))
+    return cuts
+
+
+def decisions(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame) -> pl.DataFrame:
+    """Decision frame (symbol, date, arm, score, position) for every arm on `rows`.
+
+    empirical_table and the matched thresholds are fitted on `fit`. A null score is flat.
+    """
+    rows, cuts = scored(rows, fit, policy), thresholds(scored(fit, fit, policy))
+    return pl.concat(
+        rows.select(
+            "symbol",
+            "date",
+            pl.lit(name).alias("arm"),
+            pl.col(arm.score).alias("score"),
+            _long(arm.score, cuts[name]).cast(pl.Int8).alias("position"),
+        )
+        for name, arm in ARMS.items()
+    )
+
+
 def auc(score: np.ndarray, up: np.ndarray, weight: np.ndarray | None = None) -> float:
     """Mann-Whitney AUC with ties counted as 1/2. A weight of w counts a row w times."""
     weight = np.ones(len(score)) if weight is None else np.asarray(weight, dtype=float)
@@ -42,6 +160,57 @@ def auc(score: np.ndarray, up: np.ndarray, weight: np.ndarray | None = None) -> 
     return float((pos * (below + neg / 2)).sum() / (pos.sum() * neg.sum()))
 
 
+class Interval(NamedTuple):
+    point: float
+    lo: float
+    hi: float
+
+
+def n_blocks(dates: np.ndarray, block: int = BLOCK) -> int:
+    return -(-len(np.unique(dates)) // block)
+
+
+def block_bootstrap(
+    dates: np.ndarray,
+    statistic: Callable[[np.ndarray], float],
+    *,
+    block: int = BLOCK,
+    reps: int = REPS,
+    seed: int = 0,
+    draws: int | None = None,
+) -> np.ndarray:
+    """`reps` draws of statistic(weights), one weight per row.
+
+    The sorted distinct dates split into consecutive `block`-session blocks. Each rep draws
+    `draws` blocks (default: as many as there are), with replacement, and weights a row by its
+    block's draw count. Every symbol on a date shares the date's block, so the resample keeps
+    cross-symbol correlation.
+    """
+    _, day = np.unique(dates, return_inverse=True)
+    blocks = day // block
+    count = int(blocks.max()) + 1
+    rng = np.random.default_rng(seed)
+    out = np.empty(reps)
+    for i in range(reps):
+        drawn = rng.integers(count, size=count if draws is None else draws)
+        out[i] = statistic(np.bincount(drawn, minlength=count)[blocks])
+    return out
+
+
+def bootstrap_interval(
+    dates: np.ndarray,
+    statistic: Callable[[np.ndarray], float],
+    block: int = BLOCK,
+    reps: int = REPS,
+    seed: int = 0,
+    level: float = LEVEL,
+) -> Interval:
+    """statistic at unit weights and the percentile CI of its block bootstrap draws."""
+    draws = block_bootstrap(dates, statistic, block=block, reps=reps, seed=seed)
+    lo, hi = np.quantile(draws, [(1 - level) / 2, (1 + level) / 2])
+    return Interval(float(statistic(np.ones(len(dates)))), float(lo), float(hi))
+
+
 def block_bootstrap_auc(
     dates: np.ndarray,
     score: np.ndarray,
@@ -49,22 +218,259 @@ def block_bootstrap_auc(
     block: int = BLOCK,
     reps: int = REPS,
     seed: int = 0,
-    level: float = 0.95,
-) -> tuple[float, float, float]:
-    """Point AUC and percentile CI.
+    level: float = LEVEL,
+) -> Interval:
+    """Point AUC and its joint-date block bootstrap CI."""
+    return bootstrap_interval(dates, lambda w: auc(score, up, w), block, reps, seed, level)
 
-    The sorted distinct dates split into consecutive `block`-session blocks. Each rep draws as
-    many blocks as there are, with replacement, and weights a row by its block's draw count.
-    Every symbol on a date shares the date's block, so the resample keeps cross-symbol
-    correlation.
+
+def open_returns(market: Mapping[str, pl.DataFrame], end: date) -> pl.DataFrame:
+    """symbol, date, r, r_cash from bars dated before `end`: r = open[t+2] / open[t+1] - 1.
+
+    market maps each symbol, CASH included, to its bars. CASH gives r_cash, joined on date. A
+    row without both returns is dropped, so the last two sessions before `end` fall away.
     """
-    _, day = np.unique(dates, return_inverse=True)
-    blocks = day // block
-    n_blocks = int(blocks.max()) + 1
-    rng = np.random.default_rng(seed)
-    draws = []
-    for _ in range(reps):
-        counts = np.bincount(rng.integers(n_blocks, size=n_blocks), minlength=n_blocks)
-        draws.append(auc(score, up, counts[blocks]))
-    lo, hi = np.quantile(draws, [(1 - level) / 2, (1 + level) / 2])
-    return auc(score, up), float(lo), float(hi)
+
+    def r(bars: pl.DataFrame) -> pl.DataFrame:
+        return bars.filter(pl.col("date") < end).select("date", forward_return(1).alias("r"))
+
+    cash = r(market[CASH]).rename({"r": "r_cash"})
+    return (
+        pl.concat(
+            r(bars).select(pl.lit(s).alias("symbol"), "date", "r")
+            for s, bars in market.items()
+            if s != CASH
+        )
+        .join(cash, on="date", maintain_order="left")
+        .drop_nulls(["r", "r_cash"])
+    )
+
+
+def backtest(decisions: pl.DataFrame, returns: pl.DataFrame, cost_bps: float) -> pl.DataFrame:
+    """Sleeve rows: decisions joined to open_returns plus `switch` and the net sleeve return `ret`.
+
+    A position at t earns r over the open of t+1 to the open of t+2, and cash earns r_cash when
+    flat. Each (arm, symbol) sleeve starts flat, and a switch costs cost_bps of the sleeve.
+    """
+    pos = pl.col("position").cast(pl.Float64)
+    switch = pl.col("position") != pl.col("position").shift(1, fill_value=0).over("arm", "symbol")
+    growth = (1 - cost_bps / 1e4 * pl.col("switch")) * (
+        1 + pos * pl.col("r") + (1 - pos) * pl.col("r_cash")
+    )
+    return (
+        decisions.join(returns, on=["symbol", "date"])
+        .sort("arm", "symbol", "date")
+        .with_columns(switch.alias("switch"))
+        .with_columns((growth - 1).alias("ret"))
+    )
+
+
+def portfolio(sleeves: pl.DataFrame) -> pl.DataFrame:
+    """arm, date, ret, r_cash: the equal-weight mean of the sleeve returns on each date."""
+    return (
+        sleeves.group_by("arm", "date")
+        .agg(pl.col("ret").mean(), pl.col("r_cash").first())
+        .sort("arm", "date")
+    )
+
+
+def sharpe(excess: np.ndarray, weight: np.ndarray | None = None) -> float:
+    """Annualized mean / sd (ddof 1) of daily excess returns. A weight of w counts a day w times."""
+    weight = np.ones(len(excess)) if weight is None else np.asarray(weight, dtype=float)
+    n = weight.sum()
+    mean = (weight * excess).sum() / n
+    var = (weight * (excess - mean) ** 2).sum() / (n - 1)
+    return float(mean / np.sqrt(var) * np.sqrt(YEAR))
+
+
+def brier_skill(
+    p: np.ndarray, up: np.ndarray, base: float, weight: np.ndarray | None = None
+) -> float:
+    """1 - Brier(p) / Brier(base). A weight of w counts a row w times."""
+    weight = np.ones(len(p)) if weight is None else np.asarray(weight, dtype=float)
+    up = np.asarray(up, dtype=float)
+    return float(1 - (weight * (p - up) ** 2).sum() / (weight * (base - up) ** 2).sum())
+
+
+def calibration(
+    p: np.ndarray, up: np.ndarray, bins: int = 10
+) -> list[tuple[float, int, float, float]]:
+    """(bin low edge, n, mean p, up rate) for each nonempty fixed-width bin on [0, 1]."""
+    which = np.minimum((p * bins).astype(int), bins - 1)
+    out = []
+    for b in np.unique(which):
+        hit = which == b
+        out.append((b / bins, int(hit.sum()), float(p[hit].mean()), float(up[hit].mean())))
+    return out
+
+
+def max_drawdown(ret: np.ndarray) -> float:
+    """Largest fall of the equity curve from its running peak, the starting 1.0 included."""
+    equity = np.cumprod(1 + ret)
+    peak = np.maximum.accumulate(np.concatenate([[1.0], equity]))[1:]
+    return float((1 - equity / peak).max())
+
+
+class ArmReport(NamedTuple):
+    auc: Interval
+    brier_skill: Interval | None
+    excess_sharpe: Interval
+    excess_sharpe_by_cost: dict[int, float]
+    exposure: float
+    switches_per_year: float
+    max_drawdown: float
+    calibration: list[tuple[float, int, float, float]] | None
+
+
+def arm_reports(
+    rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame, returns: pl.DataFrame
+) -> dict[str, ArmReport]:
+    """Every arm fitted on `fit` and measured on `rows`. returns comes from open_returns."""
+    made = decisions(rows, fit, policy)
+    labelled = made.join(rows.select("symbol", "date", "up_20"), on=["symbol", "date"]).filter(
+        pl.col("up_20").is_not_null()
+    )
+    sleeves = {bps: backtest(made, returns, bps) for bps in COSTS_BPS}
+    base = float(fit["up_20"].drop_nulls().mean())
+    return {
+        name: _report(
+            arm,
+            labelled.filter(pl.col("arm") == name),
+            {bps: s.filter(pl.col("arm") == name) for bps, s in sleeves.items()},
+            base,
+        )
+        for name, arm in ARMS.items()
+    }
+
+
+def _report(
+    arm: Arm, labelled: pl.DataFrame, sleeves: dict[int, pl.DataFrame], base: float
+) -> ArmReport:
+    dates, score = labelled["date"].to_numpy(), labelled["score"].to_numpy()
+    up = labelled["up_20"].to_numpy()
+    days = {bps: portfolio(s) for bps, s in sleeves.items()}
+    excess = {bps: (d["ret"] - d["r_cash"]).to_numpy() for bps, d in days.items()}
+    sleeve, day = sleeves[COST_BPS], days[COST_BPS]
+    return ArmReport(
+        auc=bootstrap_interval(dates, lambda w: auc(score, up, w)),
+        brier_skill=bootstrap_interval(dates, lambda w: brier_skill(score, up, base, w))
+        if arm.probability
+        else None,
+        excess_sharpe=bootstrap_interval(
+            day["date"].to_numpy(), lambda w: sharpe(excess[COST_BPS], w)
+        ),
+        excess_sharpe_by_cost={bps: sharpe(x) for bps, x in excess.items()},
+        exposure=float(sleeve["position"].cast(pl.Float64).mean()),
+        switches_per_year=float(sleeve["switch"].sum() / (sleeve.height / YEAR)),
+        max_drawdown=max_drawdown(day["ret"].to_numpy()),
+        calibration=calibration(score, up) if arm.probability else None,
+    )
+
+
+class Power(NamedTuple):
+    se: float
+    mde: float
+    eval_blocks: int
+    holdout_blocks: int
+
+
+def holdout_blocks(dates: pl.Series) -> int:
+    """Blocks of labelled holdout dates. The last HORIZON + 1 dates have no exit open."""
+    return -(-(dates.n_unique() - (HORIZON + 1)) // BLOCK)
+
+
+def power(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame, draws: int) -> Power:
+    """SE and MDE of the primary metric on the labelled `rows`, fitted on `fit`.
+
+    Each bootstrap rep draws `draws` blocks, so the SE is the one expected on a sample of that
+    many blocks. MDE = (z(1 - ALPHA / 2) + z(POWER)) * SE.
+    """
+    labelled = scored(rows, fit, policy).filter(pl.col("up_20").is_not_null())
+    dates, up = labelled["date"].to_numpy(), labelled["up_20"].to_numpy()
+    first, second = (labelled[ARMS[a].score].to_numpy() for a in (CANDIDATE, BASELINE))
+    diffs = block_bootstrap(dates, lambda w: auc(first, up, w) - auc(second, up, w), draws=draws)
+    se = float(np.std(diffs, ddof=1))
+    z = NormalDist().inv_cdf
+    return Power(se, (z(1 - ALPHA / 2) + z(POWER)) * se, n_blocks(dates), draws)
+
+
+def _rule(arm: Arm) -> str:
+    if isinstance(arm.threshold, Matched):
+        return (
+            f"{arm.score} > the cut whose exposure on the fit rows is closest to the mean"
+            f" exposure of {', '.join(arm.threshold.arms)}"
+        )
+    return f"{arm.score} > {arm.threshold}"
+
+
+def render_prereg(
+    *,
+    model_served: str,
+    policy_sha256: str,
+    market_sha256: Mapping[str, str],
+    holdout_end: date,
+    power: Power,
+) -> str:
+    """prereg.toml text. The same inputs give the same bytes."""
+    market = "\n".join(f'{symbol} = "{sha}"' for symbol, sha in market_sha256.items())
+    arms = "\n".join(f'{name} = "{_rule(arm)}"' for name, arm in ARMS.items())
+    return f"""\
+[study]
+state_version = "{STATE_VERSION}"
+prompt_version = "{PROMPT_VERSION}"
+model_served = "{model_served}"
+policy_sha256 = "{policy_sha256}"
+
+[study.market_sha256]
+{market}
+
+[holdout]
+start = {dict(SPLIT_STARTS)["holdout"]}
+end = {holdout_end}
+fit_on = ["fit", "validate"]
+
+[primary]
+metric = "auc({CANDIDATE}) - auc({BASELINE})"
+level = {LEVEL}
+block = {BLOCK}
+reps = {REPS}
+seed = 0
+
+[primary.outcome]
+jev_better = "ci_low > 0"
+jev_worse = "ci_high < 0"
+inconclusive = "otherwise"
+
+[power]
+alpha = {ALPHA}
+power = {POWER}
+dev_se = {power.se!r}
+mde = {power.mde!r}
+validate_blocks = {power.eval_blocks}
+holdout_blocks = {power.holdout_blocks}
+
+[arms]
+{arms}
+
+[settings]
+shrink_k = {SHRINK_K}
+cost_bps = {COST_BPS}
+costs_bps = {list(COSTS_BPS)}
+"""
+
+
+PreregStatus = Literal["missing", "matches", "differs"]
+
+
+def prereg_status(path: Path, text: str) -> PreregStatus:
+    if not path.exists():
+        return "missing"
+    return "matches" if path.read_bytes() == text.encode() else "differs"
+
+
+def write_prereg(path: Path, text: str) -> PreregStatus:
+    """Write `text` only when `path` is missing, never over another file. Returns the status."""
+    status = prereg_status(path, text)
+    if status == "missing":
+        atomic_write(path, text.encode())
+    return status
