@@ -1,5 +1,6 @@
 import math
 import random
+import tomllib
 from datetime import date, timedelta
 
 import numpy as np
@@ -9,6 +10,7 @@ from test_states import random_walk
 
 from jevtrader.evaluate import (
     ARMS,
+    Power,
     arm_reports,
     auc,
     backtest,
@@ -17,8 +19,12 @@ from jevtrader.evaluate import (
     calibration,
     decisions,
     empirical_table,
+    holdout_blocks,
     matched_cut,
     open_returns,
+    power,
+    render_prereg,
+    write_prereg,
 )
 from jevtrader.states import ALL_STATES, CASH, SPLIT_STARTS, state_key, state_rows
 
@@ -210,3 +216,84 @@ def test_the_oracle_beats_every_other_arm(synthetic):
     assert oracle.auc == (1.0, 1.0, 1.0)
     for name, report in reports.items():
         assert oracle.sharpe.point > report.sharpe.point, name
+
+
+def test_holdout_blocks_leave_out_the_unlabelled_tail():
+    dates = pl.Series([date(2019, 1, 1) + timedelta(days=i // 2) for i in range(2 * 62)])
+
+    assert holdout_blocks(dates) == 3, "62 dates, 21 without an exit open, 41 in blocks of 20"
+
+
+def test_mde_scales_with_the_holdout_block_count(synthetic):
+    rows, fit, policy, _ = synthetic
+
+    small, large = power(rows, fit, policy, 20), power(rows, fit, policy, 80)
+
+    assert small.mde == pytest.approx(2.8015852 * small.se), "z(0.975) + z(0.8)"
+    assert small.se / large.se == pytest.approx(2, rel=0.1), "4x the blocks halves the SE"
+    assert (small.eval_blocks, small.holdout_blocks) == (22, 20), "429 labelled dates"
+
+
+PREREG = {
+    "model_served": "typesafe/jev-1.13",
+    "policy_sha256": "ab" * 32,
+    "market_sha256": {"SPY": "cd" * 32, "BIL": "ef" * 32},
+    "holdout_end": date(2026, 10, 9),
+    "power": Power(se=0.0125, mde=0.035, eval_blocks=50, holdout_blocks=97),
+}
+
+
+def test_prereg_round_trips_through_toml():
+    prereg = tomllib.loads(render_prereg(**PREREG))
+
+    assert prereg["study"] == {
+        "state_version": "states/v1",
+        "prompt_version": "descriptive/v1",
+        "model_served": "typesafe/jev-1.13",
+        "policy_sha256": "ab" * 32,
+        "market_sha256": {"SPY": "cd" * 32, "BIL": "ef" * 32},
+    }
+    assert prereg["holdout"] == {
+        "start": date(2019, 1, 1),
+        "end": date(2026, 10, 9),
+        "fit_on": ["fit", "validate"],
+    }
+    assert prereg["primary"] == {
+        "metric": "auc(jev) - auc(empirical_table)",
+        "level": 0.95,
+        "block": 20,
+        "reps": 2000,
+        "seed": 0,
+        "outcome": {
+            "jev_better": "ci_low > 0",
+            "jev_worse": "ci_high < 0",
+            "inconclusive": "otherwise",
+        },
+    }
+    assert prereg["power"] == {
+        "alpha": 0.05,
+        "power": 0.8,
+        "dev_se": 0.0125,
+        "mde": 0.035,
+        "validate_blocks": 50,
+        "holdout_blocks": 97,
+    }
+    assert list(prereg["arms"]) == list(ARMS)
+    assert prereg["arms"]["jev"] == "p_up > 0.5"
+    assert prereg["arms"]["vote_trend"] == "vote_trend > -0.5"
+    assert prereg["arms"]["random_matched"] == (
+        "uniform_seed0 > the cut whose exposure on the fit rows is closest to the mean exposure"
+        " of jev"
+    )
+    assert prereg["settings"] == {"shrink_k": 50, "cost_bps": 5, "costs_bps": [0, 5, 10, 20]}
+
+
+def test_write_prereg_never_replaces_a_different_file(tmp_path):
+    path, text = tmp_path / "prereg.toml", render_prereg(**PREREG)
+    other = render_prereg(**{**PREREG, "holdout_end": date(2026, 10, 12)})
+
+    assert write_prereg(path, text) == "missing"
+    assert path.read_text() == text
+    assert write_prereg(path, text) == "matches"
+    assert write_prereg(path, other) == "differs"
+    assert path.read_text() == text

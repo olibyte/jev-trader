@@ -1,0 +1,64 @@
+# Pre-registration for the holdout run, written by `jt evaluate --prereg` from dev data only.
+
+[study]
+state_version = "states/v1"
+prompt_version = "descriptive/v1"
+model_served = "typesafe/jev-1.13-20260917"
+policy_sha256 = "403ba40834eb9cc6bf3ba94295c249c1930b640239254b753d168abb5471e525"
+
+[study.market_sha256]
+SPY = "e644fcefca36922d9b6f580e81c9acd40bec9e77309a1d1bd572924961f7a936"
+QQQ = "0336fb08c4ef1b1a2c46bc59101a56b8ed705a6c7f664f2a187f86af5e870257"
+IWM = "88cbb1874fd86be36b14e2e672f5abc997cfbef433fe35f3c990604e4679d8f9"
+DIA = "537bcf37fafced8c8de5ec242e49af6b0b6702ac4f6279f348dd0be85025209f"
+XLB = "c3531f549b5172a891612543097f67ab015b772d25a0649fd9de340d2541876f"
+XLE = "3227017cd4e7dfb3edad6c145bc12869f2d161a19961d59fc7050f64af1b5845"
+XLF = "1d8d565499df211635b25a775d637ca2ea19454dbb555a366bab98125849023a"
+XLI = "0705521eb379b95fff461ce01495b5a6f34b461a7572155f000beb910bff9fb5"
+XLK = "1fc04e32a09f2ec4340e3965f1ece74cde219b8244d764e6991a24db738f0ca9"
+XLP = "a74a806c41db729ac13e1652c215a5edecd948b65135a47d1d96ef35dc32439a"
+XLU = "e85c13017ee85fb1ce311461a992b602777284934697731eb39000f508a989ea"
+XLV = "09c06009beeaaf1cd2b50c5a9c74ea9d0f796c7bfd6455cb8b0181476204c6c5"
+XLY = "825af87d5fe5e9de72c6f1e937217c7310ed4814c94371b1238be4f835ef2ba6"
+BIL = "23b614e53ff4561e2457d28bb152ae5dc44fd5f27d5decc86cc6dc1dc95c830c"
+
+[holdout]
+start = 2019-01-01
+end = 2026-10-09
+fit_on = ["fit", "validate"]
+
+[primary]
+metric = "auc(jev) - auc(empirical_table)"
+level = 0.95
+block = 20
+reps = 2000
+seed = 0
+
+[primary.outcome]
+jev_better = "ci_low > 0"
+jev_worse = "ci_high < 0"
+inconclusive = "otherwise"
+
+[power]
+alpha = 0.05
+power = 0.8
+dev_se = 0.011553560401085794
+mde = 0.03236828403625729
+validate_blocks = 50
+holdout_blocks = 97
+
+[arms]
+jev = "p_up > 0.5"
+jev_matched = "p_up > the cut whose exposure on the fit rows is closest to the mean exposure of vote_trend, vote_revert"
+empirical_table = "empirical_p > 0.5"
+vote_trend = "vote_trend > -0.5"
+vote_revert = "vote_revert > -0.5"
+sma_filter = "sma50_above_sma200 > 0.5"
+buy_hold = "constant_1 > 0.0"
+random_matched = "uniform_seed0 > the cut whose exposure on the fit rows is closest to the mean exposure of jev"
+oracle = "fwd_ret_20 > 0.0"
+
+[settings]
+shrink_k = 50
+cost_bps = 5
+costs_bps = [0, 5, 10, 20]

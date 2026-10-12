@@ -1,16 +1,30 @@
-"""Arm scores and metrics: the shrunk empirical table, AUC, and the joint-date block bootstrap."""
+"""Arms, the backtest, metrics with joint-date block bootstrap CIs, and the pre-registration."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from datetime import date
-from typing import NamedTuple
+from pathlib import Path
+from statistics import NormalDist
+from typing import Literal, NamedTuple
 
 import numpy as np
 import polars as pl
 
-from jevtrader.data import forward_return
-from jevtrader.states import ALL_STATES, CASH, VOTE_REVERT, VOTE_TREND, state_key, state_table, vote
+from jevtrader.data import REPO_ROOT, atomic_write, forward_return
+from jevtrader.jev import PROMPT_VERSION
+from jevtrader.states import (
+    ALL_STATES,
+    CASH,
+    HORIZON,
+    SPLIT_STARTS,
+    STATE_VERSION,
+    VOTE_REVERT,
+    VOTE_TREND,
+    state_key,
+    state_table,
+    vote,
+)
 
 SHRINK_K = 50
 BLOCK = 20
@@ -19,6 +33,10 @@ LEVEL = 0.95
 COST_BPS = 5
 COSTS_BPS = (0, 5, 10, 20)
 YEAR = 252
+ALPHA = 0.05
+POWER = 0.8
+PRIMARY = ("jev", "empirical_table")  # the metric is AUC of the first minus AUC of the second
+PREREG_PATH = REPO_ROOT / "research" / "prereg.toml"
 
 
 def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
@@ -42,9 +60,8 @@ def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
 
 class Arm(NamedTuple):
     score: str
-    threshold: (
-        float | tuple[str, ...]
-    )  # a fixed cut, or the arms whose mean fit exposure it matches
+    # A fixed cut, or the arms whose mean fit exposure the cut matches.
+    threshold: float | tuple[str, ...]
     probability: bool
 
 
@@ -341,3 +358,114 @@ def _report(
         max_drawdown=max_drawdown(day["ret"].to_numpy()),
         calibration=calibration(score, up) if arm.probability else None,
     )
+
+
+class Power(NamedTuple):
+    se: float
+    mde: float
+    eval_blocks: int
+    holdout_blocks: int
+
+
+def holdout_blocks(dates: pl.Series) -> int:
+    """Blocks of labelled holdout dates. The last HORIZON + 1 dates have no exit open."""
+    return -(-(dates.n_unique() - (HORIZON + 1)) // BLOCK)
+
+
+def power(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame, draws: int) -> Power:
+    """SE and MDE of the primary metric on the labelled `rows`, fitted on `fit`.
+
+    Each bootstrap rep draws `draws` blocks, so the SE is the one expected on a sample of that
+    many blocks. MDE = (z(1 - ALPHA / 2) + z(POWER)) * SE.
+    """
+    labelled = scored(rows, fit, policy).filter(pl.col("up_20").is_not_null())
+    dates, up = labelled["date"].to_numpy(), labelled["up_20"].to_numpy()
+    first, second = (labelled[ARMS[a].score].to_numpy() for a in PRIMARY)
+    diffs = block_bootstrap(dates, lambda w: auc(first, up, w) - auc(second, up, w), draws=draws)
+    se = float(np.std(diffs, ddof=1))
+    z = NormalDist().inv_cdf
+    return Power(se, (z(1 - ALPHA / 2) + z(POWER)) * se, n_blocks(dates), draws)
+
+
+def _rule(arm: Arm) -> str:
+    if isinstance(arm.threshold, tuple):
+        return (
+            f"{arm.score} > the cut whose exposure on the fit rows is closest to the mean"
+            f" exposure of {', '.join(arm.threshold)}"
+        )
+    return f"{arm.score} > {arm.threshold}"
+
+
+def render_prereg(
+    *,
+    model_served: str,
+    policy_sha256: str,
+    market_sha256: Mapping[str, str],
+    holdout_end: date,
+    power: Power,
+) -> str:
+    """prereg.toml text. The same inputs give the same bytes."""
+    market = "\n".join(f'{symbol} = "{sha}"' for symbol, sha in market_sha256.items())
+    arms = "\n".join(f'{name} = "{_rule(arm)}"' for name, arm in ARMS.items())
+    return f"""\
+# Pre-registration for the holdout run, written by `jt evaluate --prereg` from dev data only.
+
+[study]
+state_version = "{STATE_VERSION}"
+prompt_version = "{PROMPT_VERSION}"
+model_served = "{model_served}"
+policy_sha256 = "{policy_sha256}"
+
+[study.market_sha256]
+{market}
+
+[holdout]
+start = {dict(SPLIT_STARTS)["holdout"]}
+end = {holdout_end}
+fit_on = ["fit", "validate"]
+
+[primary]
+metric = "auc({PRIMARY[0]}) - auc({PRIMARY[1]})"
+level = {LEVEL}
+block = {BLOCK}
+reps = {REPS}
+seed = 0
+
+[primary.outcome]
+jev_better = "ci_low > 0"
+jev_worse = "ci_high < 0"
+inconclusive = "otherwise"
+
+[power]
+alpha = {ALPHA}
+power = {POWER}
+dev_se = {power.se!r}
+mde = {power.mde!r}
+validate_blocks = {power.eval_blocks}
+holdout_blocks = {power.holdout_blocks}
+
+[arms]
+{arms}
+
+[settings]
+shrink_k = {SHRINK_K}
+cost_bps = {COST_BPS}
+costs_bps = {list(COSTS_BPS)}
+"""
+
+
+PreregStatus = Literal["missing", "matches", "differs"]
+
+
+def prereg_status(path: Path, text: str) -> PreregStatus:
+    if not path.exists():
+        return "missing"
+    return "matches" if path.read_bytes() == text.encode() else "differs"
+
+
+def write_prereg(path: Path, text: str) -> PreregStatus:
+    """Write `text` only when `path` is missing, never over another file. Returns the status."""
+    status = prereg_status(path, text)
+    if status == "missing":
+        atomic_write(path, text.encode())
+    return status

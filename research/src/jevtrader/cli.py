@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,14 +22,21 @@ from jevtrader.evaluate import (
     COST_BPS,
     COSTS_BPS,
     LEVEL,
+    PREREG_PATH,
+    PRIMARY,
     REPS,
     SHRINK_K,
     Interval,
     arm_reports,
     block_bootstrap_auc,
     empirical_table,
+    holdout_blocks,
     n_blocks,
     open_returns,
+    power,
+    prereg_status,
+    render_prereg,
+    write_prereg,
 )
 from jevtrader.jev import (
     CALLS_PATH,
@@ -70,7 +79,8 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("adjust-check", help="compare SPY adjusted and raw open/close ratios")
     commands.add_parser("states", help="classify each study session into data/states/")
     commands.add_parser("ceiling", help="state census and the validate AUC of empirical_table")
-    commands.add_parser("evaluate", help="fit on fit, report every arm on validate")
+    report = commands.add_parser("evaluate", help="fit on fit, report every arm on validate")
+    report.add_argument("--prereg", action="store_true", help="write research/prereg.toml")
     jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
     jev.add_argument("--offline", action="store_true", help="build from the call log only")
     jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
@@ -83,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "jev-table":
         return jev_table(args.offline, args.limit, args.workers)
     if args.command == "evaluate":
-        return evaluate()
+        return evaluate(args.prereg)
     return online(args)
 
 
@@ -270,7 +280,7 @@ def jev_table(offline: bool, limit: int | None, workers: int) -> int:
     return 0
 
 
-def evaluate() -> int:
+def evaluate(prereg: bool) -> int:
     dev = dev_rows()
     if dev is None:
         return 2
@@ -328,6 +338,44 @@ def evaluate() -> int:
         print(name)
         for lo, n, mean, up in reports[name].calibration or []:
             print(f"  [{lo:.1f}, {lo + 0.1:.1f}){n:>7}{mean:>7.3f}{up:>7.3f}")
+
+    holdout_dates = (
+        pl.scan_parquet(state_paths())
+        .filter(pl.col("split") == "holdout")
+        .select("date")
+        .collect()["date"]
+    )
+    dev_power = power(validate, fit, policy, holdout_blocks(holdout_dates))
+    print()
+    print(
+        f"primary auc({PRIMARY[0]}) - auc({PRIMARY[1]}): dev SE {dev_power.se:.4f}"
+        f" at {dev_power.holdout_blocks} blocks, MDE {dev_power.mde:.4f}"
+        f"; validate {dev_power.eval_blocks} blocks, holdout {dev_power.holdout_blocks} blocks"
+    )
+
+    mine = [c for c in read_calls(CALLS_PATH) if c["prompt_version"] == PROMPT_VERSION]
+    served = sorted({c["model_served"] for c in mine})
+    if len(served) != 1:
+        print(f"error: {PROMPT_VERSION} calls were served by {served}", file=sys.stderr)
+        return 1
+    text = render_prereg(
+        model_served=served[0],
+        policy_sha256=hashlib.sha256((DATA_DIR / POLICY_PATH).read_bytes()).hexdigest(),
+        market_sha256={
+            s: json.loads((DATA_DIR / "market" / f"{s}.manifest.json").read_text())["sha256"]
+            for s in market
+        },
+        holdout_end=holdout_dates.max(),
+        power=dev_power,
+    )
+    if not prereg:
+        print(f"{PREREG_PATH} {prereg_status(PREREG_PATH, text)}")
+        return 0
+    status = write_prereg(PREREG_PATH, text)
+    if status == "differs":
+        print(f"{PREREG_PATH} differs from this run, refusing to overwrite it", file=sys.stderr)
+        return 1
+    print(f"{PREREG_PATH} {'written' if status == 'missing' else 'unchanged'}")
     return 0
 
 
