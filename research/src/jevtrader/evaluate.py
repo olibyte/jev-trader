@@ -8,7 +8,7 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
-from jevtrader.states import state_table
+from jevtrader.states import ALL_STATES, VOTE_REVERT, VOTE_TREND, state_key, state_table, vote
 
 SHRINK_K = 50
 BLOCK = 20
@@ -32,6 +32,93 @@ def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
         .select("state_key")
         .join(counts, on="state_key", how="left", maintain_order="left")
         .select("state_key", ((ups + k * base) / (n + k)).alias("empirical_p"), n.alias("n_dev"))
+    )
+
+
+class Arm(NamedTuple):
+    score: str
+    threshold: (
+        float | tuple[str, ...]
+    )  # a fixed cut, or the arms whose mean fit exposure it matches
+    probability: bool
+
+
+ARMS: dict[str, Arm] = {
+    "jev": Arm("p_up", 0.5, True),
+    "jev_matched": Arm("p_up", ("vote_trend", "vote_revert"), True),
+    "empirical_table": Arm("empirical_p", 0.5, True),
+    "vote_trend": Arm("vote_trend", -0.5, False),
+    "vote_revert": Arm("vote_revert", -0.5, False),
+    "sma_filter": Arm("sma50_above_sma200", 0.5, False),
+    "buy_hold": Arm("constant_1", 0.0, False),
+    "random_matched": Arm("uniform_seed0", ("jev",), False),
+    "oracle": Arm("fwd_ret_20", 0.0, False),  # look-ahead check, not a strategy
+}
+
+
+def scored(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame) -> pl.DataFrame:
+    """rows plus every arm's score column. empirical_p is fitted on `fit`."""
+    per_state = pl.DataFrame(
+        {
+            "state_key": [state_key(s) for s in ALL_STATES],
+            "vote_trend": [float(vote(VOTE_TREND, s)) for s in ALL_STATES],
+            "vote_revert": [float(vote(VOTE_REVERT, s)) for s in ALL_STATES],
+            "sma50_above_sma200": [float(s.sma50_vs_sma200 == "ABOVE") for s in ALL_STATES],
+            "uniform_seed0": np.random.default_rng(0).random(len(ALL_STATES)),
+        }
+    )
+    for table in (
+        per_state,
+        policy.select("state_key", "p_up"),
+        empirical_table(fit).select("state_key", "empirical_p"),
+    ):
+        rows = rows.join(table, on="state_key", how="left", maintain_order="left")
+    return rows.with_columns(constant_1=pl.lit(1.0))
+
+
+def _long(score: str, cut: float) -> pl.Expr:
+    return (pl.col(score) > cut).fill_null(False)
+
+
+def matched_cut(score: np.ndarray, target: float) -> float:
+    """The cut whose exposure mean(score > cut) is closest to `target`, a tie to the lower cut.
+
+    The candidates are each distinct score and one below the minimum. A NaN score is flat.
+    """
+    values, counts = np.unique(score[~np.isnan(score)], return_counts=True)
+    cuts = np.concatenate([[values[0] - 1], values])
+    exposure = (counts.sum() - np.concatenate([[0], np.cumsum(counts)])) / len(score)
+    return float(cuts[np.argmin(np.abs(exposure - target))])
+
+
+def thresholds(fit: pl.DataFrame) -> dict[str, float]:
+    """Each arm's cut on scored fit rows. Fixed cuts resolve first, matched cuts after."""
+    cuts = {n: a.threshold for n, a in ARMS.items() if not isinstance(a.threshold, tuple)}
+    for name, arm in ARMS.items():
+        if isinstance(arm.threshold, tuple):
+            exposures = [
+                fit.select(_long(ARMS[a].score, cuts[a]).mean()).item() for a in arm.threshold
+            ]
+            cuts[name] = matched_cut(fit[arm.score].to_numpy(), float(np.mean(exposures)))
+    return cuts
+
+
+def decisions(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame) -> pl.DataFrame:
+    """Decision frame (symbol, date, arm, score, position) for every arm on `rows`.
+
+    empirical_table and the matched thresholds are fitted on `fit`. A null score is flat.
+    Never stored.
+    """
+    rows, cuts = scored(rows, fit, policy), thresholds(scored(fit, fit, policy))
+    return pl.concat(
+        rows.select(
+            "symbol",
+            "date",
+            pl.lit(name).alias("arm"),
+            pl.col(arm.score).alias("score"),
+            _long(arm.score, cuts[name]).cast(pl.Int8).alias("position"),
+        )
+        for name, arm in ARMS.items()
     )
 
 

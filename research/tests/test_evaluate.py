@@ -5,7 +5,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from jevtrader.evaluate import auc, block_bootstrap_auc, empirical_table
+from jevtrader.evaluate import auc, block_bootstrap_auc, empirical_table, matched_cut
 from jevtrader.states import ALL_STATES, state_key
 
 A, B, C = (state_key(s) for s in ALL_STATES[:3])
@@ -78,3 +78,11 @@ def test_block_bootstrap_with_one_block_has_no_spread():
     )
 
     assert result == (0.75, 0.75, 0.75), "both dates fall in one block, drawn once every rep"
+
+
+def test_matched_cut_picks_the_exposure_closest_to_the_target():
+    score = np.array([0.1, 0.2, 0.2, 0.3, 0.4, np.nan])
+
+    assert matched_cut(score, 0.7) == 0.1, "exposures 5/6, 4/6, 2/6, 1/6, 0: 4/6 is closest"
+    assert matched_cut(score, 0.9) == pytest.approx(-0.9), "below the minimum, long on every score"
+    assert matched_cut(score, 0.0) == 0.4
