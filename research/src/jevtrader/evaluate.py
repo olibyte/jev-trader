@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import NamedTuple
+
 import numpy as np
 import polars as pl
 
@@ -10,6 +13,7 @@ from jevtrader.states import state_table
 SHRINK_K = 50
 BLOCK = 20
 REPS = 2000
+LEVEL = 0.95
 
 
 def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
@@ -42,6 +46,57 @@ def auc(score: np.ndarray, up: np.ndarray, weight: np.ndarray | None = None) -> 
     return float((pos * (below + neg / 2)).sum() / (pos.sum() * neg.sum()))
 
 
+class Interval(NamedTuple):
+    point: float
+    lo: float
+    hi: float
+
+
+def n_blocks(dates: np.ndarray, block: int = BLOCK) -> int:
+    return -(-len(np.unique(dates)) // block)
+
+
+def block_bootstrap(
+    dates: np.ndarray,
+    statistic: Callable[[np.ndarray], float],
+    *,
+    block: int = BLOCK,
+    reps: int = REPS,
+    seed: int = 0,
+    draws: int | None = None,
+) -> np.ndarray:
+    """`reps` draws of statistic(weights), one weight per row.
+
+    The sorted distinct dates split into consecutive `block`-session blocks. Each rep draws
+    `draws` blocks (default: as many as there are), with replacement, and weights a row by its
+    block's draw count. Every symbol on a date shares the date's block, so the resample keeps
+    cross-symbol correlation.
+    """
+    _, day = np.unique(dates, return_inverse=True)
+    blocks = day // block
+    count = int(blocks.max()) + 1
+    rng = np.random.default_rng(seed)
+    out = np.empty(reps)
+    for i in range(reps):
+        drawn = rng.integers(count, size=count if draws is None else draws)
+        out[i] = statistic(np.bincount(drawn, minlength=count)[blocks])
+    return out
+
+
+def bootstrap_interval(
+    dates: np.ndarray,
+    statistic: Callable[[np.ndarray], float],
+    block: int = BLOCK,
+    reps: int = REPS,
+    seed: int = 0,
+    level: float = LEVEL,
+) -> Interval:
+    """statistic at unit weights and the percentile CI of its block bootstrap draws."""
+    draws = block_bootstrap(dates, statistic, block=block, reps=reps, seed=seed)
+    lo, hi = np.quantile(draws, [(1 - level) / 2, (1 + level) / 2])
+    return Interval(float(statistic(np.ones(len(dates)))), float(lo), float(hi))
+
+
 def block_bootstrap_auc(
     dates: np.ndarray,
     score: np.ndarray,
@@ -49,22 +104,7 @@ def block_bootstrap_auc(
     block: int = BLOCK,
     reps: int = REPS,
     seed: int = 0,
-    level: float = 0.95,
-) -> tuple[float, float, float]:
-    """Point AUC and percentile CI.
-
-    The sorted distinct dates split into consecutive `block`-session blocks. Each rep draws as
-    many blocks as there are, with replacement, and weights a row by its block's draw count.
-    Every symbol on a date shares the date's block, so the resample keeps cross-symbol
-    correlation.
-    """
-    _, day = np.unique(dates, return_inverse=True)
-    blocks = day // block
-    n_blocks = int(blocks.max()) + 1
-    rng = np.random.default_rng(seed)
-    draws = []
-    for _ in range(reps):
-        counts = np.bincount(rng.integers(n_blocks, size=n_blocks), minlength=n_blocks)
-        draws.append(auc(score, up, counts[blocks]))
-    lo, hi = np.quantile(draws, [(1 - level) / 2, (1 + level) / 2])
-    return auc(score, up), float(lo), float(hi)
+    level: float = LEVEL,
+) -> Interval:
+    """Point AUC and its joint-date block bootstrap CI."""
+    return bootstrap_interval(dates, lambda w: auc(score, up, w), block, reps, seed, level)
