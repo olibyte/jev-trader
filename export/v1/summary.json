@@ -1,0 +1,503 @@
+{
+  "run": "holdout",
+  "period": {
+    "label": "holdout",
+    "first": "2019-01-02",
+    "last": "2026-10-09"
+  },
+  "rows": 25402,
+  "labelled": 25129,
+  "blocks": 97,
+  "sharpeBlocks": 98,
+  "primary": {
+    "metric": "auc(jev) - auc(empirical_table)",
+    "candidate": "jev",
+    "baseline": "empirical_table",
+    "point": -0.012307485610083435,
+    "lo": -0.04461868002035829,
+    "hi": 0.023561447483432064
+  },
+  "outcome": "inconclusive",
+  "outcomeRule": {
+    "jev_better": "ci_low > 0",
+    "jev_worse": "ci_high < 0",
+    "inconclusive": "otherwise"
+  },
+  "power": {
+    "alpha": 0.05,
+    "power": 0.8,
+    "devSe": 0.011553560401085794,
+    "mde": 0.03236828403625729,
+    "validateBlocks": 50,
+    "holdoutBlocks": 97
+  },
+  "bootstrap": {
+    "level": 0.95,
+    "block": 20,
+    "reps": 2000,
+    "seed": 0
+  },
+  "costBps": 5,
+  "costsBps": [
+    0,
+    5,
+    10,
+    20
+  ],
+  "fitOn": [
+    "fit",
+    "validate"
+  ],
+  "arms": [
+    {
+      "name": "jev",
+      "rule": "p_up > 0.5",
+      "probability": true,
+      "lookahead": false,
+      "auc": {
+        "point": 0.5003366220435552,
+        "lo": 0.466678486180287,
+        "hi": 0.5344298851175658
+      },
+      "brierSkill": {
+        "point": -0.07796633099944583,
+        "lo": -0.14310134274011316,
+        "hi": -0.021218666333236397
+      },
+      "excessSharpe": {
+        "point": 0.26599741373119534,
+        "lo": -0.4153803418148798,
+        "hi": 1.0505018636261305
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5520919471369075
+        },
+        {
+          "costBps": 5,
+          "value": 0.26599741373119534
+        },
+        {
+          "costBps": 10,
+          "value": -0.019683340465169293
+        },
+        {
+          "costBps": 20,
+          "value": -0.5891637264759111
+        }
+      ],
+      "exposure": 0.5674259142496847,
+      "switchesPerYear": 57.15085119798235,
+      "maxDrawdown": 0.2784358880869845,
+      "calibration": [
+        {
+          "binLow": 0.3,
+          "binHigh": 0.4,
+          "rows": 2162,
+          "meanScore": 0.3731049953746531,
+          "upRate": 0.6276595744680851
+        },
+        {
+          "binLow": 0.4,
+          "binHigh": 0.5,
+          "rows": 8713,
+          "meanScore": 0.45556834614943187,
+          "upRate": 0.6281418569952943
+        },
+        {
+          "binLow": 0.5,
+          "binHigh": 0.6,
+          "rows": 9744,
+          "meanScore": 0.5541540435139573,
+          "upRate": 0.6240763546798029
+        },
+        {
+          "binLow": 0.6,
+          "binHigh": 0.7,
+          "rows": 4510,
+          "meanScore": 0.639189578713969,
+          "upRate": 0.633259423503326
+        }
+      ]
+    },
+    {
+      "name": "jev_matched",
+      "rule": "p_up > the cut whose exposure on the fit rows is closest to the mean exposure of vote_trend, vote_revert",
+      "probability": true,
+      "lookahead": false,
+      "auc": {
+        "point": 0.5003366220435552,
+        "lo": 0.466678486180287,
+        "hi": 0.5344298851175658
+      },
+      "brierSkill": {
+        "point": -0.07796633099944583,
+        "lo": -0.14310134274011316,
+        "hi": -0.021218666333236397
+      },
+      "excessSharpe": {
+        "point": 0.42740096707196473,
+        "lo": -0.28837154382720503,
+        "hi": 1.2024651654493073
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.644031698394498
+        },
+        {
+          "costBps": 5,
+          "value": 0.42740096707196473
+        },
+        {
+          "costBps": 10,
+          "value": 0.21109540894682083
+        },
+        {
+          "costBps": 20,
+          "value": -0.22019054184722045
+        }
+      ],
+      "exposure": 0.7291929382093316,
+      "switchesPerYear": 52.086223203026485,
+      "maxDrawdown": 0.2926955805959329,
+      "calibration": [
+        {
+          "binLow": 0.3,
+          "binHigh": 0.4,
+          "rows": 2162,
+          "meanScore": 0.3731049953746531,
+          "upRate": 0.6276595744680851
+        },
+        {
+          "binLow": 0.4,
+          "binHigh": 0.5,
+          "rows": 8713,
+          "meanScore": 0.45556834614943187,
+          "upRate": 0.6281418569952943
+        },
+        {
+          "binLow": 0.5,
+          "binHigh": 0.6,
+          "rows": 9744,
+          "meanScore": 0.5541540435139573,
+          "upRate": 0.6240763546798029
+        },
+        {
+          "binLow": 0.6,
+          "binHigh": 0.7,
+          "rows": 4510,
+          "meanScore": 0.639189578713969,
+          "upRate": 0.633259423503326
+        }
+      ]
+    },
+    {
+      "name": "empirical_table",
+      "rule": "empirical_p > 0.5",
+      "probability": true,
+      "lookahead": false,
+      "auc": {
+        "point": 0.5126441076536387,
+        "lo": 0.48011710184750794,
+        "hi": 0.5479596024536164
+      },
+      "brierSkill": {
+        "point": -0.007110415135697101,
+        "lo": -0.020993870891184166,
+        "hi": 0.008123780611389577
+      },
+      "excessSharpe": {
+        "point": 0.8125240816238465,
+        "lo": 0.09655229425147935,
+        "hi": 1.5321219791918794
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.8238657702500045
+        },
+        {
+          "costBps": 5,
+          "value": 0.8125240816238465
+        },
+        {
+          "costBps": 10,
+          "value": 0.8011800220043895
+        },
+        {
+          "costBps": 20,
+          "value": 0.778485595255585
+        }
+      ],
+      "exposure": 0.9848675914249685,
+      "switchesPerYear": 3.9226040353089533,
+      "maxDrawdown": 0.3401481891779655,
+      "calibration": [
+        {
+          "binLow": 0.4,
+          "binHigh": 0.5,
+          "rows": 378,
+          "meanScore": 0.4603675364929412,
+          "upRate": 0.5343915343915344
+        },
+        {
+          "binLow": 0.5,
+          "binHigh": 0.6,
+          "rows": 5496,
+          "meanScore": 0.5644739501027727,
+          "upRate": 0.6377365356622998
+        },
+        {
+          "binLow": 0.6,
+          "binHigh": 0.7,
+          "rows": 16511,
+          "meanScore": 0.6470724630883862,
+          "upRate": 0.618193931318515
+        },
+        {
+          "binLow": 0.7,
+          "binHigh": 0.8,
+          "rows": 2744,
+          "meanScore": 0.7325373508703039,
+          "upRate": 0.6752915451895044
+        }
+      ]
+    },
+    {
+      "name": "vote_trend",
+      "rule": "vote_trend > -0.5",
+      "probability": false,
+      "lookahead": false,
+      "auc": {
+        "point": 0.4808339240878914,
+        "lo": 0.437833577213243,
+        "hi": 0.5233310964585324
+      },
+      "brierSkill": null,
+      "excessSharpe": {
+        "point": 0.5465503705232426,
+        "lo": -0.18058003518081348,
+        "hi": 1.271304296177233
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.6519741727385198
+        },
+        {
+          "costBps": 5,
+          "value": 0.5465503705232426
+        },
+        {
+          "costBps": 10,
+          "value": 0.44106761347462
+        },
+        {
+          "costBps": 20,
+          "value": 0.23004087770366832
+        }
+      ],
+      "exposure": 0.7726986128625473,
+      "switchesPerYear": 21.867276166456495,
+      "maxDrawdown": 0.13741511383261518,
+      "calibration": null
+    },
+    {
+      "name": "vote_revert",
+      "rule": "vote_revert > -0.5",
+      "probability": false,
+      "lookahead": false,
+      "auc": {
+        "point": 0.5114173737079981,
+        "lo": 0.4791086816293221,
+        "hi": 0.5444867800225498
+      },
+      "brierSkill": null,
+      "excessSharpe": {
+        "point": 0.35682194846118226,
+        "lo": -0.26837150157393985,
+        "hi": 1.0091712386226237
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5014065989849993
+        },
+        {
+          "costBps": 5,
+          "value": 0.35682194846118226
+        },
+        {
+          "costBps": 10,
+          "value": 0.2122248890315172
+        },
+        {
+          "costBps": 20,
+          "value": -0.07688232058170479
+        }
+      ],
+      "exposure": 0.670515447667087,
+      "switchesPerYear": 43.0890605296343,
+      "maxDrawdown": 0.32009727561955714,
+      "calibration": null
+    },
+    {
+      "name": "sma_filter",
+      "rule": "sma50_above_sma200 > 0.5",
+      "probability": false,
+      "lookahead": false,
+      "auc": {
+        "point": 0.48688732183247424,
+        "lo": 0.4500272827896225,
+        "hi": 0.5269450067397728
+      },
+      "brierSkill": null,
+      "excessSharpe": {
+        "point": 0.5319278206771416,
+        "lo": -0.19370228086675648,
+        "hi": 1.327631587717179
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5370128478277586
+        },
+        {
+          "costBps": 5,
+          "value": 0.5319278206771416
+        },
+        {
+          "costBps": 10,
+          "value": 0.5268416902678236
+        },
+        {
+          "costBps": 20,
+          "value": 0.5166662233799567
+        }
+      ],
+      "exposure": 0.7653688524590164,
+      "switchesPerYear": 1.3207755359394704,
+      "maxDrawdown": 0.3223241500697026,
+      "calibration": null
+    },
+    {
+      "name": "buy_hold",
+      "rule": "constant_1 > 0.0",
+      "probability": false,
+      "lookahead": false,
+      "auc": {
+        "point": 0.5,
+        "lo": 0.5,
+        "hi": 0.5
+      },
+      "brierSkill": null,
+      "excessSharpe": {
+        "point": 0.8001113191863253,
+        "lo": 0.1034912846124081,
+        "hi": 1.5175634854953814
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.8004796261812952
+        },
+        {
+          "costBps": 5,
+          "value": 0.8001113191863253
+        },
+        {
+          "costBps": 10,
+          "value": 0.7997422092137801
+        },
+        {
+          "costBps": 20,
+          "value": 0.799001585010426
+        }
+      ],
+      "exposure": 1.0,
+      "switchesPerYear": 0.1290983606557377,
+      "maxDrawdown": 0.34014818917796585,
+      "calibration": null
+    },
+    {
+      "name": "random_matched",
+      "rule": "uniform_seed0 > the cut whose exposure on the fit rows is closest to the mean exposure of jev",
+      "probability": false,
+      "lookahead": false,
+      "auc": {
+        "point": 0.506190427148978,
+        "lo": 0.48793574322076905,
+        "hi": 0.5256303301520844
+      },
+      "brierSkill": null,
+      "excessSharpe": {
+        "point": 0.6031947498246586,
+        "lo": -0.1630784723253225,
+        "hi": 1.2925606984663744
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.9723496148742311
+        },
+        {
+          "costBps": 5,
+          "value": 0.6031947498246586
+        },
+        {
+          "costBps": 10,
+          "value": 0.23395036608908676
+        },
+        {
+          "costBps": 20,
+          "value": -0.5041008223327303
+        }
+      ],
+      "exposure": 0.5664801387137453,
+      "switchesPerYear": 72.88098991172762,
+      "maxDrawdown": 0.16579076574318208,
+      "calibration": null
+    },
+    {
+      "name": "oracle",
+      "rule": "fwd_ret_20 > 0.0",
+      "probability": false,
+      "lookahead": true,
+      "auc": {
+        "point": 1.0,
+        "lo": 1.0,
+        "hi": 1.0
+      },
+      "brierSkill": null,
+      "excessSharpe": {
+        "point": 2.44081021261304,
+        "lo": 1.8918113576796667,
+        "hi": 3.143695760827001
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 2.5222271500393365
+        },
+        {
+          "costBps": 5,
+          "value": 2.44081021261304
+        },
+        {
+          "costBps": 10,
+          "value": 2.3593073489913174
+        },
+        {
+          "costBps": 20,
+          "value": 2.1960854914862367
+        }
+      ],
+      "exposure": 0.6213351197982345,
+      "switchesPerYear": 21.98644388398487,
+      "maxDrawdown": 0.13182984810700848,
+      "calibration": null
+    }
+  ]
+}

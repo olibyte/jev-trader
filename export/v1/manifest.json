@@ -1,0 +1,212 @@
+{
+  "version": "v1",
+  "study": {
+    "stateVersion": "states/v1",
+    "promptVersion": "descriptive/v1",
+    "modelRequested": "typesafe/jev-1.13",
+    "modelServed": "typesafe/jev-1.13-20260917",
+    "horizon": 20,
+    "symbols": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "DIA",
+      "XLB",
+      "XLE",
+      "XLF",
+      "XLI",
+      "XLK",
+      "XLP",
+      "XLU",
+      "XLV",
+      "XLY"
+    ],
+    "cash": "BIL",
+    "periods": [
+      {
+        "split": "fit",
+        "label": "development",
+        "first": "2008-01-02",
+        "last": "2014-12-31"
+      },
+      {
+        "split": "validate",
+        "label": "development",
+        "first": "2015-01-02",
+        "last": "2018-12-31"
+      },
+      {
+        "split": "holdout",
+        "label": "holdout",
+        "first": "2019-01-02",
+        "last": "2026-10-09"
+      }
+    ]
+  },
+  "datasets": {
+    "market": {
+      "SPY": {
+        "sha256": "e644fcefca36922d9b6f580e81c9acd40bec9e77309a1d1bd572924961f7a936",
+        "first": "1993-01-29",
+        "last": "2026-10-09",
+        "rows": 8481,
+        "fetchedAt": "2026-10-12T10:29:33.388038+00:00"
+      },
+      "QQQ": {
+        "sha256": "0336fb08c4ef1b1a2c46bc59101a56b8ed705a6c7f664f2a187f86af5e870257",
+        "first": "1999-03-10",
+        "last": "2026-10-09",
+        "rows": 6939,
+        "fetchedAt": "2026-10-12T10:29:43.353513+00:00"
+      },
+      "IWM": {
+        "sha256": "88cbb1874fd86be36b14e2e672f5abc997cfbef433fe35f3c990604e4679d8f9",
+        "first": "2000-05-26",
+        "last": "2026-10-09",
+        "rows": 6631,
+        "fetchedAt": "2026-10-12T10:30:02.117733+00:00"
+      },
+      "DIA": {
+        "sha256": "537bcf37fafced8c8de5ec242e49af6b0b6702ac4f6279f348dd0be85025209f",
+        "first": "1998-01-20",
+        "last": "2026-10-09",
+        "rows": 7225,
+        "fetchedAt": "2026-10-12T10:30:04.335854+00:00"
+      },
+      "XLB": {
+        "sha256": "c3531f549b5172a891612543097f67ab015b772d25a0649fd9de340d2541876f",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:30:06.504061+00:00"
+      },
+      "XLE": {
+        "sha256": "3227017cd4e7dfb3edad6c145bc12869f2d161a19961d59fc7050f64af1b5845",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:30:08.146263+00:00"
+      },
+      "XLF": {
+        "sha256": "1d8d565499df211635b25a775d637ca2ea19454dbb555a366bab98125849023a",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:31:02.104587+00:00"
+      },
+      "XLI": {
+        "sha256": "0705521eb379b95fff461ce01495b5a6f34b461a7572155f000beb910bff9fb5",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:31:04.029569+00:00"
+      },
+      "XLK": {
+        "sha256": "1fc04e32a09f2ec4340e3965f1ece74cde219b8244d764e6991a24db738f0ca9",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:31:06.058249+00:00"
+      },
+      "XLP": {
+        "sha256": "a74a806c41db729ac13e1652c215a5edecd948b65135a47d1d96ef35dc32439a",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:31:08.105426+00:00"
+      },
+      "XLU": {
+        "sha256": "e85c13017ee85fb1ce311461a992b602777284934697731eb39000f508a989ea",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:32:02.113332+00:00"
+      },
+      "XLV": {
+        "sha256": "09c06009beeaaf1cd2b50c5a9c74ea9d0f796c7bfd6455cb8b0181476204c6c5",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:32:04.256242+00:00"
+      },
+      "XLY": {
+        "sha256": "825af87d5fe5e9de72c6f1e937217c7310ed4814c94371b1238be4f835ef2ba6",
+        "first": "1998-12-22",
+        "last": "2026-10-09",
+        "rows": 6991,
+        "fetchedAt": "2026-10-12T10:32:06.280908+00:00"
+      },
+      "BIL": {
+        "sha256": "23b614e53ff4561e2457d28bb152ae5dc44fd5f27d5decc86cc6dc1dc95c830c",
+        "first": "2007-05-30",
+        "last": "2026-10-09",
+        "rows": 4872,
+        "fetchedAt": "2026-10-12T10:29:35.697513+00:00"
+      }
+    },
+    "policy": {
+      "path": "data/policy/jev.parquet",
+      "sha256": "403ba40834eb9cc6bf3ba94295c249c1930b640239254b753d168abb5471e525"
+    },
+    "callLog": {
+      "path": "research/jev_calls.jsonl",
+      "sha256": "7234eb70d8c192dc64c80e73e1275a5feca128ec9b057f3d8b2d9684daca27c7",
+      "calls": 4800,
+      "costUsd": 0.12021408
+    }
+  },
+  "runs": {
+    "holdout": {
+      "command": "jt holdout",
+      "gitCommit": "856de5dd182fe1a87676f45ccbd1361ad0c58899",
+      "preregSha256": "43ed3afeff9d181f5842dd81435d2bdd5076096ec602891d0bc7c6961bdbf4d3",
+      "resultSha256": "478ce2e6667fa833a949a292b81f01d089a8dbe90a92b7d10d3b2b2564b6c3e4",
+      "files": [
+        "research/prereg.toml",
+        "research/holdout.json",
+        "research/holdout.manifest.json"
+      ]
+    },
+    "export": {
+      "command": "jt export",
+      "inputs": {
+        "research/prereg.toml": "43ed3afeff9d181f5842dd81435d2bdd5076096ec602891d0bc7c6961bdbf4d3",
+        "research/holdout.json": "478ce2e6667fa833a949a292b81f01d089a8dbe90a92b7d10d3b2b2564b6c3e4",
+        "research/holdout.manifest.json": "3e2d9f3cc4e9b3dfecef6789503baed17e8fb2921b8c3164b8f1c49b9d443ccb",
+        "research/jev_calls.jsonl": "7234eb70d8c192dc64c80e73e1275a5feca128ec9b057f3d8b2d9684daca27c7",
+        "data/policy/jev.parquet": "403ba40834eb9cc6bf3ba94295c249c1930b640239254b753d168abb5471e525",
+        "data/market/SPY.parquet": "e644fcefca36922d9b6f580e81c9acd40bec9e77309a1d1bd572924961f7a936",
+        "data/market/QQQ.parquet": "0336fb08c4ef1b1a2c46bc59101a56b8ed705a6c7f664f2a187f86af5e870257",
+        "data/market/IWM.parquet": "88cbb1874fd86be36b14e2e672f5abc997cfbef433fe35f3c990604e4679d8f9",
+        "data/market/DIA.parquet": "537bcf37fafced8c8de5ec242e49af6b0b6702ac4f6279f348dd0be85025209f",
+        "data/market/XLB.parquet": "c3531f549b5172a891612543097f67ab015b772d25a0649fd9de340d2541876f",
+        "data/market/XLE.parquet": "3227017cd4e7dfb3edad6c145bc12869f2d161a19961d59fc7050f64af1b5845",
+        "data/market/XLF.parquet": "1d8d565499df211635b25a775d637ca2ea19454dbb555a366bab98125849023a",
+        "data/market/XLI.parquet": "0705521eb379b95fff461ce01495b5a6f34b461a7572155f000beb910bff9fb5",
+        "data/market/XLK.parquet": "1fc04e32a09f2ec4340e3965f1ece74cde219b8244d764e6991a24db738f0ca9",
+        "data/market/XLP.parquet": "a74a806c41db729ac13e1652c215a5edecd948b65135a47d1d96ef35dc32439a",
+        "data/market/XLU.parquet": "e85c13017ee85fb1ce311461a992b602777284934697731eb39000f508a989ea",
+        "data/market/XLV.parquet": "09c06009beeaaf1cd2b50c5a9c74ea9d0f796c7bfd6455cb8b0181476204c6c5",
+        "data/market/XLY.parquet": "825af87d5fe5e9de72c6f1e937217c7310ed4814c94371b1238be4f835ef2ba6",
+        "data/market/BIL.parquet": "23b614e53ff4561e2457d28bb152ae5dc44fd5f27d5decc86cc6dc1dc95c830c"
+      }
+    }
+  },
+  "files": {
+    "policy.json": "29ec4eaeb0ead1235081fa938d8cefed19bb48142b53e21171cdf8d8fc064c7e",
+    "summary.json": "285d6966f625a7de4852db4e50c7dd87553e4e9f11515a3125e760c5457e38d3",
+    "symbols/DIA.json": "30499924ca9d70a8333e7c59547066db232960fb7a6047387d6202f4153eecd8",
+    "symbols/IWM.json": "652c84c8db1b801ccb00fb56aa69f2fec0af5d2282b8b9bd57841fc78f45a516",
+    "symbols/QQQ.json": "03f8c6a9bdc41381e9c6a1fe85b02aab422f8512739f3c0da7a18076d7bbf253",
+    "symbols/SPY.json": "15854f63616931c9aeab5597e9bb2a5bb9f42161ae37209db20a8fdc6cff8dee",
+    "symbols/XLB.json": "c8f56ac37a272274756f986ad294acdfcaedde28518049516210991f7c4d177e",
+    "symbols/XLE.json": "2f9462125df631bd3282070a90b0d251d446db6a096491915d682d9eb7d20b44",
+    "symbols/XLF.json": "06aa82368dabb50302cc84d1ad35d2125c76d86ce69d53888ec5a2e76fab98c4",
+    "symbols/XLI.json": "6695ab6d233b1704b5c40bd5d5ade837ba483cd79c7d564c867c1dcaa1cbb345",
+    "symbols/XLK.json": "60b2bd14a1585bef71ad4706c561c5efda6d3253685a4e9a561df80d790a5704",
+    "symbols/XLP.json": "d8e28a8049b56e9d6b4afd5b7a90fcad257ee1ed127393e70ad4649dc7100567",
+    "symbols/XLU.json": "75301d5fbe83cf5cb53bf0b3cb9dfcb752bce303cd3f3b8a566b9e9e375945b5",
+    "symbols/XLV.json": "4eed34ca9c108fbd72ea6344a943541a791f6d7e2c2e06a215be69b6627b3793",
+    "symbols/XLY.json": "ee2c052c33428b5b95ca82c79069551258dbbaf8dc3892916ecf51224d74620d"
+  }
+}
