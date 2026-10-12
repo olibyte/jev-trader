@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import itertools
 import json
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import date
+from pathlib import Path
 from typing import Literal, get_args, get_type_hints
 
 import polars as pl
 
-from jevtrader.data import UNIVERSE, forward_return
+from jevtrader.data import UNIVERSE, atomic_write, forward_return
 
 STATE_VERSION = "states/v1"
 HORIZON = 20
@@ -205,3 +207,16 @@ def state_rows(symbol: str, bars: pl.DataFrame) -> pl.DataFrame:
             "up_20",
         )
     )
+
+
+# I/O shell
+
+
+def write_states(symbol: str, data_dir: Path) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Read data/market/{symbol}.parquet, write data/states/{symbol}.parquet. Returns both."""
+    bars = pl.read_parquet(data_dir / "market" / f"{symbol}.parquet")
+    rows = state_rows(symbol, bars)
+    buffer = io.BytesIO()
+    rows.write_parquet(buffer)
+    atomic_write(data_dir / "states" / f"{symbol}.parquet", buffer.getvalue())
+    return bars, rows

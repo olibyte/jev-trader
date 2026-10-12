@@ -273,9 +273,9 @@ def fetch_symbol(
             text = body.encode()
             name = f"{hashlib.sha256(text).hexdigest()}.json.gz"
             if not (raw_dir / name).exists():
-                _atomic_write(raw_dir / name, gzip.compress(text, mtime=0))
+                atomic_write(raw_dir / name, gzip.compress(text, mtime=0))
             raw_names.append(name)
-        _atomic_write(parquet_path, parquet)
+        atomic_write(parquet_path, parquet)
         manifest = Manifest(
             symbol=symbol,
             adjust="all",
@@ -288,7 +288,7 @@ def fetch_symbol(
             raw=raw_names,
         )
         text = json.dumps(asdict(manifest), sort_keys=True, indent=2) + "\n"
-        _atomic_write(manifest_path, text.encode())
+        atomic_write(manifest_path, text.encode())
 
     return FetchResult(
         symbol=symbol,
@@ -307,7 +307,7 @@ def _manifest_sha(path: Path) -> str | None:
         return None
 
 
-def _atomic_write(path: Path, data: bytes) -> None:
+def atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", delete=False) as f:
         f.write(data)
