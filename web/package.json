@@ -1,0 +1,33 @@
+{
+  "name": "jev-trader-web",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "next typegen && tsc --noEmit",
+    "check:honesty": "node scripts/check-honesty.mjs",
+    "check:schema": "node scripts/check-schema.mjs",
+    "serve": "node scripts/serve.mjs out 4317",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "lightweight-charts": "5.2.1",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "6.0.3"
+  }
+}
