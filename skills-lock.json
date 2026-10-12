@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "skills": {
+    "architect": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/architect/SKILL.md",
+      "computedHash": "958164026e1b601e3280d43abc63df231f93379bd760e91e8724365ff09c69c4"
+    },
+    "arena": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/arena/SKILL.md",
+      "computedHash": "2edef57e603f72f05827abb86ff1fb265661f2e748de29965166067dcb1f238e"
+    },
+    "automate-me": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/automate-me/SKILL.md",
+      "computedHash": "d15e8e4ec21436079c2788665b90dea8d2c5a4a7b9a80a54bb10f926370bed50"
+    },
+    "benchmark-checklist": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/benchmark-checklist/SKILL.md",
+      "computedHash": "0f0d6e96d4f544ef1ae7fbc457e3060cb8e016efbfe99a0662834126ebe00b14"
+    },
+    "blast-radius": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/blast-radius/SKILL.md",
+      "computedHash": "9a503131adab9eb720b6e419f8d4981a96ad857e67c1a2b367599c2ff745deb0"
+    },
+    "bro": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/bro/SKILL.md",
+      "computedHash": "c85a27cd03be6310e8202e543f9a9f9b59d33a3cc94f4017f0cbf6036db664a1"
+    },
+    "correct": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/correct/SKILL.md",
+      "computedHash": "5f0dcf03033181686afe350c7fd3fb4fc89fe37ef0895aac720ccfdfa3c96e85"
+    },
+    "create-verification-skill": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/create-verification-skill/SKILL.md",
+      "computedHash": "70dd771507e843041fccd876abb66a13ad9b704c63c946012e74e6afb77b8bf0"
+    },
+    "figure-it-out": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/figure-it-out/SKILL.md",
+      "computedHash": "90739317c844af87ce479cf2f898fc79a496c80a721f082f485024cd578805e7"
+    },
+    "handoff": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/handoff/SKILL.md",
+      "computedHash": "b5a1130785b1716d234646f417272d08a4e63e627bb8907009288eac57333d2c"
+    },
+    "how": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/how/SKILL.md",
+      "computedHash": "9834a83103fdf06806fd7fee9db91458c053e15112b36238e73999f66be227fe"
+    },
+    "interrogate": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/interrogate/SKILL.md",
+      "computedHash": "0c7cdfc3d09a3aad98188e6cd5089d0b2108fcdfb9f8495d21fb90a4548b1f59"
+    },
+    "ketchup": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/ketchup/SKILL.md",
+      "computedHash": "667e92ddb6fd5c5a4d92d646749fcca174e0373992bb620a03b219a97beda46d"
+    },
+    "maintain-verification-skill": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/maintain-verification-skill/SKILL.md",
+      "computedHash": "14c1562e069a45ae2d1c8257135e19d78e56861f65b09b873f3074ec9a29cb86"
+    },
+    "no-comments": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/no-comments/SKILL.md",
+      "computedHash": "37345ab23566b04b42f4d4fe5d73c63a53bdaa4d8b351e4a3f2d996d54a5eb1a"
+    },
+    "poteto-help": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/poteto-help/SKILL.md",
+      "computedHash": "39da1da56c3ca11d70a35cade78fce966865c072b55ee5fc749c4e18d5e8ed02"
+    },
+    "poteto-mode": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/poteto-mode/SKILL.md",
+      "computedHash": "46ea935184f2bbbffbce1bca858e7446a31415a3cccb7ed6fd5201033d9eff9a"
+    },
+    "principles": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/principles/SKILL.md",
+      "computedHash": "555daa18c06b79f9d11794ffb5080ade0906140d5270698cf41fa9354ca21c91"
+    },
+    "recall": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/recall/SKILL.md",
+      "computedHash": "321fc6490b835e840aafaa8cdb291f0816294ea61d8da90c3fdb85493764f7b3"
+    },
+    "reflect": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/reflect/SKILL.md",
+      "computedHash": "9142e54114912c37e032a0a66679db7f7ce089bf50c24f13a7e8c1cf89437aa7"
+    },
+    "show-me-your-work": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/show-me-your-work/SKILL.md",
+      "computedHash": "3c12d1c8460c6cb402a543357bba2e0a268cbbc6d40cd31689d9471a3be31e44"
+    },
+    "swarm": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "optional/swarm/SKILL.md",
+      "computedHash": "e2cb34b5315bbda6715471a1bee022344898811c9bdbceab3c842a64ecbf348b"
+    },
+    "tdd": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/tdd/SKILL.md",
+      "computedHash": "27be82c29c61797ffaec742420b68d08491375c905a070a8b16fc286931d391b"
+    },
+    "teach": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/teach/SKILL.md",
+      "computedHash": "57f17ae67615bfed60628c28dde3101cbb8ce3ff66be5776f3f30af121009710"
+    },
+    "technical-writing": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/technical-writing/SKILL.md",
+      "computedHash": "031c04e87329cc689513023eb1004f82fed69436cc7be186f1af4dd1f87ea9a2"
+    },
+    "typescript-best-practices": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/typescript-best-practices/SKILL.md",
+      "computedHash": "d2371ab5d162b1551aed72eacc7384b2d6ba0e2b47b352bacf9c7f908f269688"
+    },
+    "unslop": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/unslop/SKILL.md",
+      "computedHash": "de6255fff2c1c3de4d2244f1c766fc8d3b1c956ed0d44ce559cb597ac05fc4fc"
+    },
+    "why": {
+      "source": "olibyte/agent-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/why/SKILL.md",
+      "computedHash": "cb29a1e90ca460ce71fd1cf3a788e8ccd75e066097409312d1d86aba282be32e"
+    }
+  }
+}
