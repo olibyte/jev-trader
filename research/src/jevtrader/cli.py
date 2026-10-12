@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 import time
+import tomllib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,7 +18,15 @@ import numpy as np
 import polars as pl
 from dotenv import dotenv_values
 
-from jevtrader.data import DATA_DIR, REPO_ROOT, UNIVERSE, DataError, adjust_check, fetch_symbol
+from jevtrader.data import (
+    DATA_DIR,
+    REPO_ROOT,
+    UNIVERSE,
+    DataError,
+    adjust_check,
+    atomic_write,
+    fetch_symbol,
+)
 from jevtrader.evaluate import (
     ARMS,
     BASELINE,
@@ -24,19 +34,26 @@ from jevtrader.evaluate import (
     CANDIDATE,
     COST_BPS,
     COSTS_BPS,
+    HOLDOUT_PATH,
+    HOLDOUT_RUN_PATH,
     LEVEL,
     PREREG_PATH,
     REPS,
     SHRINK_K,
+    ArmReport,
+    HoldoutRun,
     Interval,
     arm_reports,
     block_bootstrap_auc,
     empirical_table,
     holdout_blocks,
+    holdout_result,
     n_blocks,
     open_returns,
     power,
+    prereg_diff,
     prereg_status,
+    render_json,
     render_prereg,
     write_prereg,
 )
@@ -83,6 +100,8 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("ceiling", help="state census and the validate AUC of empirical_table")
     report = commands.add_parser("evaluate", help="fit on fit, report every arm on validate")
     report.add_argument("--prereg", action="store_true", help="write research/prereg.toml")
+    once = commands.add_parser("holdout", help="run the pre-registered holdout once")
+    once.add_argument("--verify", action="store_true", help="rerun from the manifest and compare")
     jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
     jev.add_argument("--offline", action="store_true", help="build from the call log only")
     jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
@@ -96,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         return jev_table(args.offline, args.limit, args.workers)
     if args.command == "evaluate":
         return evaluate(args.prereg)
+    if args.command == "holdout":
+        return holdout(REPO_ROOT, DATA_DIR, args.verify)
     return online(args)
 
 
@@ -315,31 +336,7 @@ def evaluate(prereg: bool) -> int:
         f" bss resample the {blocks['validate']} labelled validate blocks, sharpe_x the"
         f" {n_blocks(traded.to_numpy())} traded ones. sharpe_x is net of {COST_BPS} bps per switch"
     )
-
-    print()
-    print(
-        f"{'arm':<16}{'auc':<22}{'bss':<25}{'sharpe_x':<21}"
-        f"{'exposure':>8}{'turnover/yr':>13}{'max_dd':>8}"
-    )
-    for name, r in reports.items():
-        bss = "n/a" if r.brier_skill is None else interval(r.brier_skill, 3)
-        note = "  look-ahead check, not a strategy" if ARMS[name].lookahead else ""
-        print(
-            f"{name:<16}{interval(r.auc, 3):<22}{bss:<25}{interval(r.excess_sharpe, 2):<21}"
-            f"{r.exposure:>8.1%}{r.switches_per_year:>13.1f}{r.max_drawdown:>8.1%}{note}"
-        )
-
-    print()
-    print(f"{'excess Sharpe':<16}" + "".join(f"{f'{c} bps':>8}" for c in COSTS_BPS))
-    for name, r in reports.items():
-        print(f"{name:<16}" + "".join(f"{r.excess_sharpe_by_cost[c]:>8.2f}" for c in COSTS_BPS))
-
-    print()
-    print("calibration on labelled validate rows: bin, n, mean score, observed up rate")
-    for name in ("jev", "empirical_table"):
-        print(name)
-        for lo, n, mean, up in reports[name].calibration or []:
-            print(f"  [{lo:.1f}, {lo + 0.1:.1f}){n:>7}{mean:>7.3f}{up:>7.3f}")
+    print_reports(reports, "validate")
 
     holdout_dates = (
         pl.scan_parquet(state_paths())
@@ -362,7 +359,7 @@ def evaluate(prereg: bool) -> int:
         return 1
     text = render_prereg(
         model_served=served[0],
-        policy_sha256=hashlib.sha256((DATA_DIR / POLICY_PATH).read_bytes()).hexdigest(),
+        policy_sha256=sha256(DATA_DIR / POLICY_PATH),
         market_sha256={
             s: json.loads((DATA_DIR / "market" / f"{s}.manifest.json").read_text())["sha256"]
             for s in market
@@ -370,15 +367,135 @@ def evaluate(prereg: bool) -> int:
         holdout_end=holdout_dates.max(),
         power=dev_power,
     )
+    path = REPO_ROOT / PREREG_PATH
     if not prereg:
-        print(f"{PREREG_PATH} {prereg_status(PREREG_PATH, text)}")
+        print(f"{path} {prereg_status(path, text)}")
         return 0
-    status = write_prereg(PREREG_PATH, text)
+    status = write_prereg(path, text)
     if status == "differs":
-        print(f"{PREREG_PATH} differs from this run, refusing to overwrite it", file=sys.stderr)
+        print(f"{path} differs from this run, refusing to overwrite it", file=sys.stderr)
         return 1
-    print(f"{PREREG_PATH} {'written' if status == 'missing' else 'unchanged'}")
+    print(f"{path} {'written' if status == 'missing' else 'unchanged'}")
     return 0
+
+
+def print_reports(reports: dict[str, ArmReport], split: str) -> None:
+    print()
+    print(
+        f"{'arm':<16}{'auc':<22}{'bss':<25}{'sharpe_x':<21}"
+        f"{'exposure':>8}{'turnover/yr':>13}{'max_dd':>8}"
+    )
+    for name, r in reports.items():
+        bss = "n/a" if r.brier_skill is None else interval(r.brier_skill, 3)
+        note = "  look-ahead check, not a strategy" if ARMS[name].lookahead else ""
+        print(
+            f"{name:<16}{interval(r.auc, 3):<22}{bss:<25}{interval(r.excess_sharpe, 2):<21}"
+            f"{r.exposure:>8.1%}{r.switches_per_year:>13.1f}{r.max_drawdown:>8.1%}{note}"
+        )
+
+    print()
+    print(f"{'excess Sharpe':<16}" + "".join(f"{f'{c} bps':>8}" for c in COSTS_BPS))
+    for name, r in reports.items():
+        print(f"{name:<16}" + "".join(f"{r.excess_sharpe_by_cost[c]:>8.2f}" for c in COSTS_BPS))
+
+    print()
+    print(f"calibration on labelled {split} rows: bin, n, mean score, observed up rate")
+    for name in ("jev", "empirical_table"):
+        print(name)
+        for lo, n, mean, up in reports[name].calibration or []:
+            print(f"  [{lo:.1f}, {lo + 0.1:.1f}){n:>7}{mean:>7.3f}{up:>7.3f}")
+
+
+def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+
+
+def holdout(repo: Path, data_dir: Path, verify: bool) -> int:
+    """Run the holdout once, or with `verify` rerun it from the manifest and compare the bytes.
+
+    Refuses unless the tracked files are committed and prereg.toml matches this code and the
+    hashes of the input files. All of that is checked before any holdout label is read.
+    """
+    prereg, result_path, run_path = (
+        repo / PREREG_PATH,
+        repo / HOLDOUT_PATH,
+        repo / HOLDOUT_RUN_PATH,
+    )
+    if not verify and (result_path.exists() or run_path.exists()):
+        print(f"{result_path} exists and the holdout runs once, refusing", file=sys.stderr)
+        print("`jt holdout --verify` reruns it from the manifest", file=sys.stderr)
+        return 1
+    if verify and not run_path.exists():
+        print(f"no {run_path}, nothing to verify", file=sys.stderr)
+        return 2
+    recorded = HoldoutRun(**json.loads(run_path.read_text())) if verify else None
+
+    if git(repo, "ls-files", "--error-unmatch", str(PREREG_PATH)).returncode != 0:
+        print(f"{prereg} is not committed, refusing", file=sys.stderr)
+        return 1
+    dirty = git(repo, "status", "--porcelain", "--untracked-files=no").stdout
+    if dirty:
+        print(f"uncommitted changes, refusing:\n{dirty}", file=sys.stderr, end="")
+        return 1
+    head = git(repo, "rev-parse", "HEAD").stdout.strip()
+
+    paths = {s: data_dir / "market" / f"{s}.parquet" for s in (*STUDY, CASH)}
+    missing = [p for p in (*paths.values(), data_dir / POLICY_PATH) if not p.exists()]
+    if missing:
+        print(f"missing {', '.join(map(str, missing))}", file=sys.stderr)
+        return 2
+
+    text = prereg.read_text()
+    diff = prereg_diff(
+        text,
+        sha256(data_dir / POLICY_PATH),
+        {s: sha256(p) for s, p in paths.items()},
+    )
+    if diff:
+        print(f"{prereg} does not match this code and data, refusing", file=sys.stderr)
+        print("\n".join(diff), file=sys.stderr)
+        return 1
+    if recorded is not None and recorded.prereg_sha256 != sha256(prereg):
+        print(f"{prereg} is not the prereg {run_path} ran on, refusing", file=sys.stderr)
+        return 1
+
+    end = tomllib.loads(text)["holdout"]["end"]
+    market = {s: pl.read_parquet(p) for s, p in paths.items()}
+    result = holdout_result(market, pl.read_parquet(data_dir / POLICY_PATH), end)
+    body = render_json(result).encode()
+    digest = hashlib.sha256(body).hexdigest()
+
+    if recorded is not None:
+        same = (
+            digest == recorded.result_sha256
+            and result_path.exists()
+            and result_path.read_bytes() == body
+        )
+        print(
+            f"rerun at {head} of the run at {recorded.git_commit}:"
+            f" {result_path} {'is byte-identical' if same else 'differs'}"
+        )
+        return 0 if same else 1
+
+    atomic_write(result_path, body)
+    atomic_write(run_path, render_json(HoldoutRun(sha256(prereg), head, digest)).encode())
+    print(
+        f"holdout {result.first}..{result.last}  {result.rows} rows, {result.labelled} labelled"
+        f" = {result.blocks} blocks, fitted on fit + validate"
+    )
+    print_reports(result.arms, "holdout")
+    print()
+    print(
+        f"primary auc({CANDIDATE}) - auc({BASELINE}) {interval(result.primary, 4)}"
+        f"  ({LEVEL:.0%} CI, {REPS} reps, {BLOCK}-session blocks, seed 0)"
+    )
+    print(f"outcome {result.outcome}")
+    print(f"wrote {result_path} and {run_path}")
+    return 0
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def interval(i: Interval, digits: int) -> str:

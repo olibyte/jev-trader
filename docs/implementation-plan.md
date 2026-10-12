@@ -81,7 +81,12 @@ class Decision(TypedDict):  # derived by joining PolicyRow onto StateRow. Never 
 	score: float | None
 	position: Literal[0, 1]  # held from the open of the next session
 
-RunManifest = DevRun | HoldoutRun  # HoldoutRun requires prereg_sha256
+class HoldoutRun(TypedDict):  # research/holdout.manifest.json
+	prereg_sha256: str
+	git_commit: str
+	result_sha256: str  # of research/holdout.json
+
+RunManifest = DevRun | HoldoutRun
 ```
 
 The web export lives in `export/v1/`. It holds `manifest.json`, `summary.json` (the primary result, the outcome, and the metrics for each arm), `policy.json` (Jev's rulebook with readable states), and `symbols/{SYMBOL}.json` (bars, decisions, equity curves, and an `inStudy` flag). The site validates every file with zod, and a schema mismatch fails the build.
@@ -122,7 +127,7 @@ The question is a pair of yes/no (Noul) questions in one request: "higher in 20 
 
 - The code iterates on prompts during fit and validate only. The cap is three prompt versions, and the report lists every version tried.
 - The code does not revise the state grammar to raise the validate AUC. "The states carry no signal" is a publishable answer.
-- `jt holdout` refuses to run without a committed `prereg.toml` whose hash matches. It also refuses a second run.
+- `jt holdout` refuses to run without a committed `prereg.toml` that matches the code and the hash of every input file. It also refuses a second run.
 
 ## Data pipeline
 
@@ -145,7 +150,7 @@ Each milestone ends in a command that passes or fails.
 2. **States and ceiling.** The truncation property test passes: the state at t is the same on `df[:t]` and on the full frame. `jt ceiling` prints the state census and the validate AUC of `empirical_table` with its CI. This step needs no Jev key.
 3. **Jev policy table.** One smoke call runs first, then 960 states × 5 samples. `jt jev-table --offline` rebuilds a byte-identical policy table with zero network calls. The command prints the sample spread, coherence, vote R², validate AUC, and total cost.
 4. **Dev evaluation and pre-registration.** Golden tests pass: always-long equals buy and hold, and an oracle arm beats every other arm. The dev report and the MDE exist, and `prereg.toml` is committed.
-5. **Holdout.** `jt holdout` writes the result once. A second run exits non-zero. A rerun from the manifest is byte-identical.
+5. **Holdout.** `jt holdout` writes the result once. A second run exits non-zero. `jt holdout --verify` reruns from the manifest and confirms that the result is byte-identical.
 6. **Web.** `next build` passes with zod validation. Drive the built site and confirm that every number matches `export/`.
 
 ## Jev access
@@ -205,3 +210,10 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** Costs decide the `jev` backtest. `jev` changes position 58 times per sleeve per year, because states change from day to day. Its excess Sharpe falls from 0.61 at 0 bps to 0.21 at 5 bps and -1.00 at 20 bps, while `buy_hold` stays at 0.60.
 - **2026-10-13.** Jev's `p_up` does not track the validate outcomes. The observed up rate is 0.636, 0.625, 0.626, and 0.590 in the `p_up` bins from 0.3 to 0.7. Brier skill against the fit base rate of 0.641 is -0.073 [-0.166, 0.005] for `jev` and -0.025 [-0.045, -0.007] for `empirical_table`.
 - **2026-10-13.** The dev SE of AUC(`jev`) minus AUC(`empirical_table`) at 97 blocks is 0.0116, so the MDE is 0.032. The holdout detects a true difference of 0.032 in 80% of runs. A smaller true difference is more likely to read "inconclusive".
+- **2026-10-13.** `jt holdout` checks the lock before it reads any holdout label. It refuses unless `research/prereg.toml` is tracked by git and no tracked file has uncommitted changes, so the recorded commit describes the code that ran. It then renders the prereg again from the code and the sha256 of each market Parquet file and the policy table, and refuses unless the text is byte-identical to the committed file. It prints the diff, so a changed file, arm rule, or setting is named. The model, the holdout end, and the power figures come from the file, because the holdout cannot recompute them. The policy hash already pins Jev's answers, so the holdout does not read the call log to check `model_served`.
+- **2026-10-13.** The lock hashes the Parquet bytes, not the hash that each market manifest records, so a file replaced without its manifest still fails.
+- **2026-10-13.** The holdout builds states in memory from the hashed market bars, cut at the prereg end, instead of reading `data/states/`. Every input is then a hashed file. Bars after the end are dropped before the indicators, the labels, and the returns, and a test checks that tripling every later price changes nothing.
+- **2026-10-13.** The holdout refit on fit and validate keeps the labels of the dev splits. A label whose exit open falls in a later split stays null, so the last 21 sessions of fit stay out of the refit, as they did in milestone 4. The last 21 holdout sessions have no exit open by the prereg end and stay unlabelled.
+- **2026-10-13.** The primary CI and every arm's CIs use the code's bootstrap constants. The lock proves that they equal the prereg values, so the holdout follows the prereg without a second copy of each setting.
+- **2026-10-13.** `jt holdout` writes `research/holdout.json` and then `research/holdout.manifest.json` (`HoldoutRun`), and refuses to run when either file exists. The result holds the window, the row and block counts, the primary CI, the outcome, and every arm's report. It holds no time and no commit, so a rerun at a later commit can match it byte for byte. `jt holdout --verify` requires the prereg hash that the manifest records, reruns the holdout, and exits 0 only when the new bytes match the file and the manifest's `result_sha256`. Both files are meant to be committed after the run.
+- **2026-10-13.** Milestone 5 tests `jt holdout` on synthetic bars and a synthetic policy in a temporary git repository. Nobody runs it on the real data until the user reviews the code. On the real files, `prereg_diff` returns no diff, so the lock passes. That check reads no holdout label.

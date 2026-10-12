@@ -15,14 +15,16 @@ Check the source before treating a planned command or module as available.
 
 - `research/src/jevtrader/data.py` owns market-data requests, validation, raw archives, Parquet snapshots, and manifests.
 - `research/src/jevtrader/states.py` owns the indicators, the versioned `State`, the vote tables, the splits, and the purged forward labels.
-- `research/src/jevtrader/evaluate.py` owns the arm registry, the decisions, the backtest, the metrics, the joint-date block bootstrap, the MDE, and the pre-registration text.
+- `research/src/jevtrader/evaluate.py` owns the arm registry, the decisions, the backtest, the metrics, the joint-date block bootstrap, the MDE, the pre-registration text, the prereg lock check, and the holdout result.
 - `research/prereg.toml` is the committed pre-registration. Never edit it by hand. `jt evaluate --prereg` writes it and refuses to replace a different file.
+- `research/holdout.json` and `research/holdout.manifest.json` are the one-shot holdout result and its run manifest. Never edit, delete, or regenerate them. `jt holdout` writes them once and refuses a second run. `jt holdout --verify` reruns the holdout and compares the bytes. Never run `jt holdout` on the real data. The user runs it.
 - `research/src/jevtrader/jev.py` owns the Jev prompt, the OpenRouter Decisions call, the append-only call log, and the policy table.
 - `research/src/jevtrader/cli.py` owns the `jt` command and reads the API keys, clock, and network at the CLI boundary. Only `jt fetch` and `jt adjust-check` read `TWELVE_DATA_API_KEY`. Only `jt jev-table` without `--offline` reads `OPENROUTER_API_KEY`.
 - `research/jev_calls.jsonl` is the frozen Jev call log. Never edit or regenerate it. Build from it with `jt jev-table --offline`.
 - `research/tests/test_data.py` checks the data pipeline with recorded fixtures and mocked HTTP responses.
 - `research/tests/test_states.py` holds the truncation property test, which fails if an indicator reads a later bar.
 - `research/tests/test_jev.py` checks the Jev call, the call log, and the policy table with mocked HTTP responses.
+- `research/tests/test_holdout.py` checks the holdout lock, the single run, and the byte-identical rerun on synthetic data in a temporary git repository.
 - `research/pyproject.toml` defines dependencies and Ruff rules. Keep `research/uv.lock` in sync with dependency changes.
 
 Keep changes focused on the requested task.
