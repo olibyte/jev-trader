@@ -1,13 +1,16 @@
 import json
 import statistics
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
+import polars as pl
 import pytest
 
+from jevtrader import cli
 from jevtrader.jev import (
     DESCRIPTIONS,
     FIELDS,
+    POLICY_PATH,
     PROMPT_VERSION,
     QUESTIONS,
     SAMPLES,
@@ -22,7 +25,7 @@ from jevtrader.jev import (
     policy_table,
     read_calls,
 )
-from jevtrader.states import ALL_STATES, DIMENSIONS, State, state_key
+from jevtrader.states import ALL_STATES, DIMENSIONS, STATE_VERSION, STUDY, State, state_key
 
 KEY = "or-test-key-123"
 NOW = datetime(2026, 10, 12, 10, 0, tzinfo=UTC)
@@ -257,3 +260,82 @@ def test_append_call_survives_a_torn_last_line(tmp_path):
     append_call(path, second)
     assert read_calls(path) == [first, second]
     assert read_calls(tmp_path / "missing.jsonl") == []
+
+
+def write_state_rows(data_dir) -> None:
+    keys = [state_key(s) for s in ALL_STATES[:4]]
+    rows = []
+    for d in range(60):
+        rows.append((date(2010, 1, 4) + timedelta(days=d), "fit", keys[d % 4], d % 3 == 0))
+        rows.append((date(2015, 1, 5) + timedelta(days=d), "validate", keys[d % 4], d % 2 == 0))
+    rows.append((date(2019, 1, 2), "holdout", keys[0], True))
+    frame = pl.DataFrame(rows, schema=["date", "split", "state_key", "up_20"], orient="row")
+    for symbol in STUDY:
+        path = data_dir / "states" / f"{symbol}.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        frame.select(
+            pl.lit(symbol).alias("symbol"),
+            "date",
+            "split",
+            "state_key",
+            pl.lit(STATE_VERSION).alias("state_version"),
+            pl.lit(0.01).alias("fwd_ret_20"),
+            "up_20",
+        ).write_parquet(path)
+
+
+def test_offline_jev_table_is_idempotent(tmp_path, monkeypatch, capsys):
+    def no_network(*args, **kwargs):
+        raise AssertionError("offline must not build an httpx client")
+
+    monkeypatch.setattr(httpx, "Client", no_network)
+    monkeypatch.setattr(cli, "dotenv_values", no_network)
+    monkeypatch.setattr(cli, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(cli, "CALLS_PATH", tmp_path / "jev_calls.jsonl")
+    write_state_rows(tmp_path / "data")
+    log = full_log()
+    (tmp_path / "jev_calls.jsonl").write_text("".join(json.dumps(c) + "\n" for c in log[:-1]))
+
+    assert cli.main(["jev-table", "--offline"]) == 1
+    assert capsys.readouterr().out == "4799/4800 calls logged\n"
+
+    append_call(tmp_path / "jev_calls.jsonl", log[-1])
+    policy = tmp_path / "data" / POLICY_PATH
+    assert cli.main(["jev-table", "--offline"]) == 0
+    first_out, first_bytes = capsys.readouterr().out, policy.read_bytes()
+    assert cli.main(["jev-table", "--offline"]) == 0
+    second_out = capsys.readouterr().out
+
+    assert policy.read_bytes() == first_bytes
+    assert "calls 4800 (descriptive/v1); model_served typesafe/jev-1.13-20260917" in first_out
+    assert "log cost $0.0992" in first_out
+    assert f"{policy} changed sha256" in first_out
+    assert f"{policy} unchanged sha256" in second_out
+
+
+def test_online_jev_table_logs_answers_and_skips_failures(tmp_path, monkeypatch, capsys):
+    real_client = httpx.Client
+    replies = [decision(0.7, 0.3), decision(0.6, 0.4)]
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        try:
+            return httpx.Response(200, json=replies.pop())
+        except IndexError:
+            return httpx.Response(400, text="no")
+
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kw: real_client(transport=httpx.MockTransport(handler))
+    )
+    monkeypatch.setattr(cli, "dotenv_values", lambda path: {"OPENROUTER_API_KEY": KEY})
+    monkeypatch.setattr(cli, "CALLS_PATH", tmp_path / "jev_calls.jsonl")
+    monkeypatch.setattr(cli.time, "sleep", lambda s: pytest.fail(f"slept {s}"))
+
+    assert cli.main(["jev-table", "--limit", "3", "--workers", "2"]) == 1
+
+    calls = read_calls(tmp_path / "jev_calls.jsonl")
+    assert sorted(c["p_hi"] for c in calls) == [0.6, 0.7]
+    assert {c["state_key"] for c in calls} == {state_key(ALL_STATES[0])}
+    out = capsys.readouterr().out
+    assert "HTTP 400 after 1 attempts: no" in out
+    assert out.endswith("1/3 calls failed, rerun to retry them\n")
+    assert len(pending(calls)) == 4798
