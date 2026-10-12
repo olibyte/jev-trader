@@ -14,8 +14,11 @@ The static Next.js site and the later research modules in the implementation pla
 Check the source before treating a planned command or module as available.
 
 - `research/src/jevtrader/data.py` owns market-data requests, validation, raw archives, Parquet snapshots, and manifests.
-- `research/src/jevtrader/cli.py` owns the `jt` command and reads the API key, clock, and network at the CLI boundary.
+- `research/src/jevtrader/states.py` owns the indicators, the versioned `State`, the vote tables, the splits, and the purged forward labels.
+- `research/src/jevtrader/evaluate.py` owns the empirical table, AUC, and the joint-date block bootstrap.
+- `research/src/jevtrader/cli.py` owns the `jt` command and reads the API key, clock, and network at the CLI boundary. Only `jt fetch` and `jt adjust-check` read the key.
 - `research/tests/test_data.py` checks the data pipeline with recorded fixtures and mocked HTTP responses.
+- `research/tests/test_states.py` holds the truncation property test, which fails if an indicator reads a later bar.
 - `research/pyproject.toml` defines dependencies and Ruff rules. Keep `research/uv.lock` in sync with dependency changes.
 
 Keep changes focused on the requested task.
