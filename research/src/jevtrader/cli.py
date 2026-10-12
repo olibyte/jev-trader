@@ -24,7 +24,11 @@ def main(argv: list[str] | None = None) -> int:
     fetch.add_argument("symbols", nargs="*", metavar="SYMBOL", help="default: the full universe")
     commands.add_parser("adjust-check", help="compare SPY adjusted and raw open/close ratios")
     args = parser.parse_args(argv)
+    return online(args)
 
+
+def online(args: argparse.Namespace) -> int:
+    """Run fetch or adjust-check, the only commands that read the key."""
     key = dotenv_values(REPO_ROOT / ".env").get("TWELVE_DATA_API_KEY")
     if not key:
         print(f"TWELVE_DATA_API_KEY is not set in {REPO_ROOT / '.env'}", file=sys.stderr)
