@@ -160,11 +160,14 @@ def _examples(dates: list[date]) -> str:
     return ", ".join(str(d) for d in dates[:3]) or "none"
 
 
+def forward_return(horizon: int = 20) -> pl.Expr:
+    """Enter at the next open, exit `horizon` sessions later: open[t+1+horizon] / open[t+1] - 1."""
+    return pl.col("open").shift(-(horizon + 1)) / pl.col("open").shift(-1) - 1
+
+
 def up_base_rate(bars: pl.DataFrame, horizon: int = 20) -> float:
     """Share of days t where open[t+1+horizon] > open[t+1]."""
-    entry = pl.col("open").shift(-1)
-    exit_ = pl.col("open").shift(-(horizon + 1))
-    up = bars.select((exit_ / entry - 1 > 0).alias("up"))["up"].drop_nulls()
+    up = bars.select((forward_return(horizon) > 0).alias("up"))["up"].drop_nulls()
     return float(up.mean())
 
 
