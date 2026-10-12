@@ -1,5 +1,3 @@
-# Pre-registration for the holdout run, written by `jt evaluate --prereg` from dev data only.
-
 [study]
 state_version = "states/v1"
 prompt_version = "descriptive/v1"

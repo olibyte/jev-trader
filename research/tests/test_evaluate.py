@@ -193,7 +193,6 @@ def drift(n: int) -> pl.DataFrame:
 
 @pytest.fixture(scope="module")
 def synthetic():
-    """Fit and validate state rows, a random policy, and open returns for three random walks."""
     n = 4100
     bars = {s: random_walk(seed, n) for seed, s in enumerate(("SPY", "QQQ", "IWM"))}
     rows = pl.concat(state_rows(s, b) for s, b in bars.items())
@@ -215,7 +214,7 @@ def test_the_oracle_beats_every_other_arm(synthetic):
     assert set(reports) == set(ARMS) - {"oracle"}
     assert oracle.auc == (1.0, 1.0, 1.0)
     for name, report in reports.items():
-        assert oracle.sharpe.point > report.sharpe.point, name
+        assert oracle.excess_sharpe.point > report.excess_sharpe.point, name
 
 
 def test_holdout_blocks_leave_out_the_unlabelled_tail():

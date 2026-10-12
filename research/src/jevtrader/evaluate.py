@@ -35,7 +35,7 @@ COSTS_BPS = (0, 5, 10, 20)
 YEAR = 252
 ALPHA = 0.05
 POWER = 0.8
-PRIMARY = ("jev", "empirical_table")  # the metric is AUC of the first minus AUC of the second
+CANDIDATE, BASELINE = "jev", "empirical_table"
 PREREG_PATH = REPO_ROOT / "research" / "prereg.toml"
 
 
@@ -58,23 +58,29 @@ def empirical_table(rows: pl.DataFrame, k: float = SHRINK_K) -> pl.DataFrame:
     )
 
 
+class Matched(NamedTuple):
+    """A cut fitted to the mean fit exposure of `arms`."""
+
+    arms: tuple[str, ...]
+
+
 class Arm(NamedTuple):
     score: str
-    # A fixed cut, or the arms whose mean fit exposure the cut matches.
-    threshold: float | tuple[str, ...]
+    threshold: float | Matched
     probability: bool
+    lookahead: bool = False
 
 
 ARMS: dict[str, Arm] = {
     "jev": Arm("p_up", 0.5, True),
-    "jev_matched": Arm("p_up", ("vote_trend", "vote_revert"), True),
+    "jev_matched": Arm("p_up", Matched(("vote_trend", "vote_revert")), True),
     "empirical_table": Arm("empirical_p", 0.5, True),
     "vote_trend": Arm("vote_trend", -0.5, False),
     "vote_revert": Arm("vote_revert", -0.5, False),
     "sma_filter": Arm("sma50_above_sma200", 0.5, False),
     "buy_hold": Arm("constant_1", 0.0, False),
-    "random_matched": Arm("uniform_seed0", ("jev",), False),
-    "oracle": Arm("fwd_ret_20", 0.0, False),  # look-ahead check, not a strategy
+    "random_matched": Arm("uniform_seed0", Matched(("jev",)), False),
+    "oracle": Arm("fwd_ret_20", 0.0, False, lookahead=True),
 }
 
 
@@ -114,12 +120,12 @@ def matched_cut(score: np.ndarray, target: float) -> float:
 
 
 def thresholds(fit: pl.DataFrame) -> dict[str, float]:
-    """Each arm's cut on scored fit rows. Fixed cuts resolve first, matched cuts after."""
-    cuts = {n: a.threshold for n, a in ARMS.items() if not isinstance(a.threshold, tuple)}
+    """Each arm's cut on scored fit rows."""
+    cuts = {n: a.threshold for n, a in ARMS.items() if not isinstance(a.threshold, Matched)}
     for name, arm in ARMS.items():
-        if isinstance(arm.threshold, tuple):
+        if isinstance(arm.threshold, Matched):
             exposures = [
-                fit.select(_long(ARMS[a].score, cuts[a]).mean()).item() for a in arm.threshold
+                fit.select(_long(ARMS[a].score, cuts[a]).mean()).item() for a in arm.threshold.arms
             ]
             cuts[name] = matched_cut(fit[arm.score].to_numpy(), float(np.mean(exposures)))
     return cuts
@@ -129,7 +135,6 @@ def decisions(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame) -> pl
     """Decision frame (symbol, date, arm, score, position) for every arm on `rows`.
 
     empirical_table and the matched thresholds are fitted on `fit`. A null score is flat.
-    Never stored.
     """
     rows, cuts = scored(rows, fit, policy), thresholds(scored(fit, fit, policy))
     return pl.concat(
@@ -309,10 +314,10 @@ def max_drawdown(ret: np.ndarray) -> float:
 class ArmReport(NamedTuple):
     auc: Interval
     brier_skill: Interval | None
-    sharpe: Interval  # excess over cash at COST_BPS
-    sharpe_by_cost: dict[int, float]
+    excess_sharpe: Interval
+    excess_sharpe_by_cost: dict[int, float]
     exposure: float
-    turnover: float  # switches per sleeve per year
+    switches_per_year: float
     max_drawdown: float
     calibration: list[tuple[float, int, float, float]] | None
 
@@ -351,10 +356,12 @@ def _report(
         brier_skill=bootstrap_interval(dates, lambda w: brier_skill(score, up, base, w))
         if arm.probability
         else None,
-        sharpe=bootstrap_interval(day["date"].to_numpy(), lambda w: sharpe(excess[COST_BPS], w)),
-        sharpe_by_cost={bps: sharpe(x) for bps, x in excess.items()},
+        excess_sharpe=bootstrap_interval(
+            day["date"].to_numpy(), lambda w: sharpe(excess[COST_BPS], w)
+        ),
+        excess_sharpe_by_cost={bps: sharpe(x) for bps, x in excess.items()},
         exposure=float(sleeve["position"].cast(pl.Float64).mean()),
-        turnover=float(sleeve["switch"].sum() / (sleeve.height / YEAR)),
+        switches_per_year=float(sleeve["switch"].sum() / (sleeve.height / YEAR)),
         max_drawdown=max_drawdown(day["ret"].to_numpy()),
         calibration=calibration(score, up) if arm.probability else None,
     )
@@ -380,7 +387,7 @@ def power(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame, draws: in
     """
     labelled = scored(rows, fit, policy).filter(pl.col("up_20").is_not_null())
     dates, up = labelled["date"].to_numpy(), labelled["up_20"].to_numpy()
-    first, second = (labelled[ARMS[a].score].to_numpy() for a in PRIMARY)
+    first, second = (labelled[ARMS[a].score].to_numpy() for a in (CANDIDATE, BASELINE))
     diffs = block_bootstrap(dates, lambda w: auc(first, up, w) - auc(second, up, w), draws=draws)
     se = float(np.std(diffs, ddof=1))
     z = NormalDist().inv_cdf
@@ -388,10 +395,10 @@ def power(rows: pl.DataFrame, fit: pl.DataFrame, policy: pl.DataFrame, draws: in
 
 
 def _rule(arm: Arm) -> str:
-    if isinstance(arm.threshold, tuple):
+    if isinstance(arm.threshold, Matched):
         return (
             f"{arm.score} > the cut whose exposure on the fit rows is closest to the mean"
-            f" exposure of {', '.join(arm.threshold)}"
+            f" exposure of {', '.join(arm.threshold.arms)}"
         )
     return f"{arm.score} > {arm.threshold}"
 
@@ -408,8 +415,6 @@ def render_prereg(
     market = "\n".join(f'{symbol} = "{sha}"' for symbol, sha in market_sha256.items())
     arms = "\n".join(f'{name} = "{_rule(arm)}"' for name, arm in ARMS.items())
     return f"""\
-# Pre-registration for the holdout run, written by `jt evaluate --prereg` from dev data only.
-
 [study]
 state_version = "{STATE_VERSION}"
 prompt_version = "{PROMPT_VERSION}"
@@ -425,7 +430,7 @@ end = {holdout_end}
 fit_on = ["fit", "validate"]
 
 [primary]
-metric = "auc({PRIMARY[0]}) - auc({PRIMARY[1]})"
+metric = "auc({CANDIDATE}) - auc({BASELINE})"
 level = {LEVEL}
 block = {BLOCK}
 reps = {REPS}

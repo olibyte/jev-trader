@@ -18,12 +18,14 @@ from dotenv import dotenv_values
 
 from jevtrader.data import DATA_DIR, REPO_ROOT, UNIVERSE, DataError, adjust_check, fetch_symbol
 from jevtrader.evaluate import (
+    ARMS,
+    BASELINE,
     BLOCK,
+    CANDIDATE,
     COST_BPS,
     COSTS_BPS,
     LEVEL,
     PREREG_PATH,
-    PRIMARY,
     REPS,
     SHRINK_K,
     Interval,
@@ -321,16 +323,16 @@ def evaluate(prereg: bool) -> int:
     )
     for name, r in reports.items():
         bss = "n/a" if r.brier_skill is None else interval(r.brier_skill, 3)
-        note = "  look-ahead check, not a strategy" if name == "oracle" else ""
+        note = "  look-ahead check, not a strategy" if ARMS[name].lookahead else ""
         print(
-            f"{name:<16}{interval(r.auc, 3):<22}{bss:<25}{interval(r.sharpe, 2):<21}"
-            f"{r.exposure:>8.1%}{r.turnover:>13.1f}{r.max_drawdown:>8.1%}{note}"
+            f"{name:<16}{interval(r.auc, 3):<22}{bss:<25}{interval(r.excess_sharpe, 2):<21}"
+            f"{r.exposure:>8.1%}{r.switches_per_year:>13.1f}{r.max_drawdown:>8.1%}{note}"
         )
 
     print()
     print(f"{'excess Sharpe':<16}" + "".join(f"{f'{c} bps':>8}" for c in COSTS_BPS))
     for name, r in reports.items():
-        print(f"{name:<16}" + "".join(f"{r.sharpe_by_cost[c]:>8.2f}" for c in COSTS_BPS))
+        print(f"{name:<16}" + "".join(f"{r.excess_sharpe_by_cost[c]:>8.2f}" for c in COSTS_BPS))
 
     print()
     print("calibration on labelled validate rows: bin, n, mean score, observed up rate")
@@ -348,7 +350,7 @@ def evaluate(prereg: bool) -> int:
     dev_power = power(validate, fit, policy, holdout_blocks(holdout_dates))
     print()
     print(
-        f"primary auc({PRIMARY[0]}) - auc({PRIMARY[1]}): dev SE {dev_power.se:.4f}"
+        f"primary auc({CANDIDATE}) - auc({BASELINE}): dev SE {dev_power.se:.4f}"
         f" at {dev_power.holdout_blocks} blocks, MDE {dev_power.mde:.4f}"
         f"; validate {dev_power.eval_blocks} blocks, holdout {dev_power.holdout_blocks} blocks"
     )
