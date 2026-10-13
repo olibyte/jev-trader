@@ -98,3 +98,21 @@ test("the candles view shows one fund's prices and marks each strategy's trades"
   await expect(fund).toHaveCount(0);
   await expectNoJargon(page);
 });
+
+test.describe("on a phone screen", () => {
+  test.use({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+
+  test("the line chart still shows the whole year after a resize soon after it draws", async ({ page }) => {
+    await page.goto("/preview/");
+    const chart = page.getByTestId("line-chart");
+    await chart.waitFor();
+    await page.waitForTimeout(400);
+    // A full-page capture resizes the viewport, as a phone's address bar does when it collapses.
+    await page.screenshot({ fullPage: true });
+    await chart.scrollIntoViewIfNeeded();
+    const box = await chart.boundingBox();
+    if (!box) throw new Error("the line chart has no box");
+    await page.mouse.move(box.x + 2, box.y + box.height / 2);
+    await expect(page.getByTestId("readout")).toContainText(/^Oct \d+, 2025/);
+  });
+});

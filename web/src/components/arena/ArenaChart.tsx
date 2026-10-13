@@ -58,9 +58,13 @@ function useChart(container: RefObject<HTMLDivElement | null>): [RefObject<IChar
     const api = createChart(container.current, { ...chartOptions(), handleScroll: false, handleScale: false });
     const onMove = (param: MouseEventParams<Time>) =>
       setHovered(param.logical === undefined || param.point === undefined ? null : Math.round(param.logical));
+    // Zoom and scroll are off, so the whole range always shows. A resize soon after the first draw otherwise keeps the old bar spacing.
+    const fit = () => api.timeScale().fitContent();
     api.subscribeCrosshairMove(onMove);
+    api.timeScale().subscribeSizeChange(fit);
     chart.current = api;
     return () => {
+      api.timeScale().unsubscribeSizeChange(fit);
       api.unsubscribeCrosshairMove(onMove);
       api.remove();
       chart.current = null;
