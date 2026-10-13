@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade Arena Standings</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #14171c; --muted: #5d6673; --line: #e2e5ea;
+  --ahead: #1f7a4d; --ahead-bg: #e6f4ec; --behind: #b4372c; --behind-bg: #fbeceb;
+  --close: #6b5d1f; --close-bg: #f6f1dc; --accent: #2f5bd3; --zero: #8a929e;
+  --mock: #b4372c; --bar: #c9d3ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --ink: #e8ebef; --muted: #98a1ad; --line: #2a3039;
+    --ahead: #5cc58f; --ahead-bg: #15281f; --behind: #f07a6f; --behind-bg: #2c1a19;
+    --close: #d9c46a; --close-bg: #29261a; --accent: #7fa2ff; --zero: #6c7480; --bar: #33426a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --ink: #e8ebef; --muted: #98a1ad; --line: #2a3039;
+  --ahead: #5cc58f; --ahead-bg: #15281f; --behind: #f07a6f; --behind-bg: #2c1a19;
+  --close: #d9c46a; --close-bg: #29261a; --accent: #7fa2ff; --zero: #6c7480; --bar: #33426a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 18px; }
+nav { display: flex; gap: 14px; margin-left: auto; font-size: 14px; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a.on { color: var(--ink); font-weight: 600; }
+.mock { background: var(--mock); color: #fff; font-size: 12px; font-weight: 700;
+  letter-spacing: .04em; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-top: 16px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+.lede { margin: 0; color: var(--muted); }
+.strip { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; font-size: 14px; }
+.strip b { font-variant-numeric: tabular-nums; }
+.progress { height: 6px; background: var(--line); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 55%; background: var(--accent); }
+.howto { font-size: 13px; color: var(--muted); margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+.legend-ci { display: inline-block; flex: 0 0 90px; width: 90px; }
+.band-head { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 6px; }
+.band-head h2 { font-size: 15px; margin: 0; padding: 2px 10px; border-radius: 12px; }
+.band-head p { margin: 0; font-size: 13px; color: var(--muted); }
+.ahead h2 { background: var(--ahead-bg); color: var(--ahead); }
+.close h2 { background: var(--close-bg); color: var(--close); }
+.behind h2 { background: var(--behind-bg); color: var(--behind); }
+.empty { font-size: 14px; color: var(--muted); padding: 8px 12px; border: 1px dashed var(--line); border-radius: 8px; }
+.cols, .row { display: grid; grid-template-columns: minmax(180px, 2.1fr) 90px minmax(200px, 2.4fr) 140px; gap: 12px; align-items: center; }
+.cols { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 0 12px; margin-top: 14px; }
+.row > * { min-width: 0; }
+.row { padding: 10px 12px; border-top: 1px solid var(--line); cursor: pointer; }
+.row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.name { font-weight: 600; }
+.tag { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 10px; padding: 0 7px; margin-left: 6px; font-weight: 500; vertical-align: 1px; }
+.sub { font-size: 12px; color: var(--muted); }
+.sub a { color: var(--accent); }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.ci { display: block; position: relative; height: 22px; }
+.ci .axis { position: absolute; top: 10px; left: 0; right: 0; height: 1px; background: var(--line); }
+.ci .zero { position: absolute; top: 2px; bottom: 2px; width: 1px; background: var(--zero); }
+.ci .rng { position: absolute; top: 7px; height: 7px; border-radius: 4px; background: var(--bar); }
+.ci .pt { position: absolute; top: 5px; width: 11px; height: 11px; margin-left: -5px; border-radius: 50%; background: var(--accent); }
+.ci .lbl { position: absolute; top: -2px; right: 0; font-size: 11px; color: var(--muted); }
+.cilabel { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pre { font-size: 13px; color: var(--muted); text-align: right; }
+.pre small { display: block; font-size: 11px; }
+.scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 2px 0 0; }
+.match { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; text-align: center; }
+.match .side b { display: block; font-size: 16px; }
+.vs { font-weight: 700; color: var(--muted); }
+.verdict { display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 12px; background: var(--close-bg); color: var(--close); font-weight: 600; font-size: 14px; }
+footer { font-size: 12px; color: var(--muted); margin-top: 18px; }
+footer p { margin: 4px 0; }
+@media (max-width: 720px) {
+  .cols { display: none; }
+  .row { grid-template-columns: 1fr auto; grid-template-areas: "name ret" "ci ci" "pre pre"; gap: 6px 12px; }
+  .row .n { grid-area: name; } .row .r { grid-area: ret; } .row .c { grid-area: ci; } .row .p { grid-area: pre; text-align: left; }
+  .row .p small { display: inline; margin-left: 4px; }
+  nav { margin-left: 0; width: 100%; }
+  h1 { font-size: 21px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="brand">Trade Arena</span>
+    <span class="mock">Mock data</span>
+    <nav aria-label="Main">
+      <a class="on" href="#">Standings</a>
+      <a href="#">Matchups</a>
+      <a href="#">Pre-season</a>
+      <a href="#">Studies</a>
+    </nav>
+  </header>
+
+  <section class="panel" aria-labelledby="season">
+    <h1 id="season">Season 1 standings</h1>
+    <p class="lede">Every strategy was locked before the season started. Scores use only trading days that came after.</p>
+    <div class="strip">
+      <span>Day <b>168</b> of <b>306</b></span>
+      <span><b>8</b> of <b>16</b> twenty-day blocks</span>
+      <span>Last bar <b>2027-06-10</b></span>
+      <span>Updated nightly after the close</span>
+    </div>
+    <div class="progress" aria-hidden="true"><i></i></div>
+    <div class="howto">
+      <span class="legend-ci"><span class="ci"><span class="axis"></span><span class="rng" style="left:15%;width:65%"></span><span class="pt" style="left:50%"></span><span class="zero" style="left:30%"></span></span></span>
+      <span>The bar is the range the true difference from buy and hold probably lies in (adjusted for 6 entries). If it crosses the zero line, the season cannot tell them apart yet.</span>
+    </div>
+
+    <div class="cols" aria-hidden="true">
+      <span>Strategy</span><span class="num">Season return</span><span>Excess Sharpe vs buy and hold, adjusted CI</span><span class="num">Pre-season</span>
+    </div>
+
+    <div class="band-head ahead"><h2>Ahead of buy and hold</h2><p>CI wholly above zero</p></div>
+    <div class="empty">No strategy is ahead yet. Halfway through a season, that is the usual result.</div>
+
+    <div class="band-head close"><h2>Too close to call</h2><p>CI crosses zero. Order inside this band is noise.</p></div>
+    <div id="close"></div>
+
+    <div class="band-head behind"><h2>Behind buy and hold</h2><p>CI wholly below zero</p></div>
+    <div id="behind"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="match">
+    <div class="band-head close" style="margin-top:0"><h2 id="match" style="background:none;padding:0;color:var(--ink)">Featured matchup</h2><p>Bonferroni-adjusted over all 15 pairs</p></div>
+    <div class="match">
+      <div class="side"><b>Trend vote</b><span class="sub">Season return +6.1%</span></div>
+      <div class="vs">vs</div>
+      <div class="side"><b>Reversion vote</b><span class="sub">Season return +4.4%</span></div>
+    </div>
+    <div style="text-align:center"><span class="verdict">Too close to call</span>
+      <p class="sub">Excess Sharpe difference +0.31, adjusted CI -1.12 to +1.70. Open the matchup for both equity curves.</p></div>
+  </section>
+
+  <footer>
+    <p>Research, not investment advice. Nothing here is a recommendation to buy or sell any security.</p>
+    <p>Backtests are hypothetical, include modeled trading costs only, and do not predict future returns.</p>
+    <p>All numbers on this page are invented for a layout mock.</p>
+  </footer>
+</div>
+<script>
+// Mock rows. lo/pt/hi: excess-Sharpe difference from buy and hold, adjusted CI.
+const rows = [
+  { band: "close", name: "SMA 50/200 filter", tag: "Rule", ret: "+5.8%", lo: -1.31, pt: -0.12, hi: 1.07, pre: "0.41", entered: "Entered 2026-10-14" },
+  { band: "close", name: "Trend vote", tag: "Rule", ret: "+6.1%", lo: -1.18, pt: 0.05, hi: 1.28, pre: "0.37", entered: "Entered 2026-10-14" },
+  { band: "close", name: "History table", tag: "Table", ret: "+5.2%", lo: -1.46, pt: -0.21, hi: 1.04, pre: "0.58", entered: "Entered 2026-10-14" },
+  { band: "close", name: "Reversion vote", tag: "Rule", ret: "+4.4%", lo: -1.55, pt: -0.26, hi: 1.03, pre: "0.29", entered: "Entered 2026-10-14" },
+  { band: "behind", name: "Jev", tag: "AI model", ret: "+0.9%", lo: -2.41, pt: -1.37, hi: -0.18, pre: "0.21",
+    entered: 'Frozen rulebook. Study result: inconclusive (AUC diff -0.012, CI -0.045 to 0.024). <a href="#">/studies/jev</a>' },
+];
+const MIN = -2.6, MAX = 2.0;
+const pos = v => ((v - MIN) / (MAX - MIN) * 100).toFixed(1) + "%";
+const fmt = v => (v >= 0 ? "+" : "") + v.toFixed(2);
+for (const r of rows) {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.innerHTML = `
+    <div class="n"><span class="name">${r.name}</span><span class="tag">${r.tag}</span><div class="sub">${r.entered}</div></div>
+    <div class="r num">${r.ret}</div>
+    <div class="c"><div class="ci">
+      <span class="axis"></span>
+      <span class="rng" style="left:${pos(r.lo)};width:calc(${pos(r.hi)} - ${pos(r.lo)})"></span>
+      <span class="zero" style="left:${pos(0)}"></span>
+      <span class="pt" style="left:${pos(r.pt)}"></span>
+    </div><div class="cilabel">${fmt(r.pt)} &nbsp;[${fmt(r.lo)} to ${fmt(r.hi)}]</div></div>
+    <div class="p pre">${r.pre}<small>backtest, 2019 to 2026</small></div>`;
+  document.getElementById(r.band).appendChild(el);
+}
+</script>
+</body>
+</html>

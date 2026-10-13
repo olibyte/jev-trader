@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade Arena Mock</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#2a2f3a;--text:#e6e8ee;--muted:#9aa3b2;--a:#4cc9f0;--b:#f4a261;--ref:#8b93a1;--warn:#ffd166}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 24px;border-bottom:1px solid var(--line)}
+header strong{font-size:17px}
+nav{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+nav a{color:var(--muted);text-decoration:none}nav a.on{color:var(--text)}
+.mock{margin-left:auto;background:var(--warn);color:#111;font-weight:700;font-size:12px;padding:3px 8px;border-radius:4px;letter-spacing:.04em}
+main{max-width:1120px;margin:0 auto;padding:20px 24px 32px}
+h1{font-size:24px;margin:4px 0 4px}
+.sub{color:var(--muted);margin:0 0 16px}
+.period{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.period button{background:none;border:0;color:var(--muted);padding:8px 14px;font:inherit;cursor:pointer}
+.period button.on{background:#262b36;color:var(--text)}
+.grid{display:grid;grid-template-columns:280px 1fr 280px;gap:16px;align-items:start}
+.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+select{width:100%;background:#0f1115;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px;font:inherit;margin-bottom:10px}
+.knob{margin-bottom:10px}.knob label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{background:#0f1115;color:var(--text);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}
+.chips button.on{border-color:currentColor}
+#cardA .chips button.on{color:var(--a)}#cardB .chips button.on{color:var(--b)}
+.meta{font-size:12px;color:var(--muted)}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin-left:4px;color:var(--text)}
+.verdict{text-align:center;padding:4px 0 10px}
+.verdict .big{font-size:26px;font-weight:700}
+.verdict .num{font-variant-numeric:tabular-nums}
+.ci{position:relative;height:22px;margin:10px 8% 2px}
+.ci .axis{position:absolute;top:10px;left:0;right:0;height:1px;background:var(--line)}
+.ci .zero{position:absolute;top:2px;bottom:2px;width:1px;background:var(--muted);left:50%}
+.ci .bar{position:absolute;top:7px;height:7px;background:#3a4252;border-radius:4px}
+.ci .pt{position:absolute;top:4px;width:3px;height:13px;background:var(--text)}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+.legend span::before{content:"";display:inline-block;width:14px;height:3px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.strip{margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center}
+.strip p{margin:0}
+.strip a{color:var(--a)}
+footer{max-width:1120px;margin:0 auto;padding:0 24px 32px;color:var(--muted);font-size:12px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}.chart{order:-1}header,main,footer{padding-left:16px;padding-right:16px}h1{font-size:20px}}
+</style>
+</head>
+<body>
+<header>
+  <strong>Trade Arena</strong>
+  <nav><a class="on" href="#">Arena</a><a href="#">How it works</a><a href="#">Manifest</a><a href="#">Studies: Jev</a></nav>
+  <span class="mock">MOCK DATA</span>
+</header>
+<main>
+  <h1>Pick two strategies. Is the gap bigger than luck?</h1>
+  <p class="sub">13 US ETFs, long or flat, 5 bps per trade. Every number here was computed in advance. Turning a knob picks another precomputed variant.</p>
+  <div class="period" role="group" aria-label="Period">
+    <button data-p="dev">Development 2008 to 2018</button>
+    <button data-p="hold" class="on">Holdout 2019 to 2026</button>
+  </div>
+  <div class="grid">
+    <section class="card" id="cardA"><h2><span class="dot" style="background:var(--a)"></span>Strategy A</h2><div class="body"></div></section>
+    <section class="panel chart">
+      <div class="verdict">
+        <div class="big" id="vText">No detectable difference</div>
+        <div class="meta num" id="vNum"></div>
+        <div class="ci"><div class="axis"></div><div class="zero"></div><div class="bar" id="ciBar"></div><div class="pt" id="ciPt"></div></div>
+        <div class="meta" id="vNote"></div>
+      </div>
+      <svg id="chart" viewBox="0 0 600 260" role="img" aria-label="Portfolio growth of 1 dollar for A, B, and always long"></svg>
+      <div class="legend"><span style="--c:var(--a)">A</span><span style="--c:var(--b)">B</span><span style="--c:var(--ref)">Always long (buy and hold)</span></div>
+    </section>
+    <section class="card" id="cardB"><h2><span class="dot" style="background:var(--b)"></span>Strategy B</h2><div class="body"></div></section>
+  </div>
+  <div class="panel strip">
+    <p><strong>96 variants tried in grid v1.</strong> <span class="meta">Every one is on this site. Every interval for a knob-chosen variant is adjusted for all 96.</span></p>
+    <p class="meta">Jev is a contestant too, from its frozen rulebook. Study result: inconclusive. <a href="#">Read the archived study</a></p>
+  </div>
+</main>
+<footer>
+  <p>Research, not investment advice. Nothing here is a recommendation to buy or sell any security.</p>
+  <p>Backtests are hypothetical, include modeled trading costs only, and do not predict future returns.</p>
+</footer>
+<script>
+const FAM={
+ "Bollinger bounce":{n:18,knobs:{"Window":["10","20","50"],"Band width (SD)":["1.5","2.0","2.5"],"Exit at":["Middle band","Upper band"]},def:["20","2.0","Middle band"]},
+ "MACD crossover":{n:18,knobs:{"Fast / slow":["8/17","12/26","19/39"],"Signal":["5","9","12"],"Trend filter":["Off","Above 200-day"]},def:["12/26","9","Off"]},
+ "Moving-average cross":{n:9,knobs:{"Fast":["10","20","50"],"Slow":["100","150","200"]},def:["50","200"]},
+ "RSI reversion":{n:12,knobs:{"Window":["2","14"],"Enter below":["10","20","30"],"Exit above":["50","70"]},def:["14","30","70"]},
+ "Candlestick":{n:24,knobs:{"Pattern":["Hammer","Engulfing","Morning star","Three soldiers"],"Hold (sessions)":["5","10","20"],"Trend filter":["Off","On"]},def:["Hammer","10","Off"]},
+ "Machine learning":{n:12,knobs:{"Model":["State table","Logistic"],"Strength":["Low","Mid","High"],"Threshold":["0.5","Matched"]},def:["State table","Mid","0.5"]},
+ "Jev (frozen, study: inconclusive)":{n:1,knobs:{},def:[]}
+};
+const S={period:"hold",A:{fam:"Bollinger bounce",v:[...FAM["Bollinger bounce"].def]},B:{fam:"MACD crossover",v:[...FAM["MACD crossover"].def]}};
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){return()=>{seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function key(side){return S[side].fam+"|"+S[side].v.join("|")+"|"+S.period}
+function series(k,n,drift){const r=rng(hash(k));let v=1,out=[];for(let i=0;i<n;i++){v*=1+drift+(r()-.5)*0.022;out.push(v)}return out}
+function idx(side){const f=FAM[S[side].fam],ks=Object.values(f.knobs);let i=0;S[side].v.forEach((x,j)=>{i=i*ks[j].length+ks[j].indexOf(x)});return i+1}
+function card(side){
+  const el=document.querySelector("#card"+side+" .body"),f=FAM[S[side].fam];
+  const isDef=S[side].v.join()===f.def.join();
+  el.innerHTML=`<select aria-label="Family for ${side}">${Object.keys(FAM).map(n=>`<option${n===S[side].fam?" selected":""}>${n}</option>`).join("")}</select>`+
+   Object.entries(f.knobs).map(([k,vals],j)=>`<div class="knob"><label>${k}</label><div class="chips">${vals.map(v=>`<button data-j="${j}" data-v="${v}" class="${S[side].v[j]===v?"on":""}">${v}</button>`).join("")}</div></div>`).join("")+
+   `<div class="meta">Variant ${idx(side)} of ${f.n} in this family${isDef?'<span class="tag">pre-registered default</span>':""}</div>`;
+  el.querySelector("select").onchange=e=>{S[side].fam=e.target.value;S[side].v=[...FAM[e.target.value].def];render()};
+  el.querySelectorAll(".chips button").forEach(b=>b.onclick=()=>{S[side].v[+b.dataset.j]=b.dataset.v;render()});
+}
+function chart(){
+  const n=S.period==="hold"?400:560,svg=document.getElementById("chart");
+  const ref=series("ref"+S.period,n,.00035),a=series(key("A"),n,.00028),b=series(key("B"),n,.0003);
+  const all=[...ref,...a,...b],lo=Math.min(...all),hi=Math.max(...all);
+  const x=i=>40+i*(550/(n-1)),y=v=>230-(v-lo)/(hi-lo)*210;
+  const path=s=>s.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join("");
+  const ticks=[lo,(lo+hi)/2,hi].map(v=>`<text x="34" y="${y(v)+4}" fill="#9aa3b2" font-size="11" text-anchor="end">${v.toFixed(2)}</text><line x1="40" x2="590" y1="${y(v)}" y2="${y(v)}" stroke="#2a2f3a"/>`).join("");
+  const yrs=S.period==="hold"?["2019","2026"]:["2008","2018"];
+  svg.innerHTML=ticks+`<text x="40" y="252" fill="#9aa3b2" font-size="11">${yrs[0]}</text><text x="590" y="252" fill="#9aa3b2" font-size="11" text-anchor="end">${yrs[1]}</text>`+
+   `<path d="${path(ref)}" fill="none" stroke="#8b93a1" stroke-width="1.5" stroke-dasharray="4 3"/><path d="${path(a)}" fill="none" stroke="#4cc9f0" stroke-width="2"/><path d="${path(b)}" fill="none" stroke="#f4a261" stroke-width="2"/>`;
+}
+function verdict(){
+  const r=rng(hash(key("A")+key("B")))(),gap=(r-.5)*1.4,half=S.period==="hold"?0.93:0.78;
+  const lo=gap-half,hi=gap+half,txt=lo>0?"A ahead":hi<0?"B ahead":"No detectable difference";
+  const f=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2);
+  document.getElementById("vText").textContent=txt;
+  document.getElementById("vNum").textContent=`Excess Sharpe, A minus B: ${f(gap)} (95% CI ${f(lo)} to ${f(hi)}), adjusted for 96 variants`;
+  document.getElementById("vNote").textContent=(S.period==="hold"?"Holdout, 98":"Development, 139")+" independent 20-session blocks. The bar spans the interval; the line at the middle is zero.";
+  const sc=v=>50+v/2.4*50;
+  const bar=document.getElementById("ciBar");bar.style.left=sc(lo)+"%";bar.style.width=(sc(hi)-sc(lo))+"%";
+  document.getElementById("ciPt").style.left="calc("+sc(gap)+"% - 1px)";
+}
+function render(){card("A");card("B");chart();verdict()}
+document.querySelectorAll(".period button").forEach(b=>b.onclick=()=>{S.period=b.dataset.p;document.querySelectorAll(".period button").forEach(x=>x.classList.toggle("on",x===b));render()});
+render();
+</script>
+</body>
+</html>

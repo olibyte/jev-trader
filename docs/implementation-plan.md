@@ -1,21 +1,22 @@
-# Jev Trader implementation plan
+# Trade arena implementation plan
 
-> **This plan will change.** It records the design on 2026-10-12, before any code exists. Treat each milestone as the current best guess. When an experiment or a review changes a decision, edit the plan and add a dated line to the [decision log](#decision-log). The product goals live in [product-spec.md](product-spec.md).
+> **This plan will change.** It recorded the Jev study design on 2026-10-12 and adds the trade arena on 2026-10-13. Treat each milestone as the current best guess. When an experiment or a review changes a decision, edit the plan and add a dated line to the [decision log](#decision-log). The product goals live in [product-spec.md](product-spec.md). The [arena synthesis](arena/2026-10-13-trade-arena/synthesis.md) records the candidate concepts, the judging, and the grafts behind milestones 7 to 11.
 
 ## Architecture
 
-The Python research package computes everything and writes versioned files. The Next.js site reads those files and renders them statically. Nothing runs on a server.
+The Python research package computes everything and writes versioned files. The Next.js site reads those files and renders them statically. Nothing runs on a server. Planned modules and commands are marked "planned".
 
 ```text
 Twelve Data ──▶ research/ (uv package `jevtrader`)
                   data.py      fetch, validate, Parquet snapshots + manifest
-                  states.py    indicators, versioned state classifier, vote tables
+                  states.py    indicators, candle flags (planned), versioned state classifier, vote tables, purged labels
                   jev.py       prompt versions, OpenRouter call, append-only JSONL log, policy table
-                  evaluate.py  policy join, arms, metrics, block bootstrap, holdout lock
-                  export.py    web export contract
-                  cli.py       jt fetch | states | ceiling | jev-table | evaluate | holdout | export
+                  evaluate.py  policy join, arms, backtest, metrics, block bootstrap, holdout lock
+                  catalog.py   (planned) arena strategies: CATALOG, positions, fingerprints
+                  export.py    web export contracts: export/v1 (Jev study), export/arena/v1 (planned)
+                  cli.py       jt fetch | states | ceiling | jev-table | evaluate | holdout | export | arena (planned)
                       │
-                      ▼ export/v1/*.json
+                      ▼ export/v1/*.json, export/arena/v1/*.json
                 web/ (Next.js static export, zod-validated at build time)
 ```
 
@@ -25,10 +26,59 @@ Each module owns one area of the domain. The web app never recomputes an indicat
 |---|---|---|
 | Storage | Local files under `data/` (gitignored), `pathlib` | The site deploys and needs shared files. Then swap the read and write functions for S3. |
 | Jev call log | `jev_calls.jsonl`, append-only, committed to git | The log grows past what git handles well. |
-| Backend | None | Users need parameters that cannot be precomputed. |
-| Hosting | Static export in `web/out/`, to be served from S3 behind CloudFront and managed with Terraform. Not deployed yet. | Users need parameters that cannot be precomputed. |
+| Backend | None | A learner needs a result that `jt arena` cannot compute in advance, such as a parameter they set or a rule they build. The product spec names the prerequisites. |
+| Hosting | Static export in `web/out/`, to be served from S3 behind CloudFront and managed with Terraform. Not deployed yet. | The same trigger as the backend. |
+| Live scoring | None yet | Milestone 11 adds a nightly GitHub Actions job that fetches bars, appends positions to a ledger on the `ledger` branch, and rebuilds the static files. |
 
 ## Core data shapes
+
+### Arena (planned)
+
+```python
+Period = Literal["backtest", "live"]
+Kind = Literal["benchmark", "indicator", "candlestick", "ml", "jev", "control"]
+
+@dataclass(frozen=True)
+class Strategy:  # catalog.py. CATALOG: dict[str, Strategy] is append-only.
+	id: str  # "macd_cross"
+	version: int  # a changed rule is a new version, never an edit
+	title: str
+	rule: str  # one plain sentence for the strategy card
+	citation: str  # where the textbook parameters come from
+	kind: Kind
+	positions: Callable[[pl.DataFrame], pl.Series]  # adjusted bars -> 0 or 1 per session, decided at the close of t
+
+class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
+	id: str
+	version: int
+	title: str
+	rule: str
+	citation: str
+	kind: Kind
+	fingerprint: str  # sha256 of positions on random_walk(0..2) bars from tests/test_states.py
+
+class PairRecord(TypedDict):  # export/arena/v1/comparisons.json, one per pair, scope, and period
+	a: str
+	b: str  # a precedes b in catalog order
+	scope: str  # "portfolio" or a symbol
+	period: Period
+	blocks: int  # 20-session blocks the bootstrap resamples
+	diff: Interval  # excess Sharpe of a minus b at 5 bps, plain 95% interval
+	simultaneous: Interval  # 95% interval that covers the whole family at once
+	family: int  # pairs in the catalog version, n * (n - 1) / 2
+	mde: float  # smallest difference this period can detect at 80% power, with the simultaneous critical value
+	verdict: Literal["a_ahead", "b_ahead", "no_difference", "too_early"] | None  # None off the portfolio scope
+
+class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planned, milestone 11), append-only
+	date: date  # the session whose close made the decisions
+	catalog_version: int
+	positions: dict[str, dict[str, Literal[0, 1]]]  # strategy id -> symbol -> position
+	bars_sha256: str  # hash of the bars the decisions read
+```
+
+The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, and `curves/{scope}.json` (growth of $1 for each strategy in each period). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The period bounds live only in the manifest.
+
+### Jev study (finished)
 
 ```python
 Split = Literal["warmup", "fit", "validate", "holdout"]  # fit 2008-2014, validate 2015-2018, holdout 2019-
@@ -91,7 +141,44 @@ RunManifest = DevRun | HoldoutRun
 
 The web export lives in `export/v1/` and is committed to git. It holds `manifest.json` (the study versions, the dataset hashes, the two runs, and the hash of every other file), `summary.json` (the primary result, the outcome, and the metrics for each arm, copied from `research/holdout.json`), `policy.json` (Jev's rulebook with readable states, the five logged samples, and each state's development frequency), and `symbols/{SYMBOL}.json` (columnar sessions with bars, states, Jev positions, and forward returns, the holdout equity curves, and an `inStudy` flag). `jt export` writes it. The site validates every file with zod at build time, and a schema mismatch or a file hash that differs from `manifest.json` fails the build.
 
-## Research method
+## Arena method (planned)
+
+### Strategies
+
+`CATALOG` in `catalog.py` holds the strategies. The study's `ARMS` registry stays as it is. An arm is `score > threshold` on one session, so it cannot express an exit or a hold of N sessions, and `evaluate.decisions` reads only the fixed `ARMS` dict. A strategy is a causal function `positions(bars)` instead. Its output becomes the `position` column that `evaluate.backtest` already reads, so the arena reuses the study's fills, costs, cash return, and portfolio unchanged.
+
+Catalog version 1 has the 8 entries in the product spec. Their parameters come from the textbook sources that each entry cites, and no entry is tuned on these bars.
+
+- Buy and hold and the golden cross reproduce the study's `buy_hold` and `sma_filter` arms exactly.
+- The MACD crossover and the Bollinger bounce reuse the indicator expressions in `states.levels`, at full precision rather than as levels.
+- The bullish engulfing pattern reads `candles(bars)`, a new function beside `levels()` in `states.py`. Row t reads bars up to t only, and the pattern reads t-1 and t.
+- The learned model is an L2 logistic regression from scikit-learn on one-hot `State` levels and candle flags. It refits each January on rows whose label exit open falls before the refit date. This generalises the split purge in `states.labels` to every refit date, in new code. `SPLIT_STARTS` does not change.
+- Jev (frozen rulebook) reads `data/policy/jev.parquet`, rebuilt by `jt jev-table --offline`. It is long when `p_up > 0.5`, as the `jev` arm is.
+- The coin flip draws one seeded coin for each symbol and each 20-session block.
+
+### Periods
+
+The backtest period runs from 2008-01-02, the start of fit, to the last bar before the catalog version froze. For catalog version 1, the end is 2026-10-09, the last bar on hand and the prereg end. The live period starts at the first session after the freeze. Warmup bars from before 2008 feed the indicators and the first refit of the learned model.
+
+The arena has no development and holdout split. Whoever built the catalog had seen 2019 to 2026, so those years are not a holdout for any entry. Two backtest windows would also double the family and offer a window to choose.
+
+### Comparisons
+
+- **Metric.** The difference in annualised excess Sharpe (`evaluate.sharpe`) at 5 bps (`COST_BPS`), on the equal-weight portfolio of the 13 sleeves (`evaluate.portfolio`) or on one sleeve. Costs of 0, 10, and 20 bps are point values.
+- **Intervals.** `evaluate.block_bootstrap` with seed 0, 2,000 reps, and 20-session blocks, unchanged. It creates its generator inside each call, so the same dates and seed draw the same blocks for every pair. Each rep therefore gives one draw for every pair in the family.
+- **Simultaneous interval.** For each pair and rep, divide the draw's deviation from the pair's point value by the standard deviation of the pair's draws. Take the 95th percentile, across reps, of the largest absolute value of that ratio over the family. The simultaneous interval is the point plus or minus that critical value times the pair's standard deviation. For 6 pairs, a scratch run gave 2.53 instead of 1.96.
+- **Verdict.** On the portfolio scope, "a_ahead" or "b_ahead" when the simultaneous interval excludes zero, and "no_difference" otherwise. In the live period, "too_early" below 3 blocks. Single-symbol scopes get no verdict.
+- **MDE.** (critical value + z(0.8)) times the pair's bootstrap standard deviation, the study's MDE formula with the simultaneous critical value.
+
+### Rules that keep the arena honest
+
+- `jt arena` reads the full-precision Parquet bars, never the 4-decimal prices in `export/v1/`. Rounding to 4 decimals flipped 34 indicator cells in a scratch run.
+- `jt arena` refuses to run unless `buy_hold` and the golden cross, cut to 2019-01-02 through 2026-10-09, reproduce the `buy_hold` and `sma_filter` excess Sharpe intervals in `research/holdout.json` exactly.
+- `jt arena` refuses a strategy whose fingerprint differs from `catalog.json` for the same id and version, a strategy that is never long in the backtest period, and a catalog that drops an id from the committed `catalog.json`.
+- The truncation property test runs over every catalog entry: the position at t on `bars.head(t + 1)` equals the position at t on the full frame, on `random_walk` bars. The `oracle` arm, which reads `fwd_ret_20`, must fail the same test, as a negative control.
+- Tripling every price after a cut date changes no position before it.
+
+## Jev study method (finished)
 
 ### Universe
 
@@ -153,6 +240,26 @@ Each milestone ends in a command that passes or fails.
 5. **Holdout.** `jt holdout` writes the result once. A second run exits non-zero. `jt holdout --verify` reruns from the manifest and confirms that the result is byte-identical.
 6. **Web.** `jt export` writes `export/v1/`, and a second run changes no files. `next build` passes with zod validation, and a schema mismatch fails the build. Drive the built site and confirm that every number matches `export/`.
 
+Milestones 1 to 6 are merged. The arena milestones follow. Each one ships alone.
+
+7. **Arena research.** Add `catalog.py` with buy and hold, the golden cross, the MACD crossover, and the Bollinger bounce. Add `jt arena`, which writes `export/arena/v1/` for the portfolio and the 13 symbols over the backtest period. The site does not change.
+   - Check that `uv run python -m pytest tests/test_catalog.py` passes. It holds the truncation test over `CATALOG`, the `oracle` negative control, the fingerprints, the refusal of a never-long strategy, and the refusal of a dropped id.
+   - Check that `jt arena` passes its reconciliation with `research/holdout.json` on the real data.
+   - Check that a second `uv run jt arena` reports every file unchanged.
+8. **Arena first screen.** The home page becomes the matchup in the product spec. The study pages move unchanged to `/studies/jev/`. `web/src/lib/export.ts` gains `loadArena()` beside `loadExport()`, with strict zod schemas and cross-file checks: a period is an enum, record dates come only from the manifest, a verdict agrees with its simultaneous interval, the family size is n(n-1)/2, and single-symbol verdicts are null. `check:honesty` bans date inputs, chart zoom and scroll options, and the words in honesty rule 7.
+   - Check that all five `web/` checks pass, and that `check:schema` fails each new broken copy of the arena export.
+   - Check with Playwright that every number on the home page matches `export/arena/v1/` for the default pair and 5 seeded pairs, and that the `/studies/jev/` pages still match `export/v1/`.
+9. **Candlestick, machine-learning, Jev, and control entries.** Add `candles()` to `states.py` and a feature registry that the truncation test runs over. Add the bullish engulfing pattern, the learned model, Jev (frozen rulebook), and the coin flip. Catalog version 1 then has 8 entries and 28 pairs, and it freezes.
+   - Check that the truncation test passes for every entry, including the learned model at 20 seeded dates.
+   - Check that the purge test passes: no training row for a refit at date R has an exit open on or after R.
+   - Check that tripling every price after a cut date changes no position before it.
+   - Check that a second `jt arena` reports every file unchanged, and rerun the five `web/` checks.
+10. **Deploy.** Terraform creates the S3 bucket, the CloudFront distribution, and the CloudFront function that appends `index.html` to paths that end in `/`. The user runs `terraform apply`.
+    - Check that a script requests every file in `web/out/` from the CloudFront URL, gets status 200, and gets the same bytes.
+11. **Live period.** `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A nightly GitHub Actions job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. It commits the ledger to the `ledger` branch, reads `TWELVE_DATA_API_KEY` from a repository secret, and deploys to AWS through a GitHub OIDC role, so no AWS key is stored. `jt fetch` spends Twelve Data credits, so the user starts the first run.
+    - Check that `tests/test_arena_live.py` passes on synthetic bars in a temporary git repository: 30 simulated sessions append 30 rows, the replay equals the ledger, an edited row fails `verify`, a strategy that reads the next bar fails `verify`, and a second tick on the same bars changes no file.
+    - Check that `jt arena verify` exits 0 after the user runs one `jt fetch` and one `jt arena tick`.
+
 ## Jev access
 
 Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `typesafe/jev-1.13`, called through `httpx`. It needs only an OpenRouter API key and no TypeSafe account. The endpoint is labelled alpha. The risk stays small because the policy table is built once and frozen. The estimated total cost is under $1, computed as 960 states × 5 samples × 2 prompt versions × about 700 tokens at $0.042 per million input tokens. The key is needed at milestone 3, not before.
@@ -162,6 +269,15 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 - Does OpenRouter require a minimum credit purchase? Unverified.
 
 ## Risks
+
+### Arena
+
+1. **Low power.** Most pairs will read "no detectable difference". The first screen says so, shows the smallest difference the period can detect, and keeps the coin flip in the catalog as a picture of luck.
+2. **Catalog snooping.** Whoever adds an entry has seen the backtest years. Cited textbook parameters, the append-only catalog, the family-wide interval, and the "not a holdout" label limit this. Only the live period removes it.
+3. **Look-ahead in stateful rules and refits.** The truncation test over `CATALOG`, the `oracle` negative control, the refit purge test, and the live replay guard against this.
+4. **Pressure to add knobs.** Each parameter value is a new catalog entry and widens every interval. A request for free parameters is the backend trigger, not a catalog change.
+
+### Jev study
 
 These risks are ranked by impact on the answer.
 
@@ -231,3 +347,16 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** Milestone 6 checks the built site with Playwright. The test reads `export/v1/` itself and formats numbers with its own copy of the rules. It checks every number on the result page, all 960 rulebook rows in the static HTML, the time-travel panel of each symbol on its default day and on 5 seeded days, every hash on the manifest page, both disclaimers, and that pages request nothing beyond the static host. A separate check of the result page against `research/holdout.json` found 0 mismatches in 111 values.
 - **2026-10-13.** `web/` pins next 16.3.6, react 19.3.0, zod 4.6.5, lightweight-charts 5.2.1, and TypeScript 6.0.3. pnpm refuses any package published in the last 14 days. TypeScript 7 needs an opt-in from Next, so the site stays on 6. lightweight-charts shows the TradingView attribution that its license asks for.
 - **2026-10-13.** The site will be hosted on AWS, by the user's decision: S3 behind CloudFront, managed with Terraform. The deploy pipeline is later work. With `trailingSlash: true`, every page is a directory `index.html`, so a private S3 origin needs a CloudFront function that appends `index.html` to paths ending in `/`.
+- **2026-10-13.** The product pivots from the Jev study to a trade arena, where learners compare two trading strategies on the same ETFs with the same costs. The user found the study's front page overwhelming. An arena of five candidate concepts chose the design: a fixed catalog, a precomputed parameter grid, a browser engine, user-built rules with a sealed window, and a live league. The fixed, precomputed catalog is the base, and the judge chose it separately. The [synthesis](arena/2026-10-13-trade-arena/synthesis.md) lists each graft and each rejection.
+- **2026-10-13.** The arena is for curious learners first, by the user's decision. Learners pick catalog entries and do not set parameters or build rules.
+- **2026-10-13.** The site stays static, by the user's decision. A backend returns only when a learner needs a result that `jt arena` cannot compute in advance. Nothing is built for it before then.
+- **2026-10-13.** Twelve Data's display and redistribution rights cover publishing these prices. The user checked them. The product spec no longer calls them an assumption.
+- **2026-10-13.** Jev is an arena contestant, "Jev (frozen rulebook)", from the frozen policy table, and its card states the study result. The study pages move unchanged to `/studies/jev/`. This is the user's decision. `research/prereg.toml`, `research/holdout.json`, `research/holdout.manifest.json`, `research/jev_calls.jsonl`, and `export/v1/` do not change.
+- **2026-10-13.** Honesty rule 5 ("no free date picker") becomes "periods are fixed and named, never chosen". Every figure belongs to `backtest` or `live`, the period bounds live only in the arena manifest, and the build fails on a date input, a chart zoom, or a record whose dates differ from its period. The arena has no development and holdout split, because the catalog's authors had seen 2019 to 2026.
+- **2026-10-13.** An arena verdict uses a simultaneous 95% interval over every pair in the catalog version, and only the portfolio scope gets a verdict. `evaluate.block_bootstrap` draws the same blocks for every pair with the same dates and seed, so the interval reuses it unchanged.
+- **2026-10-13.** Arena strategies live in a new `CATALOG` of causal `positions(bars)` functions, not in `ARMS`, because `score > threshold` cannot express an exit or a hold. The backtest, portfolio, Sharpe, and bootstrap code in `evaluate.py` serve both.
+- **2026-10-13.** The learned model is an L2 logistic regression from scikit-learn, refit each January on purged labels. The 2026-10-12 cut of logistic regression applied to the Jev study, and the arena needs a machine-learning entry that learners recognise.
+- **2026-10-13.** The live period records positions in an append-only ledger before the next bar exists, and `jt arena verify` replays it. This turns the spec's planned "live forward testing" into milestone 11.
+- **2026-10-13.** GitHub Actions runs the live period, by the user's decision. The code is on GitHub, scheduled runs are free for a public repository, and the job only has to finish between the close and the next open, so a late start does not matter. The job reads the Twelve Data key from a repository secret and deploys through a GitHub OIDC role. EventBridge with CodeBuild would need more Terraform for the same job.
+- **2026-10-13.** A bot commits the live ledger every night to a separate `ledger` branch, by the user's decision. GitHub's record of each push is the public proof that a position came before the next bar. A commit's own date is set by its author and proves nothing alone. The separate branch keeps about 250 bot commits a year out of `main`.
+- **2026-10-13.** The learned model reads only the `State` levels and the candle flags, by the user's decision. It sees the same information as the other entries and as Jev. Adding inputs after a weak result would be the tuning the arena warns against. A richer model enters as a new catalog entry with its inputs fixed before any run.
