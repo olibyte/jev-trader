@@ -12,9 +12,9 @@ Twelve Data ──▶ research/ (uv package `jevtrader`)
                   states.py    indicators, candle flags (planned), versioned state classifier, vote tables, purged labels
                   jev.py       prompt versions, OpenRouter call, append-only JSONL log, policy table
                   evaluate.py  policy join, arms, backtest, metrics, block bootstrap, holdout lock
-                  catalog.py   (planned) arena strategies: CATALOG, positions, fingerprints
-                  export.py    web export contracts: export/v1 (Jev study), export/arena/v1 (planned)
-                  cli.py       jt fetch | states | ceiling | jev-table | evaluate | holdout | export | arena (planned)
+                  catalog.py   arena strategies: CATALOG, positions, fingerprints, comparisons
+                  export.py    web export contracts: export/v1 (Jev study), export/arena/v1 (arena)
+                  cli.py       jt fetch | states | ceiling | jev-table | evaluate | holdout | export | arena
                       │
                       ▼ export/v1/*.json, export/arena/v1/*.json
                 web/ (Next.js static export, zod-validated at build time)
@@ -32,7 +32,7 @@ Each module owns one area of the domain. The web app never recomputes an indicat
 
 ## Core data shapes
 
-### Arena (planned)
+### Arena
 
 ```python
 Period = Literal["backtest", "live"]
@@ -55,7 +55,7 @@ class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
 	rule: str
 	citation: str
 	kind: Kind
-	fingerprint: str  # sha256 of positions on random_walk(0..2) bars from tests/test_states.py
+	fingerprint: str  # sha256 of positions on random_walk(0..2) bars from catalog.py
 
 class PairRecord(TypedDict):  # export/arena/v1/comparisons.json, one per pair, scope, and period
 	a: str
@@ -69,6 +69,17 @@ class PairRecord(TypedDict):  # export/arena/v1/comparisons.json, one per pair, 
 	mde: float  # smallest difference this period can detect at 80% power, with the simultaneous critical value
 	verdict: Literal["a_ahead", "b_ahead", "no_difference", "too_early"] | None  # None off the portfolio scope
 
+class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json, one per strategy, scope, and period
+	id: str
+	scope: str
+	period: Period
+	blocks: int
+	excessSharpe: Interval  # at 5 bps, plain 95% interval
+	excessSharpeByCost: list[dict]  # {"costBps", "value"} at 0, 5, 10, and 20 bps, point values
+	maxDrawdown: float  # point values from here on, at 5 bps
+	switchesPerYear: float
+	exposure: float
+
 class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planned, milestone 11), append-only
 	date: date  # the session whose close made the decisions
 	catalog_version: int
@@ -76,7 +87,7 @@ class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planne
 	bars_sha256: str  # hash of the bars the decisions read
 ```
 
-The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, and `curves/{scope}.json` (growth of $1 for each strategy in each period). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The period bounds live only in the manifest.
+The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, and `curves/{scope}.json` (growth of $1 for each strategy in each period). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision dates that earn a return, and every record and curve covers exactly those dates. `barsEnd` is the last bar the decisions read. For the backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2.
 
 ### Jev study (finished)
 
@@ -360,3 +371,9 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** GitHub Actions runs the live period, by the user's decision. The code is on GitHub, scheduled runs are free for a public repository, and the job only has to finish between the close and the next open, so a late start does not matter. The job reads the Twelve Data key from a repository secret and deploys through a GitHub OIDC role. EventBridge with CodeBuild would need more Terraform for the same job.
 - **2026-10-13.** A bot commits the live ledger every night to a separate `ledger` branch, by the user's decision. GitHub's record of each push is the public proof that a position came before the next bar. A commit's own date is set by its author and proves nothing alone. The separate branch keeps about 250 bot commits a year out of `main`.
 - **2026-10-13.** The learned model reads only the `State` levels and the candle flags, by the user's decision. It sees the same information as the other entries and as Jev. Adding inputs after a weak result would be the tuning the arena warns against. A richer model enters as a new catalog entry with its inputs fixed before any run.
+- **2026-10-13.** `comparisons.json` holds a `StrategyRecord` for each strategy, scope, and period beside the pair records. The first screen shows one row of figures for each side, and the plan's shapes had no record for it. A record carries the excess Sharpe interval at 5 bps, the point values at each cost, the max drawdown, the switches per year, and the exposure, as the study's arm report does.
+- **2026-10-13.** `random_walk` moves from `tests/test_states.py` to `catalog.py`. The fingerprint reads it, and package code cannot import a test module. The tests import it from `jevtrader.catalog`.
+- **2026-10-13.** The arena manifest records no git commit. `export/arena/v1/` is committed, so a commit in the manifest would change with every commit of the export, and a rerun would never report every file unchanged. The input hashes, the catalog version, and each strategy's version and fingerprint identify the run instead.
+- **2026-10-13.** A period's `first` and `last` in the arena manifest are the scored decision dates, and `barsEnd` is the last bar. The last two bars before `barsEnd` decide nothing that earns a return, so `last` falls two sessions before `barsEnd`.
+- **2026-10-13.** `reconcile` takes the market bars and cuts the returns at the last date of `research/holdout.json`, as `evaluate.holdout_result` does. Returns cut at the end of the backtest period would give the last two holdout sessions returns that the holdout never saw. On synthetic bars that run past the holdout end, that cut moved the golden cross excess Sharpe from 0.806 to 0.652, and the reconciliation failed. On the real data the two cuts are the same date.
+- **2026-10-13.** Milestone 7 measured the four-strategy backtest from 2008-01-02 through 2026-10-07 on the portfolio of 13 ETFs, in 236 blocks. The reconciliation reproduced the `buy_hold` and `sma_filter` intervals in `research/holdout.json` exactly. The simultaneous critical value for the 6 pairs is 2.53. No portfolio pair's simultaneous interval excludes zero, so every verdict is "no_difference". The MDE runs from 0.52 to 0.96 excess Sharpe across the pairs. Excess Sharpe at 5 bps is 0.61 for buy and hold, 0.64 for the golden cross, 0.45 for the MACD crossover, and 0.41 for the Bollinger bounce.

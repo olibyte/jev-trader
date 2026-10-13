@@ -1,0 +1,3478 @@
+{
+  "pairs": [
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.03066309997812766,
+        "lo": -0.34762263808610455,
+        "hi": 0.2624303261825798
+      },
+      "simultaneous": {
+        "point": -0.03066309997812766,
+        "lo": -0.4338621045710589,
+        "hi": 0.37253590461480357
+      },
+      "family": 6,
+      "mde": 0.5372039013744924,
+      "verdict": "no_difference"
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.16140196024893583,
+        "lo": -0.20606319107338802,
+        "hi": 0.5217492882685554
+      },
+      "simultaneous": {
+        "point": 0.16140196024893583,
+        "lo": -0.3150770802574373,
+        "hi": 0.637881000755309
+      },
+      "family": 6,
+      "mde": 0.6348388675751357,
+      "verdict": "no_difference"
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2068489931422553,
+        "lo": -0.10126115867586326,
+        "hi": 0.4993029131448513
+      },
+      "simultaneous": {
+        "point": 0.2068489931422553,
+        "lo": -0.18103150352292668,
+        "hi": 0.5947294898074373
+      },
+      "family": 6,
+      "mde": 0.516794222460897,
+      "verdict": "no_difference"
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.1920650602270635,
+        "lo": -0.30202348475576807,
+        "hi": 0.6789547591387213
+      },
+      "simultaneous": {
+        "point": 0.1920650602270635,
+        "lo": -0.43475567965839135,
+        "hi": 0.8188858001125183
+      },
+      "family": 6,
+      "mde": 0.8351472674613237,
+      "verdict": "no_difference"
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.23751209312038296,
+        "lo": -0.18844359662188798,
+        "hi": 0.6808598941335879
+      },
+      "simultaneous": {
+        "point": 0.23751209312038296,
+        "lo": -0.31602429117181124,
+        "hi": 0.7910484774125772
+      },
+      "family": 6,
+      "mde": 0.7375065459169794,
+      "verdict": "no_difference"
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.04544703289331947,
+        "lo": -0.5096548380594713,
+        "hi": 0.5960052702883193
+      },
+      "simultaneous": {
+        "point": 0.04544703289331947,
+        "lo": -0.6740014609297669,
+        "hi": 0.7648955267164057
+      },
+      "family": 6,
+      "mde": 0.9585602477118322,
+      "verdict": "no_difference"
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.042889217956928904,
+        "lo": -0.39545779170647477,
+        "hi": 0.2892566302286169
+      },
+      "simultaneous": {
+        "point": -0.042889217956928904,
+        "lo": -0.49264645140403873,
+        "hi": 0.4068680154901809
+      },
+      "family": 6,
+      "mde": 0.5986816304611797,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2145194068841842,
+        "lo": -0.1966928074372205,
+        "hi": 0.6102729462890059
+      },
+      "simultaneous": {
+        "point": 0.2145194068841842,
+        "lo": -0.3040084872808489,
+        "hi": 0.7330473010492173
+      },
+      "family": 6,
+      "mde": 0.6902237519095513,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.24875844180634687,
+        "lo": -0.1098967033417365,
+        "hi": 0.5620516846163603
+      },
+      "simultaneous": {
+        "point": 0.24875844180634687,
+        "lo": -0.184502561833418,
+        "hi": 0.6820194454461117
+      },
+      "family": 6,
+      "mde": 0.5767231403623542,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2574086248411131,
+        "lo": -0.21846360017867272,
+        "hi": 0.7335034373234305
+      },
+      "simultaneous": {
+        "point": 0.2574086248411131,
+        "lo": -0.3666922584406315,
+        "hi": 0.8815095081228577
+      },
+      "family": 6,
+      "mde": 0.8307542527146838,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2916476597632758,
+        "lo": -0.21594688750814944,
+        "hi": 0.7811292254295978
+      },
+      "simultaneous": {
+        "point": 0.2916476597632758,
+        "lo": -0.3355439808643077,
+        "hi": 0.9188393003908593
+      },
+      "family": 6,
+      "mde": 0.8348684270059669,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.03423903492216268,
+        "lo": -0.5574045931094069,
+        "hi": 0.5841142614587859
+      },
+      "simultaneous": {
+        "point": 0.03423903492216268,
+        "lo": -0.7119304033391607,
+        "hi": 0.7804084731834859
+      },
+      "family": 6,
+      "mde": 0.9932423598277146,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.0583790320035088,
+        "lo": -0.36696176355283333,
+        "hi": 0.2311796684221875
+      },
+      "simultaneous": {
+        "point": -0.0583790320035088,
+        "lo": -0.44944788895063,
+        "hi": 0.3326898249436124
+      },
+      "family": 6,
+      "mde": 0.5218815103407328,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.26508527559043454,
+        "lo": -0.13982213475093574,
+        "hi": 0.65027860393418
+      },
+      "simultaneous": {
+        "point": 0.26508527559043454,
+        "lo": -0.24307340633055824,
+        "hi": 0.7732439575114274
+      },
+      "family": 6,
+      "mde": 0.6781379179205336,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.41001695994479914,
+        "lo": 0.034556674424419516,
+        "hi": 0.7356168118861128
+      },
+      "simultaneous": {
+        "point": 0.41001695994479914,
+        "lo": -0.052286559888614526,
+        "hi": 0.8723204797782128
+      },
+      "family": 6,
+      "mde": 0.6169441899566094,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.32346430759394335,
+        "lo": -0.12790010940431315,
+        "hi": 0.7551278812802501
+      },
+      "simultaneous": {
+        "point": 0.32346430759394335,
+        "lo": -0.2513808676021512,
+        "hi": 0.898309482790038
+      },
+      "family": 6,
+      "mde": 0.7671310637860022,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.46839599194830794,
+        "lo": -0.030976901327162052,
+        "hi": 0.9572393801456258
+      },
+      "simultaneous": {
+        "point": 0.46839599194830794,
+        "lo": -0.16954785118819926,
+        "hi": 1.1063398350848153
+      },
+      "family": 6,
+      "mde": 0.851336255634566,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.1449316843543646,
+        "lo": -0.4344658814511087,
+        "hi": 0.7384676561990131
+      },
+      "simultaneous": {
+        "point": 0.1449316843543646,
+        "lo": -0.6069563134201772,
+        "hi": 0.8968196821289063
+      },
+      "family": 6,
+      "mde": 1.0033947651799482,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.23788648605885332,
+        "lo": -0.07195509695916297,
+        "hi": 0.5307374691483049
+      },
+      "simultaneous": {
+        "point": 0.23788648605885332,
+        "lo": -0.1550018421442036,
+        "hi": 0.6307748142619103
+      },
+      "family": 6,
+      "mde": 0.5247053008769393,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.017146649476620535,
+        "lo": -0.3149795652640658,
+        "hi": 0.38066336192481415
+      },
+      "simultaneous": {
+        "point": 0.017146649476620535,
+        "lo": -0.4288697469770127,
+        "hi": 0.46316304593025376
+      },
+      "family": 6,
+      "mde": 0.5956582333906834,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.14332037442894302,
+        "lo": -0.2415707266708382,
+        "hi": 0.5031246805718996
+      },
+      "simultaneous": {
+        "point": 0.14332037442894302,
+        "lo": -0.3378993798262033,
+        "hi": 0.6245401286840894
+      },
+      "family": 6,
+      "mde": 0.642672581033953,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.22073983658223278,
+        "lo": -0.7588359097465442,
+        "hi": 0.3343420274727912
+      },
+      "simultaneous": {
+        "point": -0.22073983658223278,
+        "lo": -0.916617006577864,
+        "hi": 0.4751373334133984
+      },
+      "family": 6,
+      "mde": 0.9293491652601091,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.0945661116299103,
+        "lo": -0.5135346637064685,
+        "hi": 0.32762460690147205
+      },
+      "simultaneous": {
+        "point": -0.0945661116299103,
+        "lo": -0.6343155695168823,
+        "hi": 0.44518334625706174
+      },
+      "family": 6,
+      "mde": 0.7208394380002481,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.12617372495232249,
+        "lo": -0.46367472986127706,
+        "hi": 0.670091283337737
+      },
+      "simultaneous": {
+        "point": 0.12617372495232249,
+        "lo": -0.6033640619121896,
+        "hi": 0.8557115118168346
+      },
+      "family": 6,
+      "mde": 0.9743031708491001,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.06551552487988616,
+        "lo": -0.27401838033332115,
+        "hi": 0.3960785043315609
+      },
+      "simultaneous": {
+        "point": 0.06551552487988616,
+        "lo": -0.36809134684115113,
+        "hi": 0.49912239660092345
+      },
+      "family": 6,
+      "mde": 0.5789044762806351,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.1406679846786531,
+        "lo": -0.2541865379342598,
+        "hi": 0.5237400055402365
+      },
+      "simultaneous": {
+        "point": 0.1406679846786531,
+        "lo": -0.36560998333591926,
+        "hi": 0.6469459526932255
+      },
+      "family": 6,
+      "mde": 0.67592697680875,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2731262207645805,
+        "lo": -0.06052239502873943,
+        "hi": 0.6193869055502182
+      },
+      "simultaneous": {
+        "point": 0.2731262207645805,
+        "lo": -0.16808607337933668,
+        "hi": 0.7143385149084976
+      },
+      "family": 6,
+      "mde": 0.5890584045777929,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.07515245979876695,
+        "lo": -0.44726505298308716,
+        "hi": 0.5571294150894927
+      },
+      "simultaneous": {
+        "point": 0.07515245979876695,
+        "lo": -0.557106889327624,
+        "hi": 0.7074118089251579
+      },
+      "family": 6,
+      "mde": 0.8441235396634295,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.20761069588469433,
+        "lo": -0.24798808375844672,
+        "hi": 0.6733878635590832
+      },
+      "simultaneous": {
+        "point": 0.20761069588469433,
+        "lo": -0.37749087661431197,
+        "hi": 0.7927122683837007
+      },
+      "family": 6,
+      "mde": 0.7811636334408206,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.13245823608592738,
+        "lo": -0.4165117830582475,
+        "hi": 0.6948385697481303
+      },
+      "simultaneous": {
+        "point": 0.13245823608592738,
+        "lo": -0.5877921636161532,
+        "hi": 0.852708635788008
+      },
+      "family": 6,
+      "mde": 0.9615995677732282,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.15095733188641458,
+        "lo": -0.18404381820163615,
+        "hi": 0.45923440206533556
+      },
+      "simultaneous": {
+        "point": 0.15095733188641458,
+        "lo": -0.2672650982248796,
+        "hi": 0.5691797619977088
+      },
+      "family": 6,
+      "mde": 0.5558389791001161,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.26476080843738836,
+        "lo": -0.08187609018583318,
+        "hi": 0.6277857393953947
+      },
+      "simultaneous": {
+        "point": 0.26476080843738836,
+        "lo": -0.20373794350109004,
+        "hi": 0.7332595603758667
+      },
+      "family": 6,
+      "mde": 0.6226587797260518,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.021981787503370265,
+        "lo": -0.3973965289963837,
+        "hi": 0.33245643572838557
+      },
+      "simultaneous": {
+        "point": -0.021981787503370265,
+        "lo": -0.4985320533777626,
+        "hi": 0.45456847837102204
+      },
+      "family": 6,
+      "mde": 0.6333596531468241,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.11380347655097381,
+        "lo": -0.3672454520428971,
+        "hi": 0.6187012391979538
+      },
+      "simultaneous": {
+        "point": 0.11380347655097381,
+        "lo": -0.5345697879043054,
+        "hi": 0.762176741006253
+      },
+      "family": 6,
+      "mde": 0.8617211977242049,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.17293911938978485,
+        "lo": -0.5973535924444635,
+        "hi": 0.25304488860341995
+      },
+      "simultaneous": {
+        "point": -0.17293911938978485,
+        "lo": -0.7270448923440558,
+        "hi": 0.38116665356448604
+      },
+      "family": 6,
+      "mde": 0.7364348848301172,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.2867425959407587,
+        "lo": -0.8897331232387766,
+        "hi": 0.2758457086382224
+      },
+      "simultaneous": {
+        "point": -0.2867425959407587,
+        "lo": -1.0380245165873712,
+        "hi": 0.4645393247058537
+      },
+      "family": 6,
+      "mde": 0.9984920600204563,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.041568730576510504,
+        "lo": -0.2530902940538868,
+        "hi": 0.3294065271230304
+      },
+      "simultaneous": {
+        "point": 0.041568730576510504,
+        "lo": -0.3476945063956889,
+        "hi": 0.4308319675487099
+      },
+      "family": 6,
+      "mde": 0.5176367655533587,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.07594886079013397,
+        "lo": -0.3103945121511281,
+        "hi": 0.47031123046337336
+      },
+      "simultaneous": {
+        "point": 0.07594886079013397,
+        "lo": -0.40846267265124075,
+        "hi": 0.5603603942315087
+      },
+      "family": 6,
+      "mde": 0.6441636290078017,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.11649731377091554,
+        "lo": -0.23570178317151624,
+        "hi": 0.4709320243994886
+      },
+      "simultaneous": {
+        "point": 0.11649731377091554,
+        "lo": -0.346199284354936,
+        "hi": 0.579193911896767
+      },
+      "family": 6,
+      "mde": 0.6152874141143553,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.03438013021362346,
+        "lo": -0.4234237530899106,
+        "hi": 0.511373208846627
+      },
+      "simultaneous": {
+        "point": 0.03438013021362346,
+        "lo": -0.5794110629718827,
+        "hi": 0.6481713233991298
+      },
+      "family": 6,
+      "mde": 0.8162108768272236,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.07492858319440504,
+        "lo": -0.3771679706733751,
+        "hi": 0.5584715274099654
+      },
+      "simultaneous": {
+        "point": 0.07492858319440504,
+        "lo": -0.5325311778458572,
+        "hi": 0.6823883442346672
+      },
+      "family": 6,
+      "mde": 0.8077914276070067,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.04054845298078158,
+        "lo": -0.540773052782507,
+        "hi": 0.6212454722663159
+      },
+      "simultaneous": {
+        "point": 0.04054845298078158,
+        "lo": -0.7058189494023659,
+        "hi": 0.786915855363929
+      },
+      "family": 6,
+      "mde": 0.9925088510520376,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.10611076340075637,
+        "lo": -0.4692737575712784,
+        "hi": 0.2568387027969734
+      },
+      "simultaneous": {
+        "point": -0.10611076340075637,
+        "lo": -0.5830080923555165,
+        "hi": 0.3707865655540038
+      },
+      "family": 6,
+      "mde": 0.6365583609166661,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.23534774290109367,
+        "lo": -0.11978606186255256,
+        "hi": 0.5727767087391766
+      },
+      "simultaneous": {
+        "point": 0.23534774290109367,
+        "lo": -0.21190784016802983,
+        "hi": 0.6826033259702171
+      },
+      "family": 6,
+      "mde": 0.5969928191741182,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.0626157308660954,
+        "lo": -0.23114244458192645,
+        "hi": 0.3819943535143562
+      },
+      "simultaneous": {
+        "point": 0.0626157308660954,
+        "lo": -0.33087549396523086,
+        "hi": 0.45610695569742166
+      },
+      "family": 6,
+      "mde": 0.5252286265949744,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.34145850630185004,
+        "lo": -0.17318088685284894,
+        "hi": 0.8559820867554409
+      },
+      "simultaneous": {
+        "point": 0.34145850630185004,
+        "lo": -0.3114963718117575,
+        "hi": 0.9944133844154576
+      },
+      "family": 6,
+      "mde": 0.8715584293070525,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.16872649426685177,
+        "lo": -0.2593727612544782,
+        "hi": 0.621112514175002
+      },
+      "simultaneous": {
+        "point": 0.16872649426685177,
+        "lo": -0.40342870727655283,
+        "hi": 0.7408816958102564
+      },
+      "family": 6,
+      "mde": 0.7637077315628337,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.17273201203499827,
+        "lo": -0.6341217769500206,
+        "hi": 0.3405133964595805
+      },
+      "simultaneous": {
+        "point": -0.17273201203499827,
+        "lo": -0.7960965111402609,
+        "hi": 0.45063248707026443
+      },
+      "family": 6,
+      "mde": 0.8320614516206001,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.13375365804747513,
+        "lo": -0.24126594085535777,
+        "hi": 0.5117784329631982
+      },
+      "simultaneous": {
+        "point": 0.13375365804747513,
+        "lo": -0.365421523756996,
+        "hi": 0.6329288398519463
+      },
+      "family": 6,
+      "mde": 0.662148881343035,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.11508394783655701,
+        "lo": -0.2803504426049688,
+        "hi": 0.5207001538830823
+      },
+      "simultaneous": {
+        "point": 0.11508394783655701,
+        "lo": -0.4092272365355503,
+        "hi": 0.6393951322086644
+      },
+      "family": 6,
+      "mde": 0.6954914363984172,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.10231847923962817,
+        "lo": -0.31296749982768424,
+        "hi": 0.4715875456509808
+      },
+      "simultaneous": {
+        "point": 0.10231847923962817,
+        "lo": -0.4191779990756172,
+        "hi": 0.6238149575548735
+      },
+      "family": 6,
+      "mde": 0.691757768269879,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.018669710210918122,
+        "lo": -0.5793536131790101,
+        "hi": 0.5110978250323092
+      },
+      "simultaneous": {
+        "point": -0.018669710210918122,
+        "lo": -0.7280963020287172,
+        "hi": 0.690756881606881
+      },
+      "family": 6,
+      "mde": 0.9410444294707722,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.031435178807846964,
+        "lo": -0.5894565156810347,
+        "hi": 0.4950045070166165
+      },
+      "simultaneous": {
+        "point": -0.031435178807846964,
+        "lo": -0.7595790312994736,
+        "hi": 0.6967086736837796
+      },
+      "family": 6,
+      "mde": 0.9658726133804353,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.012765468596928842,
+        "lo": -0.6984421992177865,
+        "hi": 0.6282290623442778
+      },
+      "simultaneous": {
+        "point": -0.012765468596928842,
+        "lo": -0.8660649960283517,
+        "hi": 0.8405340588344941
+      },
+      "family": 6,
+      "mde": 1.1318898617851842,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.03208060298464854,
+        "lo": -0.3172676445430405,
+        "hi": 0.23985343958828784
+      },
+      "simultaneous": {
+        "point": -0.03208060298464854,
+        "lo": -0.4041679844385634,
+        "hi": 0.3400067784692663
+      },
+      "family": 6,
+      "mde": 0.4939213360628935,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.35187428994963255,
+        "lo": -0.004791011595539901,
+        "hi": 0.7099297710292892
+      },
+      "simultaneous": {
+        "point": 0.35187428994963255,
+        "lo": -0.1209739685854061,
+        "hi": 0.8247225484846712
+      },
+      "family": 6,
+      "mde": 0.6276747217227662,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.4050598512325031,
+        "lo": 0.007491559993702934,
+        "hi": 0.7721117767997773
+      },
+      "simultaneous": {
+        "point": 0.4050598512325031,
+        "lo": -0.09287654059377665,
+        "hi": 0.9029962430587828
+      },
+      "family": 6,
+      "mde": 0.6609775557670552,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.3839548929342811,
+        "lo": -0.08169204360877093,
+        "hi": 0.8241664326604139
+      },
+      "simultaneous": {
+        "point": 0.3839548929342811,
+        "lo": -0.20606506793410018,
+        "hi": 0.9739748538026624
+      },
+      "family": 6,
+      "mde": 0.7832123901572875,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.43714045421715164,
+        "lo": -0.062141166004192554,
+        "hi": 0.911767334273759
+      },
+      "simultaneous": {
+        "point": 0.43714045421715164,
+        "lo": -0.19888196328289154,
+        "hi": 1.0731628717171948
+      },
+      "family": 6,
+      "mde": 0.844277602185984,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.05318556128287055,
+        "lo": -0.5207914785473188,
+        "hi": 0.6119778269065982
+      },
+      "simultaneous": {
+        "point": 0.05318556128287055,
+        "lo": -0.6829335206361006,
+        "hi": 0.7893046432018417
+      },
+      "family": 6,
+      "mde": 0.9771492895623521,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.20023965429217983,
+        "lo": -0.01769507184226784,
+        "hi": 0.40473953178664196
+      },
+      "simultaneous": {
+        "point": 0.20023965429217983,
+        "lo": -0.06834782080866458,
+        "hi": 0.46882712939302423
+      },
+      "family": 6,
+      "mde": 0.3578126525863427,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2489795306106219,
+        "lo": -0.1371960963731088,
+        "hi": 0.6366449608995615
+      },
+      "simultaneous": {
+        "point": 0.2489795306106219,
+        "lo": -0.24581791692324223,
+        "hi": 0.7437769781444861
+      },
+      "family": 6,
+      "mde": 0.6591699301263771,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.07981689754839022,
+        "lo": -0.2893673620389756,
+        "hi": 0.41252527866860816
+      },
+      "simultaneous": {
+        "point": 0.07981689754839022,
+        "lo": -0.3813625199389686,
+        "hi": 0.5409963150357491
+      },
+      "family": 6,
+      "mde": 0.6143839381468515,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.048739876318442066,
+        "lo": -0.3851831293546146,
+        "hi": 0.5137116222336722
+      },
+      "simultaneous": {
+        "point": 0.048739876318442066,
+        "lo": -0.5395058953598661,
+        "hi": 0.6369856479967502
+      },
+      "family": 6,
+      "mde": 0.7836619330737132,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.1204227567437896,
+        "lo": -0.4918600924271176,
+        "hi": 0.24312748477577292
+      },
+      "simultaneous": {
+        "point": -0.1204227567437896,
+        "lo": -0.5952893129990349,
+        "hi": 0.35444379951145566
+      },
+      "family": 6,
+      "mde": 0.6326179657276836,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.16916263306223167,
+        "lo": -0.7484860330284039,
+        "hi": 0.36720222986297896
+      },
+      "simultaneous": {
+        "point": -0.16916263306223167,
+        "lo": -0.8882405876874313,
+        "hi": 0.549915321562968
+      },
+      "family": 6,
+      "mde": 0.957956770933566,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.06231612468099745,
+        "lo": -0.33099578764262905,
+        "hi": 0.18350669638084974
+      },
+      "simultaneous": {
+        "point": -0.06231612468099745,
+        "lo": -0.3930906771862833,
+        "hi": 0.2684584278242884
+      },
+      "family": 6,
+      "mde": 0.44164761908415356,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.12366773850171375,
+        "lo": -0.23390590935888048,
+        "hi": 0.5039337563603301
+      },
+      "simultaneous": {
+        "point": 0.12366773850171375,
+        "lo": -0.35220945175891555,
+        "hi": 0.5995449287623431
+      },
+      "family": 6,
+      "mde": 0.6353875365055632,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.3027231337605716,
+        "lo": -0.08529591343483812,
+        "hi": 0.6676445261354094
+      },
+      "simultaneous": {
+        "point": 0.3027231337605716,
+        "lo": -0.18108199681432635,
+        "hi": 0.7865282643354695
+      },
+      "family": 6,
+      "mde": 0.6459728609735997,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.1859838631827112,
+        "lo": -0.2224464905855586,
+        "hi": 0.5991208299298312
+      },
+      "simultaneous": {
+        "point": 0.1859838631827112,
+        "lo": -0.3458664672254045,
+        "hi": 0.7178341935908269
+      },
+      "family": 6,
+      "mde": 0.7101224394525062,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.36503925844156904,
+        "lo": -0.1450904097460916,
+        "hi": 0.8781297667760338
+      },
+      "simultaneous": {
+        "point": 0.36503925844156904,
+        "lo": -0.28173471987445564,
+        "hi": 1.0118132367575936
+      },
+      "family": 6,
+      "mde": 0.8635676035093225,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.17905539525885783,
+        "lo": -0.3950704134935006,
+        "hi": 0.7068449480302561
+      },
+      "simultaneous": {
+        "point": 0.17905539525885783,
+        "lo": -0.5332630967797466,
+        "hi": 0.8913738872974623
+      },
+      "family": 6,
+      "mde": 0.951082130277954,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.11999246240757144,
+        "lo": -0.1772634409871029,
+        "hi": 0.3993387890560644
+      },
+      "simultaneous": {
+        "point": 0.11999246240757144,
+        "lo": -0.2602061129482153,
+        "hi": 0.5001910377633582
+      },
+      "family": 6,
+      "mde": 0.504654458400277,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.31219520143688795,
+        "lo": -0.050702189315749165,
+        "hi": 0.6627313956224238
+      },
+      "simultaneous": {
+        "point": 0.31219520143688795,
+        "lo": -0.16098748520610145,
+        "hi": 0.7853778880798774
+      },
+      "family": 6,
+      "mde": 0.6280763998885176,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.23829000685293256,
+        "lo": -0.1153508377835762,
+        "hi": 0.5714743022400003
+      },
+      "simultaneous": {
+        "point": 0.23829000685293256,
+        "lo": -0.21703080536963598,
+        "hi": 0.693610819075501
+      },
+      "family": 6,
+      "mde": 0.6043675405030873,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.1922027390293165,
+        "lo": -0.22395767544109188,
+        "hi": 0.5908845046350221
+      },
+      "simultaneous": {
+        "point": 0.1922027390293165,
+        "lo": -0.3381879682995046,
+        "hi": 0.7225934463581376
+      },
+      "family": 6,
+      "mde": 0.704011147062001,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.11829754444536111,
+        "lo": -0.3560377846146037,
+        "hi": 0.6050377695958328
+      },
+      "simultaneous": {
+        "point": 0.11829754444536111,
+        "lo": -0.5061074065766753,
+        "hi": 0.7427024954673975
+      },
+      "family": 6,
+      "mde": 0.8288004290536888,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": -0.07390519458395539,
+        "lo": -0.6455125958242313,
+        "hi": 0.4679900227051436
+      },
+      "simultaneous": {
+        "point": -0.07390519458395539,
+        "lo": -0.7993710864020613,
+        "hi": 0.6515606972341506
+      },
+      "family": 6,
+      "mde": 0.9629431051411431,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "golden_cross",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.013059660759580316,
+        "lo": -0.3556241355194256,
+        "hi": 0.35854656120413453
+      },
+      "simultaneous": {
+        "point": 0.013059660759580316,
+        "lo": -0.45148797105031363,
+        "hi": 0.47760729256947426
+      },
+      "family": 6,
+      "mde": 0.6169859900958167,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "macd_cross",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.12177092034788439,
+        "lo": -0.29932141511312466,
+        "hi": 0.5481572739399924
+      },
+      "simultaneous": {
+        "point": 0.12177092034788439,
+        "lo": -0.4241101581793556,
+        "hi": 0.6676519988751244
+      },
+      "family": 6,
+      "mde": 0.7250084913736682,
+      "verdict": null
+    },
+    {
+      "a": "buy_hold",
+      "b": "bollinger_bounce",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.2075598694607721,
+        "lo": -0.16158356178579203,
+        "hi": 0.548173187880851
+      },
+      "simultaneous": {
+        "point": 0.2075598694607721,
+        "lo": -0.24483843567861863,
+        "hi": 0.6599581746001628
+      },
+      "family": 6,
+      "mde": 0.6008499389537769,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "macd_cross",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.10871125958830408,
+        "lo": -0.362762265198345,
+        "hi": 0.5751658090072536
+      },
+      "simultaneous": {
+        "point": 0.10871125958830408,
+        "lo": -0.5060584007767613,
+        "hi": 0.7234809199533695
+      },
+      "family": 6,
+      "mde": 0.8165024243120691,
+      "verdict": null
+    },
+    {
+      "a": "golden_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.19450020870119178,
+        "lo": -0.3242090453515601,
+        "hi": 0.7012818845537897
+      },
+      "simultaneous": {
+        "point": 0.19450020870119178,
+        "lo": -0.4853204266297937,
+        "hi": 0.8743208440321772
+      },
+      "family": 6,
+      "mde": 0.9028994640293461,
+      "verdict": null
+    },
+    {
+      "a": "macd_cross",
+      "b": "bollinger_bounce",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "diff": {
+        "point": 0.0857889491128877,
+        "lo": -0.5013732131721697,
+        "hi": 0.6973553853434445
+      },
+      "simultaneous": {
+        "point": 0.0857889491128877,
+        "lo": -0.7083861241175132,
+        "hi": 0.8799640223432886
+      },
+      "family": 6,
+      "mde": 1.0547785852603302,
+      "verdict": null
+    }
+  ],
+  "strategies": [
+    {
+      "id": "buy_hold",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.6127536982488153,
+        "lo": 0.21287301691091753,
+        "hi": 1.057127517974313
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.6128961620127833
+        },
+        {
+          "costBps": 5,
+          "value": 0.6127536982488153
+        },
+        {
+          "costBps": 10,
+          "value": 0.6126110228511353
+        },
+        {
+          "costBps": 20,
+          "value": 0.6123250378042217
+        }
+      ],
+      "maxDrawdown": 0.5008854586174416,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.643416798226943,
+        "lo": 0.19025425670567234,
+        "hi": 1.1166831389807081
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.648636693479115
+        },
+        {
+          "costBps": 5,
+          "value": 0.643416798226943
+        },
+        {
+          "costBps": 10,
+          "value": 0.6381953458876506
+        },
+        {
+          "costBps": 20,
+          "value": 0.6277479070358479
+        }
+      ],
+      "maxDrawdown": 0.32232415006970216,
+      "switchesPerYear": 1.2608213820078227,
+      "exposure": 0.7571870925684485
+    },
+    {
+      "id": "macd_cross",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4513517379998795,
+        "lo": 0.06718171661794306,
+        "hi": 0.8754342911712015
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5489089355402951
+        },
+        {
+          "costBps": 5,
+          "value": 0.4513517379998795
+        },
+        {
+          "costBps": 10,
+          "value": 0.3537353546372674
+        },
+        {
+          "costBps": 20,
+          "value": 0.1584065018554622
+        }
+      ],
+      "maxDrawdown": 0.2738792665651786,
+      "switchesPerYear": 20.353846153846153,
+      "exposure": 0.5095338983050848
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "portfolio",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.40590470510656,
+        "lo": 0.03353889960437274,
+        "hi": 0.8562238710477755
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.44304533431712356
+        },
+        {
+          "costBps": 5,
+          "value": 0.40590470510656
+        },
+        {
+          "costBps": 10,
+          "value": 0.3687441705201227
+        },
+        {
+          "costBps": 20,
+          "value": 0.2943788015661308
+        }
+      ],
+      "maxDrawdown": 0.31415099462546314,
+      "switchesPerYear": 9.178943937418513,
+      "exposure": 0.20237940026075618
+    },
+    {
+      "id": "buy_hold",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.5863357112853408,
+        "lo": 0.18807841693258084,
+        "hi": 1.014875656875879
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.586477754076994
+        },
+        {
+          "costBps": 5,
+          "value": 0.5863357112853408
+        },
+        {
+          "costBps": 10,
+          "value": 0.5861934647344621
+        },
+        {
+          "costBps": 20,
+          "value": 0.5859083609996397
+        }
+      ],
+      "maxDrawdown": 0.520110354266667,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.6292249292422697,
+        "lo": 0.21878194926356181,
+        "hi": 1.070895810493923
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.6326600102485047
+        },
+        {
+          "costBps": 5,
+          "value": 0.6292249292422697
+        },
+        {
+          "costBps": 10,
+          "value": 0.6257824026408733
+        },
+        {
+          "costBps": 20,
+          "value": 0.6188755498519403
+        }
+      ],
+      "maxDrawdown": 0.32051405481006856,
+      "switchesPerYear": 0.9076271186440678,
+      "exposure": 0.7713983050847457
+    },
+    {
+      "id": "macd_cross",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3718163044011566,
+        "lo": -0.008002322275403371,
+        "hi": 0.7736401146325069
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4661838646948809
+        },
+        {
+          "costBps": 5,
+          "value": 0.3718163044011566
+        },
+        {
+          "costBps": 10,
+          "value": 0.27725075952885087
+        },
+        {
+          "costBps": 20,
+          "value": 0.08796671127129833
+        }
+      ],
+      "maxDrawdown": 0.2251300879201047,
+      "switchesPerYear": 21.088983050847457,
+      "exposure": 0.5055084745762712
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "SPY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3375772694789939,
+        "lo": -0.031505498760137585,
+        "hi": 0.7713760457060043
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3715095785499963
+        },
+        {
+          "costBps": 5,
+          "value": 0.3375772694789939
+        },
+        {
+          "costBps": 10,
+          "value": 0.30360258134499124
+        },
+        {
+          "costBps": 20,
+          "value": 0.2355754791265587
+        }
+      ],
+      "maxDrawdown": 0.35654029774268203,
+      "switchesPerYear": 9.183050847457627,
+      "exposure": 0.18771186440677967
+    },
+    {
+      "id": "buy_hold",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.7284674584609899,
+        "lo": 0.2987054357121815,
+        "hi": 1.1593317473556015
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.7285909687814488
+        },
+        {
+          "costBps": 5,
+          "value": 0.7284674584609899
+        },
+        {
+          "costBps": 10,
+          "value": 0.7283437587154374
+        },
+        {
+          "costBps": 20,
+          "value": 0.728095791372395
+        }
+      ],
+      "maxDrawdown": 0.48428880343449654,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.7868464904644987,
+        "lo": 0.36119606368027346,
+        "hi": 1.2094820679694673
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.7903889287881568
+        },
+        {
+          "costBps": 5,
+          "value": 0.7868464904644987
+        },
+        {
+          "costBps": 10,
+          "value": 0.7832961492301288
+        },
+        {
+          "costBps": 20,
+          "value": 0.7761721939934542
+        }
+      ],
+      "maxDrawdown": 0.275635835867831,
+      "switchesPerYear": 1.2279661016949153,
+      "exposure": 0.7963983050847457
+    },
+    {
+      "id": "macd_cross",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4633821828705554,
+        "lo": 0.05098339650900755,
+        "hi": 0.907104622497589
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5341237164555691
+        },
+        {
+          "costBps": 5,
+          "value": 0.4633821828705554
+        },
+        {
+          "costBps": 10,
+          "value": 0.39252272694980156
+        },
+        {
+          "costBps": 20,
+          "value": 0.25065225869303426
+        }
+      ],
+      "maxDrawdown": 0.25672428922570667,
+      "switchesPerYear": 19.487288135593218,
+      "exposure": 0.5194915254237288
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "QQQ",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3184504985161908,
+        "lo": -0.059725272820839684,
+        "hi": 0.7422650614543751
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.34712605207359787
+        },
+        {
+          "costBps": 5,
+          "value": 0.3184504985161908
+        },
+        {
+          "costBps": 10,
+          "value": 0.2897496512893837
+        },
+        {
+          "costBps": 20,
+          "value": 0.23230416215772146
+        }
+      ],
+      "maxDrawdown": 0.429193661047357,
+      "switchesPerYear": 8.542372881355933,
+      "exposure": 0.1923728813559322
+    },
+    {
+      "id": "buy_hold",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.40527756554779126,
+        "lo": -0.013802329689981683,
+        "hi": 0.8460499441086462
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4053860414419238
+        },
+        {
+          "costBps": 5,
+          "value": 0.40527756554779126
+        },
+        {
+          "costBps": 10,
+          "value": 0.40516901052837895
+        },
+        {
+          "costBps": 20,
+          "value": 0.40495166339918
+        }
+      ],
+      "maxDrawdown": 0.5556725936736832,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.16739107948893794,
+        "lo": -0.37219363753742635,
+        "hi": 0.7062095293583448
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.17120847205983328
+        },
+        {
+          "costBps": 5,
+          "value": 0.16739107948893794
+        },
+        {
+          "costBps": 10,
+          "value": 0.16357181053838732
+        },
+        {
+          "costBps": 20,
+          "value": 0.15592814205449468
+        }
+      ],
+      "maxDrawdown": 0.500892616389967,
+      "switchesPerYear": 1.3347457627118644,
+      "exposure": 0.6983050847457627
+    },
+    {
+      "id": "macd_cross",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.38813091607117073,
+        "lo": -0.04704643594986875,
+        "hi": 0.8188019332446749
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.45218153360437136
+        },
+        {
+          "costBps": 5,
+          "value": 0.38813091607117073
+        },
+        {
+          "costBps": 10,
+          "value": 0.32402060670554
+        },
+        {
+          "costBps": 20,
+          "value": 0.1957670260834118
+        }
+      ],
+      "maxDrawdown": 0.31447185938101463,
+      "switchesPerYear": 19.914406779661014,
+      "exposure": 0.5016949152542373
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "IWM",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.26195719111884824,
+        "lo": -0.09872230982741384,
+        "hi": 0.6690003646504186
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.29314218113728185
+        },
+        {
+          "costBps": 5,
+          "value": 0.26195719111884824
+        },
+        {
+          "costBps": 10,
+          "value": 0.2307603733186477
+        },
+        {
+          "costBps": 20,
+          "value": 0.16836622609923516
+        }
+      ],
+      "maxDrawdown": 0.37624965236647,
+      "switchesPerYear": 9.983898305084745,
+      "exposure": 0.2271186440677966
+    },
+    {
+      "id": "buy_hold",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.539422041154124,
+        "lo": 0.13185332493034488,
+        "hi": 0.9790075944445705
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5395720501005694
+        },
+        {
+          "costBps": 5,
+          "value": 0.539422041154124
+        },
+        {
+          "costBps": 10,
+          "value": 0.5392718199925317
+        },
+        {
+          "costBps": 20,
+          "value": 0.5389707417842383
+        }
+      ],
+      "maxDrawdown": 0.48726621502268064,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4739065162742378,
+        "lo": 0.033147031479613356,
+        "hi": 0.9357170966599827
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4778515819055249
+        },
+        {
+          "costBps": 5,
+          "value": 0.4739065162742378
+        },
+        {
+          "costBps": 10,
+          "value": 0.4699546224797304
+        },
+        {
+          "costBps": 20,
+          "value": 0.4620310781017051
+        }
+      ],
+      "maxDrawdown": 0.3780977965730504,
+      "switchesPerYear": 1.014406779661017,
+      "exposure": 0.784957627118644
+    },
+    {
+      "id": "macd_cross",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.39875405647547085,
+        "lo": -0.0007811417292320523,
+        "hi": 0.8100725758818783
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4915748631883344
+        },
+        {
+          "costBps": 5,
+          "value": 0.39875405647547085
+        },
+        {
+          "costBps": 10,
+          "value": 0.3057625992271417
+        },
+        {
+          "costBps": 20,
+          "value": 0.11970865959676703
+        }
+      ],
+      "maxDrawdown": 0.23105778254145082,
+      "switchesPerYear": 20.127966101694913,
+      "exposure": 0.5061440677966101
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "DIA",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.26629582038954347,
+        "lo": -0.07755271997023319,
+        "hi": 0.664311071239413
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3016037973326799
+        },
+        {
+          "costBps": 5,
+          "value": 0.26629582038954347
+        },
+        {
+          "costBps": 10,
+          "value": 0.23096537856172286
+        },
+        {
+          "costBps": 20,
+          "value": 0.16029426170252561
+        }
+      ],
+      "maxDrawdown": 0.3212141335766955,
+      "switchesPerYear": 8.916101694915254,
+      "exposure": 0.20233050847457626
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4279057904776369,
+        "lo": 0.03099521447464278,
+        "hi": 0.8494923390019737
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.42801565163076144
+        },
+        {
+          "costBps": 5,
+          "value": 0.4279057904776369
+        },
+        {
+          "costBps": 10,
+          "value": 0.4277958325697939
+        },
+        {
+          "costBps": 20,
+          "value": 0.4275756267889635
+        }
+      ],
+      "maxDrawdown": 0.5876562363226285,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.2769484585912223,
+        "lo": -0.1406721867980889,
+        "hi": 0.7257322240779903
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.2807616503329463
+        },
+        {
+          "costBps": 5,
+          "value": 0.2769484585912223
+        },
+        {
+          "costBps": 10,
+          "value": 0.2731326070417792
+        },
+        {
+          "costBps": 20,
+          "value": 0.2654934214020332
+        }
+      ],
+      "maxDrawdown": 0.4230912021357526,
+      "switchesPerYear": 1.3347457627118644,
+      "exposure": 0.7692796610169491
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.1631449820402485,
+        "lo": -0.2760811143386537,
+        "hi": 0.6041225352339511
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.2302760549418668
+        },
+        {
+          "costBps": 5,
+          "value": 0.1631449820402485
+        },
+        {
+          "costBps": 10,
+          "value": 0.09598245400984891
+        },
+        {
+          "costBps": 20,
+          "value": -0.03827277506332045
+        }
+      ],
+      "maxDrawdown": 0.4507473011056412,
+      "switchesPerYear": 20.34152542372881,
+      "exposure": 0.5044491525423729
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLB",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.44988757798100715,
+        "lo": 0.08756181983561061,
+        "hi": 0.8736194217207035
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4814206499279566
+        },
+        {
+          "costBps": 5,
+          "value": 0.44988757798100715
+        },
+        {
+          "costBps": 10,
+          "value": 0.41832248210417305
+        },
+        {
+          "costBps": 20,
+          "value": 0.3551320848872172
+        }
+      ],
+      "maxDrawdown": 0.3421862734534935,
+      "switchesPerYear": 10.090677966101694,
+      "exposure": 0.22139830508474576
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.39017063522953144,
+        "lo": -0.024558996486771848,
+        "hi": 0.8105180498659899
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.39026010555848517
+        },
+        {
+          "costBps": 5,
+          "value": 0.39017063522953144
+        },
+        {
+          "costBps": 10,
+          "value": 0.39008110761782727
+        },
+        {
+          "costBps": 20,
+          "value": 0.3899018807074836
+        }
+      ],
+      "maxDrawdown": 0.6481000920537212,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.34860190465302093,
+        "lo": -0.074495734341911,
+        "hi": 0.7785710283571118
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.35181432515107625
+        },
+        {
+          "costBps": 5,
+          "value": 0.34860190465302093
+        },
+        {
+          "costBps": 10,
+          "value": 0.34538720190297734
+        },
+        {
+          "costBps": 20,
+          "value": 0.33895124647519803
+        }
+      ],
+      "maxDrawdown": 0.5451622948887983,
+      "switchesPerYear": 1.3347457627118644,
+      "exposure": 0.6697033898305085
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.31422177443939747,
+        "lo": -0.12784086778720793,
+        "hi": 0.7367283447422934
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.366931665010096
+        },
+        {
+          "costBps": 5,
+          "value": 0.31422177443939747
+        },
+        {
+          "costBps": 10,
+          "value": 0.2614724934688267
+        },
+        {
+          "costBps": 20,
+          "value": 0.15593337562247206
+        }
+      ],
+      "maxDrawdown": 0.49793888413457865,
+      "switchesPerYear": 20.822033898305083,
+      "exposure": 0.5148305084745762
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLE",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.2736733214586159,
+        "lo": -0.11001984830918457,
+        "hi": 0.7100150383171204
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.299108551735554
+        },
+        {
+          "costBps": 5,
+          "value": 0.2736733214586159
+        },
+        {
+          "costBps": 10,
+          "value": 0.24822652592944344
+        },
+        {
+          "costBps": 20,
+          "value": 0.19731801489751039
+        }
+      ],
+      "maxDrawdown": 0.5778501063433854,
+      "switchesPerYear": 9.610169491525424,
+      "exposure": 0.23283898305084746
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.34758262445091137,
+        "lo": 0.0020641290431623518,
+        "hi": 0.7283781832083193
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3476682296944527
+        },
+        {
+          "costBps": 5,
+          "value": 0.34758262445091137
+        },
+        {
+          "costBps": 10,
+          "value": 0.3474969746533675
+        },
+        {
+          "costBps": 20,
+          "value": 0.3473255415372104
+        }
+      ],
+      "maxDrawdown": 0.7853773026089437,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.45369338785166774,
+        "lo": -0.005766526189005438,
+        "hi": 0.9199120399504194
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.45731963548700444
+        },
+        {
+          "costBps": 5,
+          "value": 0.45369338785166774
+        },
+        {
+          "costBps": 10,
+          "value": 0.4500620244203806
+        },
+        {
+          "costBps": 20,
+          "value": 0.4427844163437184
+        }
+      ],
+      "maxDrawdown": 0.43708049208808364,
+      "switchesPerYear": 1.2279661016949153,
+      "exposure": 0.6925847457627119
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.1122348815498177,
+        "lo": -0.22799054187653403,
+        "hi": 0.493315448501243
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.16342697910302173
+        },
+        {
+          "costBps": 5,
+          "value": 0.1122348815498177
+        },
+        {
+          "costBps": 10,
+          "value": 0.061000455033432176
+        },
+        {
+          "costBps": 20,
+          "value": -0.041520122053944813
+        }
+      ],
+      "maxDrawdown": 0.5605995522448524,
+      "switchesPerYear": 19.75423728813559,
+      "exposure": 0.4891949152542373
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLF",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.284966893584816,
+        "lo": -0.004724842256780982,
+        "hi": 0.5721390487440935
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.30604464344617094
+        },
+        {
+          "costBps": 5,
+          "value": 0.284966893584816
+        },
+        {
+          "costBps": 10,
+          "value": 0.2638763870862936
+        },
+        {
+          "costBps": 20,
+          "value": 0.22166871460111104
+        }
+      ],
+      "maxDrawdown": 0.44175194016874286,
+      "switchesPerYear": 9.34322033898305,
+      "exposure": 0.21906779661016948
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.49134392083410944,
+        "lo": 0.06188407575817673,
+        "hi": 0.9337876136541632
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.49146718928871114
+        },
+        {
+          "costBps": 5,
+          "value": 0.49134392083410944
+        },
+        {
+          "costBps": 10,
+          "value": 0.49122052493816165
+        },
+        {
+          "costBps": 20,
+          "value": 0.49097335124267305
+        }
+      ],
+      "maxDrawdown": 0.5999030829799081,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3575902627866343,
+        "lo": -0.14286807291275389,
+        "hi": 0.856883548449716
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3623565168128975
+        },
+        {
+          "costBps": 5,
+          "value": 0.3575902627866343
+        },
+        {
+          "costBps": 10,
+          "value": 0.3528178614228495
+        },
+        {
+          "costBps": 20,
+          "value": 0.34325551712125374
+        }
+      ],
+      "maxDrawdown": 0.4374290109473863,
+      "switchesPerYear": 1.4415254237288135,
+      "exposure": 0.7544491525423729
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3762599729975524,
+        "lo": -0.034030891634054386,
+        "hi": 0.8134789222138823
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.44787432179733294
+        },
+        {
+          "costBps": 5,
+          "value": 0.3762599729975524
+        },
+        {
+          "costBps": 10,
+          "value": 0.3045549936386851
+        },
+        {
+          "costBps": 20,
+          "value": 0.16108380518537474
+        }
+      ],
+      "maxDrawdown": 0.2724278723236052,
+      "switchesPerYear": 19.38050847457627,
+      "exposure": 0.4976694915254237
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLI",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.38902544159448127,
+        "lo": -0.05339622631154148,
+        "hi": 0.9220797163205317
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4226734123250949
+        },
+        {
+          "costBps": 5,
+          "value": 0.38902544159448127
+        },
+        {
+          "costBps": 10,
+          "value": 0.3553237896322963
+        },
+        {
+          "costBps": 20,
+          "value": 0.2878044190382234
+        }
+      ],
+      "maxDrawdown": 0.4020364874290201,
+      "switchesPerYear": 9.823728813559322,
+      "exposure": 0.20084745762711864
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.7801588030871546,
+        "lo": 0.3854784729909323,
+        "hi": 1.2002075582622602
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.780276649729026
+        },
+        {
+          "costBps": 5,
+          "value": 0.7801588030871546
+        },
+        {
+          "costBps": 10,
+          "value": 0.7800407840924521
+        },
+        {
+          "costBps": 20,
+          "value": 0.7798042294082509
+        }
+      ],
+      "maxDrawdown": 0.4858554876307206,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.8122394060718031,
+        "lo": 0.4153971872288849,
+        "hi": 1.2146333779813205
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.8152940497791252
+        },
+        {
+          "costBps": 5,
+          "value": 0.8122394060718031
+        },
+        {
+          "costBps": 10,
+          "value": 0.8091783822167804
+        },
+        {
+          "costBps": 20,
+          "value": 0.8030374998980896
+        }
+      ],
+      "maxDrawdown": 0.303642618410215,
+      "switchesPerYear": 1.1211864406779661,
+      "exposure": 0.7949152542372881
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.428284513137522,
+        "lo": -0.01408702808777431,
+        "hi": 0.8578767052049108
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5016001780851581
+        },
+        {
+          "costBps": 5,
+          "value": 0.428284513137522
+        },
+        {
+          "costBps": 10,
+          "value": 0.35493570332586305
+        },
+        {
+          "costBps": 20,
+          "value": 0.20833890205010877
+        }
+      ],
+      "maxDrawdown": 0.33712792616788056,
+      "switchesPerYear": 21.516101694915253,
+      "exposure": 0.5203389830508475
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLK",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3750989518546515,
+        "lo": 0.02982923401667507,
+        "hi": 0.7801398436170178
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4030752718965067
+        },
+        {
+          "costBps": 5,
+          "value": 0.3750989518546515
+        },
+        {
+          "costBps": 10,
+          "value": 0.3470913354040489
+        },
+        {
+          "costBps": 20,
+          "value": 0.2910116667600846
+        }
+      ],
+      "maxDrawdown": 0.4126708658910997,
+      "switchesPerYear": 8.649152542372882,
+      "exposure": 0.18305084745762712
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.5261291719281271,
+        "lo": 0.15777239018189965,
+        "hi": 0.9288857248925869
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5263044059022377
+        },
+        {
+          "costBps": 5,
+          "value": 0.5261291719281271
+        },
+        {
+          "costBps": 10,
+          "value": 0.5259536687903963
+        },
+        {
+          "costBps": 20,
+          "value": 0.5256018562303484
+        }
+      ],
+      "maxDrawdown": 0.3345276579232851,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3258895176359473,
+        "lo": -0.025790769424517263,
+        "hi": 0.76324395131132
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3316066362994553
+        },
+        {
+          "costBps": 5,
+          "value": 0.3258895176359473
+        },
+        {
+          "costBps": 10,
+          "value": 0.32016534552624315
+        },
+        {
+          "costBps": 20,
+          "value": 0.30869728731140306
+        }
+      ],
+      "maxDrawdown": 0.2807656943733974,
+      "switchesPerYear": 1.5483050847457627,
+      "exposure": 0.8088983050847458
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.27714964131750525,
+        "lo": -0.11590613845347811,
+        "hi": 0.707729674631939
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.393513456987762
+        },
+        {
+          "costBps": 5,
+          "value": 0.27714964131750525
+        },
+        {
+          "costBps": 10,
+          "value": 0.16082455757781894
+        },
+        {
+          "costBps": 20,
+          "value": -0.07093202409039837
+        }
+      ],
+      "maxDrawdown": 0.1508439400088848,
+      "switchesPerYear": 21.94322033898305,
+      "exposure": 0.5099576271186441
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLP",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4463122743797369,
+        "lo": 0.13580346091757572,
+        "hi": 0.8685716581189538
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.49210785112949595
+        },
+        {
+          "costBps": 5,
+          "value": 0.4463122743797369
+        },
+        {
+          "costBps": 10,
+          "value": 0.4004409826478603
+        },
+        {
+          "costBps": 20,
+          "value": 0.3085904487896299
+        }
+      ],
+      "maxDrawdown": 0.22416834656079432,
+      "switchesPerYear": 9.34322033898305,
+      "exposure": 0.19004237288135592
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.5684828035156936,
+        "lo": 0.18365776547330034,
+        "hi": 1.0159571881922604
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5686250697791901
+        },
+        {
+          "costBps": 5,
+          "value": 0.5684828035156936
+        },
+        {
+          "costBps": 10,
+          "value": 0.5683403187382033
+        },
+        {
+          "costBps": 20,
+          "value": 0.5680546942921221
+        }
+      ],
+      "maxDrawdown": 0.4407237392141088,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.630798928196691,
+        "lo": 0.20456371734083215,
+        "hi": 1.127845359469743
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.6347972411240012
+        },
+        {
+          "costBps": 5,
+          "value": 0.630798928196691
+        },
+        {
+          "costBps": 10,
+          "value": 0.6267929730611753
+        },
+        {
+          "costBps": 20,
+          "value": 0.6187587891998058
+        }
+      ],
+      "maxDrawdown": 0.32709021089619383,
+      "switchesPerYear": 1.1745762711864407,
+      "exposure": 0.7991525423728814
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4448150650139798,
+        "lo": 0.08128785419010566,
+        "hi": 0.8188529120150282
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.523798607395275
+        },
+        {
+          "costBps": 5,
+          "value": 0.4448150650139798
+        },
+        {
+          "costBps": 10,
+          "value": 0.36578511545690007
+        },
+        {
+          "costBps": 20,
+          "value": 0.20785825920123252
+        }
+      ],
+      "maxDrawdown": 0.2636400991677653,
+      "switchesPerYear": 19.914406779661014,
+      "exposure": 0.534957627118644
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLU",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.265759669755122,
+        "lo": -0.09331666767715886,
+        "hi": 0.7136241644954803
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3026297663644342
+        },
+        {
+          "costBps": 5,
+          "value": 0.265759669755122
+        },
+        {
+          "costBps": 10,
+          "value": 0.22887169857849238
+        },
+        {
+          "costBps": 20,
+          "value": 0.1551109019212559
+        }
+      ],
+      "maxDrawdown": 0.3025629435303274,
+      "switchesPerYear": 8.435593220338983,
+      "exposure": 0.19279661016949154
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.5765207669592884,
+        "lo": 0.1962772880861756,
+        "hi": 0.9719152326140603
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.576673903107064
+        },
+        {
+          "costBps": 5,
+          "value": 0.5765207669592884
+        },
+        {
+          "costBps": 10,
+          "value": 0.5763673994748304
+        },
+        {
+          "costBps": 20,
+          "value": 0.5760599713032818
+        }
+      ],
+      "maxDrawdown": 0.3834894845818829,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.456528304551717,
+        "lo": 0.06479539610718683,
+        "hi": 0.8674199769544406
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.46281597478099007
+        },
+        {
+          "costBps": 5,
+          "value": 0.456528304551717
+        },
+        {
+          "costBps": 10,
+          "value": 0.4502305880860708
+        },
+        {
+          "costBps": 20,
+          "value": 0.4376068164988266
+        }
+      ],
+      "maxDrawdown": 0.26228262888642817,
+      "switchesPerYear": 1.6550847457627118,
+      "exposure": 0.7279661016949153
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.2643255655224005,
+        "lo": -0.15202349782318453,
+        "hi": 0.657887231790893
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3546241720745395
+        },
+        {
+          "costBps": 5,
+          "value": 0.2643255655224005
+        },
+        {
+          "costBps": 10,
+          "value": 0.1740216630066293
+        },
+        {
+          "costBps": 20,
+          "value": -0.00620176738405503
+        }
+      ],
+      "maxDrawdown": 0.22642974253125336,
+      "switchesPerYear": 20.181355932203388,
+      "exposure": 0.5120762711864407
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLV",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3382307601063559,
+        "lo": -0.025248692511988895,
+        "hi": 0.7258879906953654
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.3728883499429524
+        },
+        {
+          "costBps": 5,
+          "value": 0.3382307601063559
+        },
+        {
+          "costBps": 10,
+          "value": 0.3035298065102597
+        },
+        {
+          "costBps": 20,
+          "value": 0.2340560304487812
+        }
+      ],
+      "maxDrawdown": 0.26389740767386893,
+      "switchesPerYear": 8.328813559322034,
+      "exposure": 0.19406779661016949
+    },
+    {
+      "id": "buy_hold",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.5913707096030608,
+        "lo": 0.17544539458505173,
+        "hi": 1.0265573533891001
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5914821265893168
+        },
+        {
+          "costBps": 5,
+          "value": 0.5913707096030608
+        },
+        {
+          "costBps": 10,
+          "value": 0.5912591677432386
+        },
+        {
+          "costBps": 20,
+          "value": 0.5910357097132346
+        }
+      ],
+      "maxDrawdown": 0.5105196406355916,
+      "switchesPerYear": 0.053389830508474574,
+      "exposure": 1.0
+    },
+    {
+      "id": "golden_cross",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.5783110488434805,
+        "lo": 0.13505363775785276,
+        "hi": 1.0327399712571843
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5815030990183039
+        },
+        {
+          "costBps": 5,
+          "value": 0.5783110488434805
+        },
+        {
+          "costBps": 10,
+          "value": 0.5751136994897872
+        },
+        {
+          "costBps": 20,
+          "value": 0.5687034694121164
+        }
+      ],
+      "maxDrawdown": 0.3430690743080035,
+      "switchesPerYear": 1.0677966101694916,
+      "exposure": 0.7754237288135594
+    },
+    {
+      "id": "macd_cross",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.4695997892551764,
+        "lo": 0.043898102467846395,
+        "hi": 0.9028617611059636
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.5386131360877895
+        },
+        {
+          "costBps": 5,
+          "value": 0.4695997892551764
+        },
+        {
+          "costBps": 10,
+          "value": 0.40052889184348184
+        },
+        {
+          "costBps": 20,
+          "value": 0.2623946234289987
+        }
+      ],
+      "maxDrawdown": 0.3099495783303182,
+      "switchesPerYear": 20.127966101694913,
+      "exposure": 0.5076271186440678
+    },
+    {
+      "id": "bollinger_bounce",
+      "scope": "XLY",
+      "period": "backtest",
+      "blocks": 236,
+      "excessSharpe": {
+        "point": 0.3838108401422887,
+        "lo": -0.0005651583303848739,
+        "hi": 0.8104795336689307
+      },
+      "excessSharpeByCost": [
+        {
+          "costBps": 0,
+          "value": 0.4108204895048678
+        },
+        {
+          "costBps": 5,
+          "value": 0.3838108401422887
+        },
+        {
+          "costBps": 10,
+          "value": 0.3567580704769398
+        },
+        {
+          "costBps": 20,
+          "value": 0.3025484057073369
+        }
+      ],
+      "maxDrawdown": 0.4360378382043806,
+      "switchesPerYear": 9.076271186440678,
+      "exposure": 0.18728813559322033
+    }
+  ]
+}

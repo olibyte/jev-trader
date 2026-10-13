@@ -18,6 +18,8 @@ import numpy as np
 import polars as pl
 from dotenv import dotenv_values
 
+from jevtrader.catalog import decisions as arena_decisions
+from jevtrader.catalog import reconcile, refusals
 from jevtrader.data import (
     DATA_DIR,
     REPO_ROOT,
@@ -58,11 +60,15 @@ from jevtrader.evaluate import (
     write_prereg,
 )
 from jevtrader.export import (
+    ARENA_PATH,
     EXPORT_PATH,
     ExportError,
     preconditions,
+    read_arena_inputs,
+    read_committed_catalog,
     read_inputs,
     render,
+    render_arena,
     write_export,
 )
 from jevtrader.jev import (
@@ -111,6 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     once = commands.add_parser("holdout", help="run the pre-registered holdout once")
     once.add_argument("--verify", action="store_true", help="rerun from the manifest and compare")
     commands.add_parser("export", help="write export/v1/ for the site from the holdout inputs")
+    commands.add_parser("arena", help="compare the catalog strategies, write export/arena/v1/")
     jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
     jev.add_argument("--offline", action="store_true", help="build from the call log only")
     jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
@@ -128,6 +135,8 @@ def main(argv: list[str] | None = None) -> int:
         return holdout(REPO_ROOT, DATA_DIR, args.verify)
     if args.command == "export":
         return export(REPO_ROOT, DATA_DIR)
+    if args.command == "arena":
+        return arena(REPO_ROOT, DATA_DIR)
     return online(args)
 
 
@@ -524,6 +533,30 @@ def export(repo: Path, data_dir: Path) -> int:
         return 1
     for path, status, digest in write_export(repo / EXPORT_PATH, files):
         print(f"{EXPORT_PATH / path} {status} {digest}")
+    return 0
+
+
+def arena(repo: Path, data_dir: Path) -> int:
+    try:
+        inputs = read_arena_inputs(repo, data_dir)
+    except FileNotFoundError as e:
+        print(f"missing {e.filename}", file=sys.stderr)
+        return 2
+    made = arena_decisions(inputs.market)
+    failures = reconcile(made, inputs.market, inputs.holdout) + refusals(
+        read_committed_catalog(repo), made
+    )
+    try:
+        if not failures:
+            files = render_arena(inputs)
+    except ExportError as e:
+        failures = [str(e)]
+    if failures:
+        print("\n".join(failures), file=sys.stderr)
+        print(f"refusing, {repo / ARENA_PATH} is unchanged", file=sys.stderr)
+        return 1
+    for path, status, digest in write_export(repo / ARENA_PATH, files):
+        print(f"{ARENA_PATH / path} {status} {digest}")
     return 0
 
 

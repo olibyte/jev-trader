@@ -7,9 +7,9 @@ from datetime import date
 import numpy as np
 import polars as pl
 import pytest
-from test_states import random_walk
 
 from jevtrader import cli, evaluate
+from jevtrader.catalog import random_walk
 from jevtrader.evaluate import (
     ARMS,
     HOLDOUT_PATH,

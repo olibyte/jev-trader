@@ -6,8 +6,8 @@ from datetime import date, timedelta
 import numpy as np
 import polars as pl
 import pytest
-from test_states import random_walk
 
+from jevtrader.catalog import random_walk
 from jevtrader.evaluate import (
     ARMS,
     Power,
