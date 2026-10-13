@@ -1,6 +1,6 @@
 # jev-trader
 
-A trade arena where you pick two well-known trading strategies, run them on the same ETFs with the same costs, and see whether you can tell them apart. It grew out of a finished study of Jev, TypeSafe AI's decision model, against technical-analysis rules.
+A trade arena where you pick two well-known trading strategies, run them on the same market with the same costs, and ask which one wins. Most answers are "Too close to call", and the arena says so. It grew out of a finished study of Jev, TypeSafe AI's decision model, against technical-analysis rules.
 
 - [Product spec](docs/product-spec.md) explains the question, the audience, and the honesty rules for the public site.
 - [Implementation plan](docs/implementation-plan.md) lists the architecture, data shapes, methods, milestones, and decision log.

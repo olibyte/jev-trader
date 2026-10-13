@@ -1,37 +1,71 @@
 # Trade arena product spec
 
-> **This spec will change.** The trade arena is an evolving research app. The requirements below record what we believe on 2026-10-13. Expect them to move as experiments return results. When a decision changes, update this file and add a line to the decision log in [implementation-plan.md](implementation-plan.md). The [arena synthesis](arena/2026-10-13-trade-arena/synthesis.md) records how this version was chosen.
+> **This spec will change.** The trade arena is an evolving research app. The requirements below record what we believe on 2026-10-13. Expect them to move as experiments return results. When a decision changes, update this file and add a line to the decision log in [implementation-plan.md](implementation-plan.md). The [arena synthesis](arena/2026-10-13-trade-arena/synthesis.md) records how the first version was chosen. The section [Tradeoffs behind this version](#tradeoffs-behind-this-version) records why the question changed to "Which one wins?".
 
 ## The question we answer
 
-Pick two well-known trading strategies, run them on the same ETFs with the same costs, and ask one question. Can you tell them apart?
+Pick two trading strategies, run them on the same market with the same costs, and ask one question. Which one wins?
 
-Examples are a Bollinger bounce against a MACD crossover, or a candlestick pattern against a machine-learning model. The arena answers with a difference, an interval, and one of three verdicts: "A ahead", "B ahead", or "No detectable difference". We do not assume any strategy wins. Most pairs will read "No detectable difference", and we publish that as the answer, not as a failure.
+Examples are a Bollinger bounce against a MACD crossover, or a candlestick pattern against a machine-learning model. The arena answers with a difference, an interval, and one of three verdicts: "A wins", "B wins", or "Too close to call".
 
-## Why most answers will be "no detectable difference"
+A win has one meaning. Over a named market and period, the simultaneous 95% interval for A minus B in excess Sharpe lies entirely above zero. "B wins" means the interval lies entirely below zero. Any other interval reads "Too close to call", and we publish that as an answer, not as a failure. Milestone 7 compared the first four strategies on 13 ETFs from 2008 to 2026, and all six pairs read "Too close to call".
 
-Twenty years of daily bars sounds like a lot of data. It is not. Thirteen ETFs that move together give about 236 independent 20-session blocks from 2008 onward. In the arena's scratch runs over 2019 to 2026, the 95% interval on the difference in excess Sharpe between two strategies was ±0.36 to ±0.44. An interval that covers many comparisons at once is wider. Over 2008 to 2018, ±0.42 for one comparison became ±0.78 for 55. The site explains this on the first screen instead of hiding it behind a ranking.
+## What makes a win possible
+
+Three things set how wide an interval is:
+
+- **The years in the period.** Milestone 7 had 18.8 years of daily bars in 236 independent 20-session blocks.
+- **How differently the two strategies trade.** Two strategies that are long on mostly the same days have a narrow interval, because luck moves them together. In milestone 7, buy and hold against the golden cross had a simultaneous interval of ±0.40 excess Sharpe. The MACD crossover against the Bollinger bounce had ±0.72.
+- **The number of pairs that the verdict covers.** Six pairs needed a critical value of 2.53 instead of 1.96. In a scratch run over 2008 to 2018, the half-width grew from 0.42 for one pair to 0.78 for 55.
+
+Two things do not narrow an interval, and we checked both with a simulation of 2,000 runs of 5 years each. Shorter bars do not help. The spread of the annualised Sharpe estimate was 0.45 on daily bars, 0.46 on hourly bars, and 0.46 on 5-minute bars. Volatility does not change it either, at 0.46 for 16% annual volatility and 0.47 for 60%. Sharpe divides volatility out, and its precision depends on years, not on how many bars those years hold.
+
+Faster bars and volatile stocks matter for a different reason. They change what a strategy can do. A rule that makes many independent decisions a day can have a much larger real difference from buy and hold than a rule that switches four times a year, and that difference is what a win needs. Trading costs grow with every switch, so the same markets also produce large real losses. Results will vary more, and most of that variety will still be luck. The verdict shows which part is not.
 
 A window can also flatter a strategy. In a scratch run, a MACD crossover scored an excess Sharpe of 0.82 over 2019 to 2026 and 0.45 over 2008 to 2026. Readers cannot choose the window, for this reason.
 
 ## Who it is for
 
-- **Curious learners.** People who have heard of Bollinger bands or a golden cross and want to know whether they work. They need plain words, one comparison at a time, and an honest picture of luck. They do not tune parameters or build rules in this version.
+- **Curious learners.** People who have heard of Bollinger bands or a golden cross and want to know whether they work. They need plain words, one matchup at a time, and an honest picture of luck. They do not tune parameters or build rules in this version.
+- **Strategy builders, later.** People who want their own rule to compete. They arrive with the backend, under the rules in [Learners build strategies later, and theirs play forward](#learners-build-strategies-later-and-theirs-play-forward).
 - **The researcher (us).** We need reproducible results. Rerunning `jt arena` must never change a published number or trigger a paid API call.
 
 ## What the site shows
 
 ### The first screen is one matchup
 
-The home page asks "Pick two strategies. Can you tell them apart?" and shows five things:
+The home page asks "Pick two strategies. Which one wins?" and shows five things:
 
-1. Two strategy pickers, A and B, and a scope picker: "All 13 ETFs" or one ETF. Each strategy shows its rule in one plain sentence.
+1. Two strategy pickers, A and B, a market picker, and a scope picker. The scope is the whole market, such as "All 13 ETFs", or one symbol in it. Each strategy shows its rule in one plain sentence.
 2. A period switch with two fixed periods: "Backtest" and "Live". There is no other way to choose dates.
-3. The verdict, in large type. Below it are the difference A minus B, its interval drawn as a bar against zero, the number of independent blocks, and the smallest difference this period can detect.
+3. The verdict, in large type, with the market and the period it applies to. Below it are the difference A minus B, its interval drawn as a bar against zero, the number of independent blocks, and the smallest difference this period can detect.
 4. One chart with the growth of $1 for A and B over the selected period. The chart has no zoom and no scroll.
 5. One row of figures for each side: excess Sharpe with its interval, maximum drawdown, switches per year, and time in the market. The last three are labelled as point values with no interval.
 
-The default pair follows catalog order, never a result. Everything else (strategy pages, the method, the run manifest, and the Jev study) sits one link away.
+The default pair and market follow catalog order, never a result. Everything else (strategy pages, the method, the run manifest, and the Jev study) sits one link away.
+
+### Markets are fixed pairs of a universe and a bar size
+
+A market is a universe of symbols traded on one bar size, such as "13 ETFs, daily". We choose the list of markets. Learners pick from it and never define one. Each market has its own backtest period, because history differs by bar size and by symbol, and its own live period.
+
+| Market | Status |
+|---|---|
+| 13 ETFs, daily | Built. Milestone 7. |
+| 13 ETFs, hourly | Planned. The first intraday market. |
+| Volatile stocks, daily | Planned. Needs the universe rule below. |
+| 13 ETFs, 1-minute | Later. Waits for a cost model that has held up at hourly bars. |
+
+A rule is written in bars. On daily bars a bar is a session, so "the 50-day average" is the 50-bar average. On hourly bars the same rule reads the 50-hour average, which is a different idea, and the strategy card says so. Parameters stay the cited textbook values. Jev (frozen rulebook) and the learned model are daily only. They read the daily `State` and a 20-session horizon, so they play only in daily markets.
+
+In an intraday market, a strategy decides at the close of a bar and trades at the open of the next bar, inside regular session hours. A position can stay open overnight and earns the gap to the next open. Bar returns compound into one return per session, and the excess Sharpe, the bootstrap, and the portfolio read those daily returns. That keeps intervals comparable across markets.
+
+Each market has a cost per switch, fixed before its first run. Daily ETFs keep 5 basis points. Intraday and stock markets get higher costs that we set from the instruments' typical spreads. Every market also shows its figures at 2 and 4 times its cost as point values.
+
+### Volatile stocks need a universe chosen without hindsight
+
+Today's list of volatile stocks leaves out the ones that collapsed or were delisted, and that flatters every long strategy. A fixed rule chooses the universe at each past date instead. Each January, it takes the 20 US common stocks with the highest volatility over the previous 252 sessions, among stocks above a price and volume floor, using only data from before that January. The universe holds for the year. A stock that is delisted during the year moves to cash.
+
+The rule needs listings that include delisted stocks. If Twelve Data does not supply them, another source does.
 
 ### The catalog is small and fixed
 
@@ -50,9 +84,17 @@ The first catalog version has 8 entries:
 | Jev (frozen rulebook) | AI model | Long when Jev's frozen P(higher in 20 trading days) is above 0.5. |
 | Coin flip | Control | A seeded coin, flipped again every 20 sessions. It shows what luck looks like. |
 
-Every strategy is long or flat on each ETF. It decides at the close and trades at the next open. Flat days earn the cash return (BIL), and each switch costs 5 basis points.
+Every strategy is long or flat on each symbol. Flat periods earn the cash return (BIL).
 
 The catalog only grows. A changed rule is a new version of the entry, and an entry never disappears, so a losing strategy stays on the site. Each new entry widens every interval, so the catalog stays near 8 to 10 entries for learners.
+
+### Learners build strategies later, and theirs play forward
+
+Learners building and testing their own rules is the long-term goal. It needs a backend, and it waits for the trigger in [What brings a backend back](#what-brings-a-backend-back). Its cost and effort may change the plan.
+
+A learner's rule gets a verdict only from its live period, which starts at the first session after the rule is saved. Its backtest is shown with no verdict. A learner can try hundreds of rules on the backtest years and keep the one that wins, and no interval can correct for tries that nobody logged. Forward play cannot be tuned that way.
+
+The site logs each rule, with its fingerprint and the time it was saved, before it shows any result. Which pairs a learner's verdict accounts for is an open question. Counting every saved rule keeps each win honest, but wins get rarer as the site grows. Counting only one rule's pairs keeps wins possible, and the site then states how many rules have played and how many wins luck alone would give.
 
 ### The finished Jev study stays, and Jev competes
 
@@ -62,13 +104,13 @@ Jev also enters the arena as "Jev (frozen rulebook)". It plays from the frozen p
 
 ## Honesty rules for the UI
 
-1. **Periods are fixed and named, never chosen.** Every figure belongs to the `backtest` period or the `live` period. The backtest period runs from 2008-01-02 to the last bar before the catalog version froze. The live period starts at the first session after the freeze. The site has no date input, no date range in a URL, and no chart zoom. The build fails if any of these appears, or if a figure's first and last dates differ from its period's bounds in the arena manifest.
+1. **Periods are fixed and named, never chosen.** Every figure belongs to the `backtest` period or the `live` period of one market. The daily ETF backtest runs from 2008-01-02 to the last bar before the catalog version froze. Each other market's backtest runs from its first bar with enough history to the same freeze. The live period starts at the first session after the freeze. The site has no date input, no date range in a URL, and no chart zoom. The build fails if any of these appears, or if a figure's first and last dates differ from its period's bounds in the arena manifest.
 2. **The backtest period is not a holdout.** The people who chose the catalog had seen these years. The site says so next to every backtest figure. Only the live period is out of sample.
-3. **A verdict accounts for every pair.** The verdict uses a simultaneous 95% interval that covers all pairs in the catalog version at once, so 28 pairs for 8 entries. Only the "All 13 ETFs" scope gets a verdict. A single-ETF view shows its interval with no verdict and states how many single-ETF comparisons exist and how many would exclude zero by chance. The build fails if a verdict disagrees with its interval or if the family size differs from the catalog's pair count.
+3. **A verdict accounts for every pair in every market.** The verdict uses a simultaneous 95% interval that covers all pairs in all markets of the catalog version at once, so a learner cannot find a win by trying markets. Only the whole-market scope gets a verdict. A single-symbol view shows its interval with no verdict and states how many single-symbol comparisons exist and how many would exclude zero by chance. The build fails if a verdict disagrees with its interval or if the family size differs from the number of pairs in all markets.
 4. **Every metric shows its interval and the number of independent blocks behind it.** Figures without an interval say so.
-5. **No ranks.** The site lists strategies in catalog order. It never sorts them by a result, numbers them by a result, or picks a default pair by a result. In the live period, a verdict reads "Too early" until the period has 3 blocks.
+5. **One matchup, no ranks.** "Which one wins?" asks about one pair. The site lists strategies in catalog order. It never sorts them by a result, numbers them by a result, counts a strategy's wins, or picks a default pair by a result, because each extra comparison is another draw of luck. In the live period, a verdict reads "Too early" until the period has 3 blocks.
 6. **Every number links to the run manifest that produced it.** An arena number links to the input file hashes, the catalog version, and each strategy's version and fingerprint. The arena manifest records no git commit, because the export is committed and a commit would change it on every run. A Jev study number links to the git commit of its holdout run.
-7. **The site does not use the words** "beats", "outperforms", "winner", "best strategy", "confidence", or "Reasoning". `pnpm check:honesty` enforces the list.
+7. **"Wins" appears only where an interval supports it.** The word appears in the question "Which one wins?" and in a verdict whose simultaneous interval excludes zero, next to its market and period. The site does not use the words "beats", "outperforms", "winner", "best strategy", "confidence", or "Reasoning". `pnpm check:honesty` enforces both rules.
 8. **Mock data appears only in prototypes, and only behind a visible "mock data" badge.**
 9. **Every page shows two disclaimers.** "Research, not investment advice. Nothing here is a recommendation to buy or sell any security." and "Backtests are hypothetical, include modeled trading costs only, and do not predict future returns."
 
@@ -82,29 +124,53 @@ The Jev study pages and the Jev strategy card keep three more rules from the stu
 
 ### In scope now
 
-- Daily OHLC data from Twelve Data for 13 US equity ETFs, plus BIL as the cash return.
+- The "13 ETFs, daily" market, with daily OHLC bars from Twelve Data for 13 US equity ETFs and BIL as the cash return.
 - One fixed catalog of up to about 10 strategies, all long or flat.
 - Backtests computed in `research/` and published as static files.
 - A static site on S3 behind CloudFront, managed with Terraform.
 - A live period, scored by a scheduled job that fetches bars, records each strategy's positions before the next bar exists, and rebuilds the static files.
 
+### Planned next
+
+- The "Which one wins?" question and its three verdicts on the first screen.
+- An hourly ETF market, then a volatile-stock market. Each one widens every interval, so each one must earn its place.
+
 ### Out of scope for now
 
 These items may return later.
 
-- Parameters that learners set, and rules that learners build.
+- Parameters that learners set, and rules that learners build. They arrive together with the backend.
 - User accounts, watchlists, and settings.
 - A backend that computes on request.
-- Individual stocks, intraday data, short selling, and allocation across assets.
+- Short selling and allocation across assets.
 - News and sentiment inputs.
 
 ### What brings a backend back
 
-The site stays static until a learner needs a result that `jt arena` cannot compute in advance. Examples are parameters that learners set, rules that learners build, or a catalog too large to precompute. Nothing is built for a backend before that. When the trigger arrives, two prerequisites carry over from the arena candidates:
+The site stays static until a learner needs a result that `jt arena` cannot compute in advance. Examples are parameters that learners set, rules that learners build, or a catalog too large to precompute. Nothing is built for a backend before that. When the trigger arrives, three prerequisites carry over:
 
 - A backtest engine that runs in the browser must first pass a parity check that compares every position and metric with `research/` on the same bars.
-- A server that scores learner-built rules must log each rule before it shows any result, and must count every logged rule in the family that the verdict accounts for.
+- A server that scores learner-built rules must log each rule before it shows any result.
+- A learner-built rule gets a verdict only from its live period.
+
+The nightly job records intraday positions after the close, not before each bar. The replay still fails a rule that reads a later bar, but the ledger proves the order of each day's decisions only, not each bar's. A job that records each bar as it closes is a backend, and it waits for the same trigger.
+
+## Tradeoffs behind this version
+
+The first version asked "Can you tell them apart?". It was accurate, but it asked learners to care about a statistical idea before they cared about the matchup. "Which one wins?" is the question learners already have. The risk is that the new question promises winners that the data cannot deliver, so every choice below keeps the promise conditional on the interval.
+
+| Choice | Picked | Rejected | Why |
+|---|---|---|---|
+| The question | "Which one wins?" with three answers | "Can you tell them apart?" | The new question is the one learners bring. Three answers keep "Too close to call" as a full answer. |
+| The answer | The simultaneous interval decides | The larger point value wins | A point value names a winner every time, and most of those winners would be luck. |
+| Pairs that a verdict covers | Every pair in every market | Each market on its own | Separate markets would let a learner try markets until one shows a win. Each market added widens every interval, so we add markets slowly. |
+| First intraday bar size | Hourly | 1-minute | Shorter bars do not narrow intervals. Hourly bars have spreads we can model, and 1-minute strategies would be judged mostly on a cost model we cannot yet check. |
+| Volatile-stock universe | Chosen each January by a fixed rule, delisted stocks included | Today's most volatile stocks | Today's list hides every stock that collapsed. That bias favours every long strategy. |
+| Learner-built rules | Verdict from the live period only | Backtest verdicts with a wider interval | Nobody can count the tries a learner makes before saving a rule. Forward play needs no count. |
+| Sharpe in intraday markets | Computed from daily returns | Computed per bar | Precision depends on years, not bars, so per-bar Sharpe gains nothing. Daily returns keep markets comparable and reuse the existing code. |
+
+The cost of this direction is that "Too close to call" will stay the most common answer for a long time. We think that is the honest product, and the live period is where wins can come from. Each session adds evidence that nobody can tune.
 
 ## Data and licensing
 
-Twelve Data supplies the OHLC data. We checked our display and redistribution rights, and they cover publishing these prices. The API key stays server-side in `TWELVE_DATA_API_KEY` and never reaches the browser or git. The website reads only exported files and never calls Twelve Data or Jev.
+Twelve Data supplies the OHLC data. We checked our display and redistribution rights, and they cover publishing daily and intraday prices. The data source is replaceable. How far back a provider's history goes and which plan tier we use do not constrain the design, because we can move to another API or a paid tier when a market needs it. The API key stays server-side in `TWELVE_DATA_API_KEY` and never reaches the browser or git. The website reads only exported files and never calls Twelve Data or Jev.

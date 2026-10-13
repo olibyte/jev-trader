@@ -189,6 +189,29 @@ The arena has no development and holdout split. Whoever built the catalog had se
 - The truncation property test runs over every catalog entry: the position at t on `bars.head(t + 1)` equals the position at t on the full frame, on `random_walk` bars. The `oracle` arm, which reads `fwd_ret_20`, must fail the same test, as a negative control.
 - Tripling every price after a cut date changes no position before it.
 
+## Markets and "Which one wins?" (planned)
+
+The product spec reframes the arena question as "Which one wins?" and adds markets, each a universe on one bar size. The verdict rule does not change. This section lists what the change touches and what stays.
+
+### What stays
+
+- `evaluate.py` does not change. Every market compounds its bar returns into one return per session, so `sharpe` (with `YEAR` = 252), `block_bootstrap` (20-session blocks), and `portfolio` serve every market. A simulation of 2,000 runs of 5 years gave the same spread of annualised Sharpe on daily, hourly, and 5-minute bars (0.45, 0.46, and 0.46), so per-bar Sharpe would gain no precision.
+- The `PairRecord` verdict enum (`a_ahead`, `b_ahead`, `no_difference`, `too_early`) does not change. Only the labels that the site shows change.
+- `positions(bars)` and the fingerprints do not change. A rule reads bars, whatever their size.
+- The Jev study and its frozen files do not change.
+
+### What changes
+
+- **The arena contract.** `export/arena/v1/` has no market field. Milestone 8 adds one before the site reads the contract. After that, a new field would need `export/arena/v2/` and a site migration.
+- **The family.** `catalog.scope_records` computes a critical value for one market's pairs. The simultaneous interval over all markets needs one draw of blocks on a calendar that every market shares. `block_bootstrap` can serve this unchanged if each pair's statistic receives weights on the union of the markets' dates and reads only its own. Markets with shorter histories add no weight before their first date.
+- **The catalog.** Jev (frozen rulebook) and the learned model read the daily `State` and a 20-session horizon. `Strategy` gains the markets an entry plays in, and the family counts pairs per market.
+- **The data pipeline.** `data.py` is daily only. Bars are keyed by a `date` column, `closed_bars` settles a bar at 20:00 New York time, `validate` compares sessions with SPY and flags open-to-previous-close moves over 40%, and `RANGES` and `OUTPUTSIZE` are sized for daily history. Intraday bars need a timestamp key, a regular-hours filter, a session check for each bar, and paged backfill.
+- **Backfill.** One call costs 1 credit for each symbol and returns up to 5,000 bars. Twenty years of hourly bars for 13 ETFs takes about 104 calls. Twenty years of 1-minute bars takes about 5,100, which is about 11 hours at 8 credits a minute, or 7 days at 800 credits a day. These counts are arithmetic from the published limits, not a measured run.
+- **Storage.** Twenty years of 1-minute bars is about 2 million rows for each symbol. That fits in `data/`, which is not committed. Committed curves keep one point per session in every market.
+- **The volatile-stock universe.** `STUDY` is a fixed tuple, and `catalog.decisions` loops over it. A universe that changes each January needs a table of symbols by year, and `open_returns` needs a cash return for a stock after its last bar.
+- **The live period.** The nightly job of milestone 11 records intraday positions after the close, so the ledger proves the order of each day's decisions, not each bar's. The replay still fails a rule that reads a later bar.
+- **The site and the docs.** The first screen of milestone 8, `web/src/lib/format.ts`, `web/e2e/expected.ts`, `check:honesty`, and the README tagline change wording. None of them is built for the arena yet, so the cost is lowest before milestone 8.
+
 ## Jev study method (finished)
 
 ### Universe
@@ -257,7 +280,7 @@ Milestones 1 to 6 are merged. The arena milestones follow. Each one ships alone.
    - Check that `uv run python -m pytest tests/test_catalog.py` passes. It holds the truncation test over `CATALOG`, the `oracle` negative control, the fingerprints, the refusal of a never-long strategy, and the refusal of a dropped id.
    - Check that `jt arena` passes its reconciliation with `research/holdout.json` on the real data.
    - Check that a second `uv run jt arena` reports every file unchanged.
-8. **Arena first screen.** The home page becomes the matchup in the product spec. The study pages move unchanged to `/studies/jev/`. `web/src/lib/export.ts` gains `loadArena()` beside `loadExport()`, with strict zod schemas and cross-file checks: a period is an enum, record dates come only from the manifest, a verdict agrees with its simultaneous interval, the family size is n(n-1)/2, and single-symbol verdicts are null. `check:honesty` bans date inputs, chart zoom and scroll options, and the words in honesty rule 7.
+8. **Arena first screen.** The home page becomes the matchup in the product spec and asks "Which one wins?". The study pages move unchanged to `/studies/jev/`. Before the site reads the arena contract, `jt arena` adds a `market` field to every record and curve file and keys the manifest's periods by market, so a second market fits in `export/arena/v1/`. `web/src/lib/export.ts` gains `loadArena()` beside `loadExport()`, with strict zod schemas and cross-file checks: a period is an enum, record dates come only from the manifest, a verdict agrees with its simultaneous interval, the family size is the number of pairs in all markets, and single-symbol verdicts are null. `web/src/lib/format.ts` maps the verdict enum, which does not change, to "A wins", "B wins", "Too close to call", and "Too early". `check:honesty` bans date inputs, chart zoom and scroll options, and the words in honesty rule 7, and fails on "wins" outside the question and the verdict labels.
    - Check that all five `web/` checks pass, and that `check:schema` fails each new broken copy of the arena export.
    - Check with Playwright that every number on the home page matches `export/arena/v1/` for the default pair and 5 seeded pairs, and that the `/studies/jev/` pages still match `export/v1/`.
 9. **Candlestick, machine-learning, Jev, and control entries.** Add `candles()` to `states.py` and a feature registry that the truncation test runs over. Add the bullish engulfing pattern, the learned model, Jev (frozen rulebook), and the coin flip. Catalog version 1 then has 8 entries and 28 pairs, and it freezes.
@@ -270,6 +293,16 @@ Milestones 1 to 6 are merged. The arena milestones follow. Each one ships alone.
 11. **Live period.** `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A nightly GitHub Actions job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. It commits the ledger to the `ledger` branch, reads `TWELVE_DATA_API_KEY` from a repository secret, and deploys to AWS through a GitHub OIDC role, so no AWS key is stored. `jt fetch` spends Twelve Data credits, so the user starts the first run.
     - Check that `tests/test_arena_live.py` passes on synthetic bars in a temporary git repository: 30 simulated sessions append 30 rows, the replay equals the ledger, an edited row fails `verify`, a strategy that reads the next bar fails `verify`, and a second tick on the same bars changes no file.
     - Check that `jt arena verify` exits 0 after the user runs one `jt fetch` and one `jt arena tick`.
+12. **Hourly ETF market.** `data.py` fetches hourly bars for the 13 ETFs, keyed by timestamp and cut to regular session hours. `jt arena` adds the "13 ETFs, hourly" market with its own cost per switch, compounds bar returns and the overnight gap into one return per session, and computes one critical value over the pairs of both markets. Jev (frozen rulebook) and the learned model play only in the daily market.
+    - Check that the truncation test passes for every entry on hourly random-walk bars.
+    - Check that a hand-built session of hourly bars compounds to the expected daily return, switch costs included.
+    - Check that the family size equals the pairs in both markets, and that a second `jt arena` reports every file unchanged.
+13. **Volatile-stock market.** A data source with point-in-time listings, delisted stocks included, supplies the universe. Each January, the universe rule in the product spec picks 20 stocks from data dated before that January. A stock delisted during the year moves to cash.
+    - Check that tripling every price after a January changes no stock picked for that January.
+    - Check that a synthetic stock delisted mid-year earns the cash return from its last bar on.
+    - Check that a second `jt arena` reports every file unchanged.
+
+Learner-built rules get no milestone. They wait for the backend trigger in the product spec.
 
 ## Jev access
 
@@ -278,15 +311,20 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 ## Open questions
 
 - Does OpenRouter require a minimum credit purchase? Unverified.
+- Does a learner-built rule's verdict account for every saved rule, or only for one rule's pairs with the catalog? The product spec states both costs.
+- What cost per switch does each intraday and stock market use? Each market fixes it before its first run.
+- Which data source supplies point-in-time listings with delisted stocks? Milestone 13 needs one.
 
 ## Risks
 
 ### Arena
 
-1. **Low power.** Most pairs will read "no detectable difference". The first screen says so, shows the smallest difference the period can detect, and keeps the coin flip in the catalog as a picture of luck.
+1. **Low power.** Most pairs will read "Too close to call". Milestone 7 measured six of six. The first screen says so, shows the smallest difference the period can detect, and keeps the coin flip in the catalog as a picture of luck.
 2. **Catalog snooping.** Whoever adds an entry has seen the backtest years. Cited textbook parameters, the append-only catalog, the family-wide interval, and the "not a holdout" label limit this. Only the live period removes it.
 3. **Look-ahead in stateful rules and refits.** The truncation test over `CATALOG`, the `oracle` negative control, the refit purge test, and the live replay guard against this.
 4. **Pressure to add knobs.** Each parameter value is a new catalog entry and widens every interval. A request for free parameters is the backend trigger, not a catalog change.
+5. **Pressure to call wins.** "Which one wins?" invites a winner on every screen. The verdict comes only from the simultaneous interval, the family covers every market, `check:honesty` limits where "wins" appears, and the site never counts a strategy's wins.
+6. **A cost model that decides intraday results.** A strategy that switches many times a day can win or lose on the cost per switch alone. Each market fixes its cost before its first run, and every market shows its figures at 2 and 4 times that cost.
 
 ### Jev study
 
@@ -377,3 +415,9 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** A period's `first` and `last` in the arena manifest are the scored decision dates, and `barsEnd` is the last bar. The last two bars before `barsEnd` decide nothing that earns a return, so `last` falls two sessions before `barsEnd`.
 - **2026-10-13.** `reconcile` takes the market bars and cuts the returns at the last date of `research/holdout.json`, as `evaluate.holdout_result` does. Returns cut at the end of the backtest period would give the last two holdout sessions returns that the holdout never saw. On synthetic bars that run past the holdout end, that cut moved the golden cross excess Sharpe from 0.806 to 0.652, and the reconciliation failed. On the real data the two cuts are the same date.
 - **2026-10-13.** Milestone 7 measured the four-strategy backtest from 2008-01-02 through 2026-10-07 on the portfolio of 13 ETFs, in 236 blocks. The reconciliation reproduced the `buy_hold` and `sma_filter` intervals in `research/holdout.json` exactly. The simultaneous critical value for the 6 pairs is 2.53. No portfolio pair's simultaneous interval excludes zero, so every verdict is "no_difference". The MDE runs from 0.52 to 0.96 excess Sharpe across the pairs. Excess Sharpe at 5 bps is 0.61 for buy and hold, 0.64 for the golden cross, 0.45 for the MACD crossover, and 0.41 for the Bollinger bounce.
+- **2026-10-13.** The arena question becomes "Which one wins?", by the user's decision, because it is the question learners bring. The three answers are "A wins", "B wins", and "Too close to call". The simultaneous interval still decides, and the `PairRecord` verdict enum does not change. "Wins" appears only in the question and in a verdict that its interval supports, and the site never counts a strategy's wins.
+- **2026-10-13.** The arena gains markets, each a universe on one bar size, by the user's decision. An hourly ETF market comes first, then a volatile-stock market, and 1-minute bars later. A simulation of 2,000 runs of 5 years showed that bar size and volatility do not narrow a Sharpe interval. The spread of annualised Sharpe was 0.45 on daily bars, 0.46 on hourly and on 5-minute bars, and 0.46 and 0.47 at 16% and 60% volatility. More markets can raise the real differences between strategies, not the precision. Each market compounds its bar returns into session returns, so `evaluate.py` serves every market unchanged.
+- **2026-10-13.** A verdict's simultaneous interval covers every pair in every market, so a learner cannot find a win by trying markets. Each market added widens every interval.
+- **2026-10-13.** The volatile-stock universe is chosen each January by a fixed rule from listings that include delisted stocks. Today's list of volatile stocks would hide every stock that collapsed.
+- **2026-10-13.** Learner-built rules are the long-term goal, by the user's decision, and they wait for the backend trigger. A learner's rule gets a verdict only from its live period, because nobody can count the tries made on the backtest years before a rule is saved.
+- **2026-10-13.** Twelve Data's redistribution rights cover intraday bars, by the user's check. The data source is replaceable, and history depth or plan tier does not constrain the design.
