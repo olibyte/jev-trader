@@ -4,7 +4,7 @@
 
 ## What the trade arena is
 
-The trade arena shows what famous trading strategies would have done with your money, in plain words. You pick two strategies and see what $1,000 became in each. Both ran on the same 13 US stock funds, over the same years, with the same small fee each time they moved in or out of the market. Then the site explains why the one with more money is not automatically the better strategy.
+Trade Arena shows what famous trading strategies would have done with your money, in plain words. You pick two strategies and see what $1,000 became in each. Both ran on the same 13 US stock funds, over the same years, with the same small fee each time they moved in or out of the market. Then the site explains why the one with more money is not automatically the better strategy.
 
 Priority is a simple screen that a person who has never traded can use and share. Statistical rigor, new data sources, and live scoring wait until the screen works for people. [PR #13](https://github.com/olibyte/jev-trader/pull/13) holds the deferred plan for them.
 
@@ -15,16 +15,17 @@ Priority is a simple screen that a person who has never traded can use and share
 
 ## The first screen is "Pick two"
 
-A visitor taps two strategies and sees what $1,000 became in each. They come away able to say something like this: "Buy and hold turned $1,000 into about $8,200 and the golden cross into about $4,700. But the golden cross sat in cash a quarter of the time and fell less, and 19 years of prices can't tell you which one is better."
+A visitor picks two strategies and sees what $1,000 became in each. They come away able to say something like this: "Buy and hold turned $1,000 into about $8,200 and the golden cross into about $4,700. But the golden cross sat in cash a quarter of the time and fell less, and 19 years of prices can't tell you which one is better."
 
 The screen shows these parts, top to bottom:
 
-1. The heading "Pick two strategies. See what $1,000 became." and one sentence on the setup: the start month, the 13 funds, the end month, and the fee.
-2. One chip per strategy, in catalog order. Two are picked. A third tap swaps out the older pick. Each picked strategy shows its rule in one plain sentence.
-3. The two dollar amounts in large type, and one sentence on the gap, such as "By Oct 2026, Buy and hold had $3,500 more." Under it, the question "Does that make it the better strategy?" with the answer "These years can't tell us."
-4. One chart of both amounts month by month, from $1,000 at the start. A visitor can drag across it to read any month. It has no zoom and no date picker.
-5. A card titled "More money is not the whole story." It compares the share of days each strategy was invested and the biggest fall each one took from a high point. It ends with "So which one is better? We can't tell yet." and says that the gap could be luck.
-6. A collapsed section, "The numbers behind this, for the technically minded", with the exact rules, moves per year, and the setup.
+1. A header with the name "Trade Arena", a "Prototype" tag, and "Not investment advice."
+2. The heading "Pick two strategies. See what $1,000 became." and one sentence on the setup: the 13 funds, the first and last month of prices, and the fee.
+3. Two slots, "Strategy A" and "Strategy B". Each shows its strategy's title and its rule in one plain sentence. A slot opens a searchable list of every strategy, grouped by kind and in catalog order inside each group. On phones the list is a bottom sheet. A is always blue and B is always amber.
+4. The two dollar amounts in large type for the chosen range, the day the $1,000 went in, and one sentence on the gap, such as "By Oct 7, 2026, Buy and hold had $3,500 more." Under it, the question "Does that make it the better strategy?" On every range shorter than all years, the answer is "One year is too short to tell skill from luck", with that range's length. On all years, the answer is "These years can't tell us."
+5. A chart panel. Range buttons pick one week, one month, three months, one year (the default), five years, or all years. A Line or Candles toggle picks the view. The line view shows both amounts each day, from $1,000 at the start of the range, with a dashed line at $1,000. The candles view shows one fund's daily prices, S&P 500 by default, and "Show trades" marks each strategy's buys and sells on that fund. A visitor can move across either view to read any day.
+6. A card titled "More money is not the whole story." It compares the share of days each strategy was invested and the biggest fall each one took from a high point, over the chosen range. On all years it ends with "So which one is better? We can't tell yet." and says that the gap could be luck.
+7. A collapsed section, "The numbers behind this, for the technically minded", with the exact rules, moves per year, and the setup.
 
 The prototype is at `/preview/` in `web/`. The [screenshots](arena/2026-10-14-first-screen/shots/) show it at 1280 px and 390 px.
 
@@ -34,8 +35,8 @@ The default pair is the first two strategies in catalog order, never a pair chos
 
 1. **The first screen uses no statistics words.** These words appear only behind the technical section: Sharpe, interval, confidence, bootstrap, significance, p-value, drawdown, and blocks.
 2. **No strategy is called a winner.** The site does not use the words "beats", "outperforms", "winner", or "best strategy". It says which one "had more money", which is a fact about the past.
-3. **"Could be luck" needs a result behind it.** The site says that a gap could be luck only where `comparisons.json` reads `no_difference` for that pair. Today that result exists only for the all-funds view, so the first screen shows no single-fund view.
-4. **The period is fixed.** Every figure covers the same years. The site has no date input and no chart zoom.
+3. **"Could be luck" needs a result behind it.** On all years, the site says that a gap could be luck only where `comparisons.json` reads `no_difference` for that pair. That result exists only for all 13 funds together, so every amount covers all 13. The candles view shows one fund's prices and trades, never an amount for one fund. A range shorter than all years is too short to judge any pair, and the site says so for every pair.
+4. **The ranges are fixed.** Each range counts back from the last day of prices, and `windows.json` holds its figures. The site has no date input and no chart zoom.
 5. **The site reads exported files and computes no figure.** The gap between two amounts is the difference of the two amounts on screen. Everything else comes from `export/arena/v1/`.
 6. **Strategies stay in catalog order.** The site never sorts or numbers strategies by a result.
 7. **Mock numbers appear only behind a visible "Mock data" badge.** The prototype uses real numbers and has no badge.
