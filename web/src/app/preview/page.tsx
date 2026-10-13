@@ -1,20 +1,59 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { PickTwo } from "@/components/arena/PickTwo";
+import { loadArena } from "@/lib/arena";
+import { formatMonth, formatTurnover } from "@/lib/format";
 
-export default function PreviewIndex() {
+export const metadata: Metadata = { title: "Pick two" };
+
+export default function PickTwoPage() {
+  const { strategies, funds, tooClose, first, last, costBps } = loadArena();
+  const all = funds.find((f) => f.scope === "portfolio") ?? funds[0];
   return (
     <>
-      <h1>Two first screens to compare</h1>
-      <p className="lede">Both use the real results for four strategies on 13 US stock funds from 2008 to 2026.</p>
-      <div className="index-links">
-        <Link className="arena-card" href="/preview/pick-two/">
-          <h2>Pick two</h2>
-          <p className="muted">Choose two strategies and see what $1,000 became in each.</p>
-        </Link>
-        <Link className="arena-card" href="/preview/guess/">
-          <h2>Guess first</h2>
-          <p className="muted">Guess which one ended with more money, then see the answer.</p>
-        </Link>
+      <div>
+        <h1>Pick two strategies. See what $1,000 became.</h1>
+        <p className="lede">
+          Each one starts with $1,000 in {formatMonth(first.slice(0, 7))} and invests in the same 13 US stock funds until{" "}
+          {formatMonth(last.slice(0, 7))}. Each pays the same small fee ({costBps / 100}%) every time it moves in or out.
+        </p>
       </div>
+      <PickTwo strategies={strategies} fund={all} tooClose={tooClose} last={last} />
+      <Details />
     </>
+  );
+}
+
+function Details() {
+  const { strategies, funds } = loadArena();
+  const all = funds.find((f) => f.scope === "portfolio") ?? funds[0];
+  return (
+    <details>
+      <summary>The numbers behind this, for the technically minded</summary>
+      <p className="muted">
+        All 13 funds held in equal parts, rebalanced each day: SPY, QQQ, IWM, DIA and nine sector funds. Each strategy decides after the close
+        and trades at the next open. These years were already known when the strategies were picked, so this is a look
+        back, not a test of the future.
+      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Strategy</th>
+              <th scope="col">Exact rule</th>
+              <th scope="col">Moves a year</th>
+            </tr>
+          </thead>
+          <tbody>
+            {strategies.map((s) => (
+              <tr key={s.id}>
+                <th scope="row">{s.title}</th>
+                <td>{s.rule}</td>
+                <td>{formatTurnover(all.stats[s.id].switchesPerYear)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }

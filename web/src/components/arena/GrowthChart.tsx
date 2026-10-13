@@ -26,21 +26,13 @@ export function GrowthChart({ months, lines, start }: { months: string[]; lines:
     return () => observer.disconnect();
   }, []);
   const H = Math.round(Math.min(300, Math.max(200, W * 0.45)));
-  const values = lines.flatMap((l) => l.values);
-  const top = Math.max(1, ...values) * start;
-  const bottom = Math.min(1, ...values) * start;
-  // A short window that never halves keeps a cropped axis so its moves stay visible.
-  const crop = bottom > top / 2;
-  const step = niceStep(crop ? top - bottom : top);
-  const yMin = crop ? Math.floor(bottom / step) * step : 0;
+  const top = Math.max(1, ...lines.flatMap((l) => l.values)) * start;
+  const step = niceStep(top);
   const yMax = Math.ceil(top / step) * step;
-  const ticks = Array.from({ length: Math.round((yMax - yMin) / step) + 1 }, (_, i) => yMin + i * step);
+  const ticks = Array.from({ length: Math.round(yMax / step) + 1 }, (_, i) => i * step);
   const x = (i: number) => PAD.left + (i / (months.length - 1)) * (W - PAD.left - PAD.right);
-  const y = (v: number) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * (H - PAD.top - PAD.bottom);
-  const short = months.length <= 24;
-  const marks = months.flatMap((m, i) =>
-    short ? (i % 3 === 0 ? [{ i, text: formatMonth(m).slice(0, 3) }] : []) : m.endsWith("-01") ? [{ i, text: m.slice(0, 4) }] : [],
-  );
+  const y = (v: number) => PAD.top + (1 - v / yMax) * (H - PAD.top - PAD.bottom);
+  const marks = months.flatMap((m, i) => (m.endsWith("-01") ? [{ i, text: m.slice(0, 4) }] : []));
   const every = Math.ceil(marks.length / Math.max(3, Math.floor(W / 90)));
   const shown = cursor ?? months.length - 1;
 

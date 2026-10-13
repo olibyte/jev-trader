@@ -44,12 +44,6 @@ body {
   padding-inline: max(16px, env(safe-area-inset-left));
 }
 
-.arena-main.wide,
-.arena-top.wide,
-.arena-foot.wide {
-  max-width: 1080px;
-}
-
 .arena-top {
   display: flex;
   flex-wrap: wrap;
@@ -76,17 +70,6 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   vertical-align: 2px;
-}
-
-.arena-top nav {
-  display: flex;
-  gap: 1rem;
-  color: var(--a-muted);
-}
-
-.arena-top nav a[aria-current="page"] {
-  color: var(--a-ink);
-  font-weight: 600;
 }
 
 .arena-main {
@@ -347,148 +330,6 @@ body {
   margin: 0 0 0.25rem;
 }
 
-.index-links {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.index-links a {
-  display: block;
-  text-decoration: none;
-}
-
-.index-links a:hover {
-  border-color: var(--a-ink);
-}
-
-.question {
-  margin: 0.25rem 0 0.25rem !important;
-  font-size: clamp(1.5rem, 5vw, 2rem) !important;
-  line-height: 1.15;
-}
-
-.choices {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  margin: 1rem 0 0.5rem;
-}
-
-.choice {
-  display: grid;
-  align-content: start;
-  gap: 0.25rem;
-  min-height: 7rem;
-  padding: 1rem;
-  border: 2px solid var(--a-line);
-  border-radius: 14px;
-  background: var(--a-card);
-  color: var(--a-ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.choice:not(:disabled):hover {
-  border-color: var(--c);
-}
-
-.choice:disabled {
-  color: var(--a-ink);
-  cursor: default;
-}
-
-.choice[aria-pressed="true"] {
-  border-color: var(--c);
-}
-
-.choice .who {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.choice .amount {
-  margin-top: 0.25rem;
-  font-size: 1.6rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.your-guess {
-  padding: 0.05rem 0.5rem;
-  border-radius: 999px;
-  background: var(--a-soft);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.primary {
-  min-height: 48px;
-  margin-top: 1rem;
-  padding: 0.6rem 1.25rem;
-  border: 0;
-  border-radius: 12px;
-  background: var(--a-ink);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.lesson {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--a-line);
-}
-
-.lesson h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-}
-
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
-  gap: 0.4rem;
-  margin: 0 0 0.75rem;
-  padding: 0;
-  list-style: none;
-}
-
-.tile {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--a-line);
-  border-radius: 8px;
-  font-size: 0.8rem;
-}
-
-.tile[data-current="true"] {
-  border: 2px solid var(--a-ink);
-  font-weight: 600;
-}
-
-.takeaways {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0.5rem 0 0;
-  padding-left: 1.25rem;
-}
-
-.end-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  align-items: center;
-}
-
 @media (max-width: 520px) {
   .arena-card {
     padding: 1rem;
@@ -500,13 +341,5 @@ body {
 
   .bar-row .who {
     grid-column: 1 / -1;
-  }
-
-  .choices {
-    grid-template-columns: 1fr;
-  }
-
-  .choice {
-    min-height: 0;
   }
 }

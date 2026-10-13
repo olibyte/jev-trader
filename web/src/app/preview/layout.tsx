@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PreviewNav } from "@/components/arena/PreviewNav";
 import { loadArena } from "@/lib/arena";
 import "./preview.css";
 
@@ -23,7 +22,7 @@ export default function PreviewLayout({ children }: { children: ReactNode }) {
           </Link>
           <span className="arena-tag">Prototype</span>
         </span>
-        <PreviewNav />
+        <span>Not investment advice.</span>
       </header>
       <main className="arena-main" id="main">
         {children}
