@@ -1,0 +1,41 @@
+{
+  "catalogVersion": 1,
+  "strategies": [
+    {
+      "id": "buy_hold",
+      "version": 1,
+      "title": "Buy and hold",
+      "rule": "Always long.",
+      "citation": "No parameters.",
+      "kind": "benchmark",
+      "fingerprint": "ef8e09363081b03701cb1c135944501402b3e3d7f70cc6a0d4e945b0b4ff215a"
+    },
+    {
+      "id": "golden_cross",
+      "version": 1,
+      "title": "Golden cross",
+      "rule": "Long when the 50-day average is above the 200-day average.",
+      "citation": "Murphy, J. J. (1999). Technical Analysis of the Financial Markets. New York Institute of Finance.",
+      "kind": "indicator",
+      "fingerprint": "208804d03ec4ddba87a381f48b531fabb74857914ba5518cf74bd32ae88638e5"
+    },
+    {
+      "id": "macd_cross",
+      "version": 1,
+      "title": "MACD crossover",
+      "rule": "Long when MACD(12, 26) is above its 9-day signal line.",
+      "citation": "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors. FT Prentice Hall.",
+      "kind": "indicator",
+      "fingerprint": "d9ce2e036327ac78f688a83d382c10720cfc0a644db15d916c288db90c634ed4"
+    },
+    {
+      "id": "bollinger_bounce",
+      "version": 1,
+      "title": "Bollinger bounce",
+      "rule": "Enter when the close falls below the lower band (20 days, 2 standard deviations). Exit when the close reaches the middle band.",
+      "citation": "Bollinger, J. (2001). Bollinger on Bollinger Bands. McGraw-Hill.",
+      "kind": "indicator",
+      "fingerprint": "9b9c73a801c944c36896505507ed677c95f3efd4d96eaed77f98fde0b1ab2a1e"
+    }
+  ]
+}
