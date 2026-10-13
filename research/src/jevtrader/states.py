@@ -94,6 +94,22 @@ def _ema(x: pl.Expr, span: int) -> pl.Expr:
     return x.ewm_mean(span=span, adjust=False, min_samples=span)
 
 
+def sma(n: int) -> pl.Expr:
+    """The n-session simple moving average of the close."""
+    return pl.col("close").rolling_mean(n)
+
+
+def macd_hist() -> pl.Expr:
+    """MACD(12, 26) minus its 9-session signal line."""
+    macd = _ema(pl.col("close"), 12) - _ema(pl.col("close"), 26)
+    return macd - _ema(macd, 9)
+
+
+def bollinger() -> tuple[pl.Expr, pl.Expr]:
+    """The 20-session mean of the close and the band offset, 2 population standard deviations."""
+    return sma(20), 2 * pl.col("close").rolling_std(20, ddof=0)
+
+
 def _first_level_or_null(*cases: tuple[pl.Expr, str]) -> pl.Expr:
     (first, level), *rest = cases
     expr = pl.when(first).then(pl.lit(level))
@@ -115,13 +131,12 @@ def levels(bars: pl.DataFrame) -> pl.DataFrame:
     loss = _wilder((-change).clip(lower_bound=0))
     rsi = pl.when(loss == 0).then(100.0).otherwise(100 - 100 / (1 + gain / loss))
 
-    sma50, sma200 = close.rolling_mean(50), close.rolling_mean(200)
+    sma50, sma200 = sma(50), sma(200)
 
-    macd = _ema(close, 12) - _ema(close, 26)
-    hist = macd - _ema(macd, 9)
+    hist = macd_hist()
     prev_hist = hist.shift(1)
 
-    mid, band = close.rolling_mean(20), 2 * close.rolling_std(20, ddof=0)
+    mid, band = bollinger()
 
     true_range = pl.max_horizontal(high - low, (high - prev_close).abs(), (low - prev_close).abs())
     # Count of the trailing ATR_WINDOW values (t included) that are <= today's. Null until full.
