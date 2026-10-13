@@ -1,0 +1,162 @@
+{
+  "scope": "portfolio",
+  "last": "2026-10-07",
+  "windows": [
+    {
+      "range": "1W",
+      "base": "2026-09-30",
+      "strategies": {
+        "buy_hold": {
+          "growth": 1.010676,
+          "exposure": 1.0,
+          "maxDrawdown": 0.004311293352735612
+        },
+        "golden_cross": {
+          "growth": 1.006983,
+          "exposure": 0.8461538461538461,
+          "maxDrawdown": 0.005658236003446393
+        },
+        "macd_cross": {
+          "growth": 1.001421,
+          "exposure": 0.49230769230769234,
+          "maxDrawdown": 0.005369250735382081
+        },
+        "bollinger_bounce": {
+          "growth": 1.006663,
+          "exposure": 0.5076923076923077,
+          "maxDrawdown": 0.0026437179665809163
+        }
+      }
+    },
+    {
+      "range": "1M",
+      "base": "2026-09-04",
+      "strategies": {
+        "buy_hold": {
+          "growth": 0.991942,
+          "exposure": 1.0,
+          "maxDrawdown": 0.027356363145166096
+        },
+        "golden_cross": {
+          "growth": 0.995527,
+          "exposure": 0.8531468531468531,
+          "maxDrawdown": 0.018992825417933457
+        },
+        "macd_cross": {
+          "growth": 1.001939,
+          "exposure": 0.26573426573426573,
+          "maxDrawdown": 0.005369250735382303
+        },
+        "bollinger_bounce": {
+          "growth": 0.990035,
+          "exposure": 0.5559440559440559,
+          "maxDrawdown": 0.02227859935674703
+        }
+      }
+    },
+    {
+      "range": "3M",
+      "base": "2026-07-07",
+      "strategies": {
+        "buy_hold": {
+          "growth": 1.008866,
+          "exposure": 1.0,
+          "maxDrawdown": 0.04458998814225468
+        },
+        "golden_cross": {
+          "growth": 1.014066,
+          "exposure": 0.9100591715976332,
+          "maxDrawdown": 0.03268795449703732
+        },
+        "macd_cross": {
+          "growth": 0.991691,
+          "exposure": 0.3585798816568047,
+          "maxDrawdown": 0.019232405795020058
+        },
+        "bollinger_bounce": {
+          "growth": 1.012291,
+          "exposure": 0.2733727810650888,
+          "maxDrawdown": 0.023730515731381185
+        }
+      }
+    },
+    {
+      "range": "1Y",
+      "base": "2025-10-07",
+      "strategies": {
+        "buy_hold": {
+          "growth": 1.151201,
+          "exposure": 1.0,
+          "maxDrawdown": 0.05779438684340221
+        },
+        "golden_cross": {
+          "growth": 1.12535,
+          "exposure": 0.9053018694452958,
+          "maxDrawdown": 0.05836685464547542
+        },
+        "macd_cross": {
+          "growth": 1.055575,
+          "exposure": 0.46123199509653695,
+          "maxDrawdown": 0.029971559031821138
+        },
+        "bollinger_bounce": {
+          "growth": 1.085251,
+          "exposure": 0.22984983144345694,
+          "maxDrawdown": 0.037205142396957935
+        }
+      }
+    },
+    {
+      "range": "5Y",
+      "base": "2021-10-07",
+      "strategies": {
+        "buy_hold": {
+          "growth": 1.810431,
+          "exposure": 1.0,
+          "maxDrawdown": 0.19523075324229144
+        },
+        "golden_cross": {
+          "growth": 1.556566,
+          "exposure": 0.7553060974113606,
+          "maxDrawdown": 0.13955041064167883
+        },
+        "macd_cross": {
+          "growth": 1.447009,
+          "exposure": 0.5074224021592443,
+          "maxDrawdown": 0.1193021481703681
+        },
+        "bollinger_bounce": {
+          "growth": 1.618572,
+          "exposure": 0.22524843577475157,
+          "maxDrawdown": 0.06009201315410384
+        }
+      }
+    },
+    {
+      "range": "All",
+      "base": null,
+      "strategies": {
+        "buy_hold": {
+          "growth": 8.24824,
+          "exposure": 1.0,
+          "maxDrawdown": 0.5008854586174416
+        },
+        "golden_cross": {
+          "growth": 4.748237,
+          "exposure": 0.7571870925684485,
+          "maxDrawdown": 0.32232415006970216
+        },
+        "macd_cross": {
+          "growth": 2.779234,
+          "exposure": 0.5095338983050848,
+          "maxDrawdown": 0.2738792665651786
+        },
+        "bollinger_bounce": {
+          "growth": 2.828387,
+          "exposure": 0.20237940026075618,
+          "maxDrawdown": 0.31415099462546314
+        }
+      }
+    }
+  ]
+}

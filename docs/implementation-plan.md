@@ -43,7 +43,8 @@ class Strategy:  # catalog.py. CATALOG: dict[str, Strategy] is append-only.
 	id: str  # "macd_cross"
 	version: int  # a changed rule is a new version, never an edit
 	title: str
-	rule: str  # one plain sentence for the strategy card
+	plain: str  # one sentence for a visitor who has never traded, shown under the strategy slot
+	rule: str  # the exact rule, shown in the technical section
 	citation: str  # where the textbook parameters come from
 	kind: Kind
 	positions: Callable[[pl.DataFrame], pl.Series]  # adjusted bars -> 0 or 1 per session, decided at the close of t
@@ -52,6 +53,7 @@ class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
 	id: str
 	version: int
 	title: str
+	plain: str
 	rule: str
 	citation: str
 	kind: Kind
@@ -80,6 +82,15 @@ class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json, one per st
 	switchesPerYear: float
 	exposure: float
 
+class WindowRecord(TypedDict):  # export/arena/v1/windows.json, one per range button, portfolio scope
+	range: Literal["1W", "1M", "3M", "1Y", "5Y", "All"]
+	base: str | None  # last curve date on or before `last` minus the range, None for All
+	strategies: dict[str, WindowStats]  # growth (equity at last / equity at base), exposure, maxDrawdown over the dates after base
+
+class Trades(TypedDict):  # export/arena/v1/funds/{symbol}.json, one per strategy
+	buy: list[str]  # the bar after each decision that moved the strategy into the market
+	sell: list[str]  # the bar after each decision that moved it to cash
+
 class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planned, milestone 11), append-only
 	date: date  # the session whose close made the decisions
 	catalog_version: int
@@ -87,7 +98,7 @@ class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planne
 	bars_sha256: str  # hash of the bars the decisions read
 ```
 
-The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, and `curves/{scope}.json` (growth of $1 for each strategy in each period). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision dates that earn a return, and every record and curve covers exactly those dates. `barsEnd` is the last bar the decisions read. For the backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2.
+The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, `curves/{scope}.json` (growth of $1 for each strategy in each period), `windows.json` (each range button's figures on the portfolio), and `funds/{symbol}.json` (the daily bars from 2008-01-02 through `barsEnd` and each strategy's trades). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The only windows are the fixed ranges in `windows.json`, each counted back from `last`. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision dates that earn a return, and every record and curve covers exactly those dates. `barsEnd` is the last bar the decisions read. For the backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2.
 
 ### Jev study (finished)
 
@@ -189,9 +200,9 @@ The arena has no development and holdout split. Whoever built the catalog had se
 - The truncation property test runs over every catalog entry: the position at t on `bars.head(t + 1)` equals the position at t on the full frame, on `random_walk` bars. The `oracle` arm, which reads `fwd_ret_20`, must fail the same test, as a negative control.
 - Tripling every price after a cut date changes no position before it.
 
-## Markets and "Which one wins?" (planned)
+## Markets and "Which one wins?" (deferred)
 
-The product spec reframes the arena question as "Which one wins?" and adds markets, each a universe on one bar size. The verdict rule does not change. This section lists what the change touches and what stays.
+The [deferred "Which one wins?" spec](which-wins-spec.md) reframes the arena question and adds markets, each a universe on one bar size. Statistics are deferred, so the verdict parts wait. The hourly market's data and backtest parts are the next to plan. The verdict rule does not change. This section lists what the change touches and what stays.
 
 ### What stays
 
@@ -202,7 +213,7 @@ The product spec reframes the arena question as "Which one wins?" and adds marke
 
 ### What changes
 
-- **The arena contract.** `export/arena/v1/` has no market field. Milestone 8 adds one before the site reads the contract. After that, a new field would need `export/arena/v2/` and a site migration.
+- **The arena contract.** `export/arena/v1/` has no market field, and the Trade Arena prototype already reads it. A second market needs a market field in every file with a matching site change, or `export/arena/v2/`.
 - **The family.** `catalog.scope_records` computes a critical value for one market's pairs. The simultaneous interval over all markets needs one draw of blocks on a calendar that every market shares. `block_bootstrap` can serve this unchanged if each pair's statistic receives weights on the union of the markets' dates and reads only its own. Markets with shorter histories add no weight before their first date.
 - **The catalog.** Jev (frozen rulebook) and the learned model read the daily `State` and a 20-session horizon. `Strategy` gains the markets an entry plays in, and the family counts pairs per market.
 - **The data pipeline.** `data.py` is daily only. Bars are keyed by a `date` column, `closed_bars` settles a bar at 20:00 New York time, `validate` compares sessions with SPY and flags open-to-previous-close moves over 40%, and `RANGES` and `OUTPUTSIZE` are sized for daily history. Intraday bars need a timestamp key, a regular-hours filter, a session check for each bar, and paged backfill.
@@ -210,7 +221,7 @@ The product spec reframes the arena question as "Which one wins?" and adds marke
 - **Storage.** Twenty years of 1-minute bars is about 2 million rows for each symbol. That fits in `data/`, which is not committed. Committed curves keep one point per session in every market.
 - **The volatile-stock universe.** `STUDY` is a fixed tuple, and `catalog.decisions` loops over it. A universe that changes each January needs a table of symbols by year, and `open_returns` needs a cash return for a stock after its last bar.
 - **The live period.** The nightly job of milestone 11 records intraday positions after the close, so the ledger proves the order of each day's decisions, not each bar's. The replay still fails a rule that reads a later bar.
-- **The site and the docs.** The first screen of milestone 8, `web/src/lib/format.ts`, `web/e2e/expected.ts`, `check:honesty`, and the README tagline change wording. None of them is built for the arena yet, so the cost is lowest before milestone 8.
+- **The site and the docs.** If verdicts return, the first screen, `web/src/lib/format.ts`, `web/e2e/expected.ts`, `check:honesty`, and the README tagline change wording.
 
 ### Learner verdicts (planned, no milestone)
 
@@ -310,24 +321,24 @@ Milestones 1 to 6 are merged. The arena milestones follow. Each one ships alone.
    - Check that `uv run python -m pytest tests/test_catalog.py` passes. It holds the truncation test over `CATALOG`, the `oracle` negative control, the fingerprints, the refusal of a never-long strategy, and the refusal of a dropped id.
    - Check that `jt arena` passes its reconciliation with `research/holdout.json` on the real data.
    - Check that a second `uv run jt arena` reports every file unchanged.
-8. **Arena first screen.** The home page becomes the matchup in the product spec and asks "Which one wins?". The study pages move unchanged to `/studies/jev/`. Before the site reads the arena contract, `jt arena` adds a `market` field to every record and curve file and keys the manifest's periods by market, so a second market fits in `export/arena/v1/`. `web/src/lib/export.ts` gains `loadArena()` beside `loadExport()`, with strict zod schemas and cross-file checks: a period is an enum, record dates come only from the manifest, a verdict agrees with its simultaneous interval, the family size is the number of pairs in all markets, and single-symbol verdicts are null. `web/src/lib/format.ts` maps the verdict enum, which does not change, to "A wins", "B wins", "Too close to call", and "Too early". `check:honesty` bans date inputs, chart zoom and scroll options, and the words in honesty rule 7, and fails on "wins" outside the question and the verdict labels.
-   - Check that all five `web/` checks pass, and that `check:schema` fails each new broken copy of the arena export.
-   - Check with Playwright that every number on the home page matches `export/arena/v1/` for the default pair and 5 seeded pairs, and that the `/studies/jev/` pages still match `export/v1/`.
-9. **Candlestick, machine-learning, Jev, and control entries.** Add `candles()` to `states.py` and a feature registry that the truncation test runs over. Add the bullish engulfing pattern, the learned model, Jev (frozen rulebook), and the coin flip. Catalog version 1 then has 8 entries and 28 pairs, and it freezes.
+8. **Arena first screen.** The home page becomes the "Pick two" screen in the product spec, built from the prototype at `/preview/`. The study pages move unchanged to `/studies/jev/`. `web/src/lib/arena.ts` reads `export/arena/v1/` with zod schemas, so a bad file fails `next build`. `check:honesty` bans the first-screen words in the product spec's copy rules 1 and 2.
+   - Check that all five `web/` checks pass.
+   - Check with Playwright that every dollar amount, share, and gap on the home page matches `export/arena/v1/` for every pair, and that the `/studies/jev/` pages still match `export/v1/`.
+9. **Candlestick, machine-learning, Jev, and control entries.** Deferred on 2026-10-14. Add `candles()` to `states.py` and a feature registry that the truncation test runs over. Add the bullish engulfing pattern, the learned model, Jev (frozen rulebook), and the coin flip. Catalog version 1 then has 8 entries and 28 pairs, and it freezes.
    - Check that the truncation test passes for every entry, including the learned model at 20 seeded dates.
    - Check that the purge test passes: no training row for a refit at date R has an exit open on or after R.
    - Check that tripling every price after a cut date changes no position before it.
    - Check that a second `jt arena` reports every file unchanged, and rerun the five `web/` checks.
 10. **Deploy.** Terraform creates the S3 bucket, the CloudFront distribution, and the CloudFront function that appends `index.html` to paths that end in `/`. The user runs `terraform apply`.
     - Check that a script requests every file in `web/out/` from the CloudFront URL, gets status 200, and gets the same bytes.
-11. **Live period.** `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A nightly GitHub Actions job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. It commits the ledger to the `ledger` branch, reads `TWELVE_DATA_API_KEY` from a repository secret, and deploys to AWS through a GitHub OIDC role, so no AWS key is stored. `jt fetch` spends Twelve Data credits, so the user starts the first run.
+11. **Live period.** Deferred on 2026-10-14. `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A nightly GitHub Actions job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. It commits the ledger to the `ledger` branch, reads `TWELVE_DATA_API_KEY` from a repository secret, and deploys to AWS through a GitHub OIDC role, so no AWS key is stored. `jt fetch` spends Twelve Data credits, so the user starts the first run.
     - Check that `tests/test_arena_live.py` passes on synthetic bars in a temporary git repository: 30 simulated sessions append 30 rows, the replay equals the ledger, an edited row fails `verify`, a strategy that reads the next bar fails `verify`, and a second tick on the same bars changes no file.
     - Check that `jt arena verify` exits 0 after the user runs one `jt fetch` and one `jt arena tick`.
-12. **Hourly ETF market.** `data.py` fetches hourly bars for the 13 ETFs, keyed by timestamp and cut to regular session hours. `jt arena` adds the "13 ETFs, hourly" market with its own cost per switch (5 basis points proposed), compounds bar returns and the overnight gap into one return per session, and computes one critical value over the pairs of both markets. Jev (frozen rulebook) and the learned model play only in the daily market.
+12. **Hourly ETF market.** Deferred on 2026-10-14. `data.py` fetches hourly bars for the 13 ETFs, keyed by timestamp and cut to regular session hours. `jt arena` adds the "13 ETFs, hourly" market with its own cost per switch (5 basis points proposed), compounds bar returns and the overnight gap into one return per session, and computes one critical value over the pairs of both markets. Jev (frozen rulebook) and the learned model play only in the daily market.
     - Check that the truncation test passes for every entry on hourly random-walk bars.
     - Check that a hand-built session of hourly bars compounds to the expected daily return, switch costs included.
     - Check that the family size equals the pairs in both markets, and that a second `jt arena` reports every file unchanged.
-13. **Volatile-stock market.** A data source with point-in-time listings, delisted stocks included, supplies the universe. Massive is the proposed source, as [Data source for volatile stocks](#data-source-for-volatile-stocks-proposed) explains. Each January, the universe rule in the product spec picks 20 stocks from data dated before that January. A stock delisted during the year moves to cash.
+13. **Volatile-stock market.** Deferred on 2026-10-14. A data source with point-in-time listings, delisted stocks included, supplies the universe. Massive is the proposed source, as [Data source for volatile stocks](#data-source-for-volatile-stocks-proposed) explains. Each January, the universe rule in the product spec picks 20 stocks from data dated before that January. A stock delisted during the year moves to cash.
     - Check that tripling every price after a January changes no stock picked for that January.
     - Check that a synthetic stock delisted mid-year earns the cash return from its last bar on.
     - Check that a second `jt arena` reports every file unchanged.
@@ -460,3 +471,6 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** A learner rule's verdict covers that rule's pairs with every catalog entry, in every market where its inputs exist. It does not cover other saved rules. The [learner-verdict arena](arena/2026-10-13-learner-verdicts/synthesis.md) compared four answers on synthetic data. With every saved rule in one family, a rule with a true edge of 1.0 excess Sharpe over buy and hold showed a win within 5 years in 0.3% of runs at 10,000 rules. With its own pairs, it did in 64% to 69% of runs at any site size. A family of one account's rules failed to a second account, and a false-discovery rate made each verdict's level move with strangers' rules. The site states the luck that this answer allows: rules played, expected luck wins, a 1-night-in-20 high, and wins shown. Deleted rules keep counting, and every saved rule appears in a public log with no verdicts.
 - **2026-10-13.** The learner-verdict arena measured today's `block_bootstrap` with `critical_value` on one null rule's 8 pairs, over 1,500 synthetic datasets. A null rule got a verdict in 64.5% of datasets at 3 blocks, 15.7% at 13, 7.3% at 63, and 6.2% at 236. The spread of the bootstrap is right on average and noisy with few blocks. The milestone 7 backtest, at 236 blocks, is close to the 5% target. The live period is not. The fix is an open question.
 - **2026-10-13.** The same arena measured nightly looks with a known spread. At today's single-look critical value of 2.67 for 8 pairs, a null rule showed a verdict on some night within 5 years in 41.8% of runs. The schedule is an open question.
+- **2026-10-14.** The product is a proof of concept with a simple first screen for people who have never traded. It is no longer a Jev product. Statistical rigor, new data sources, and live scoring are deferred, and PR #13 holds their plan. An arena of four first-screen concepts picked "Pick two": a visitor taps two strategies and sees what $1,000 became in each, then reads why more money is not the whole story. The user approved it over a guess-first game, a single-strategy story, and an all-strategies view. The first screen shows no statistics words, and it says a gap "could be luck" only where `comparisons.json` reads `no_difference`. Milestone 8 now builds this screen. Milestones 9 and 11 are deferred. The record is in `docs/arena/2026-10-14-first-screen/`.
+- **2026-10-14.** The "Pick two" prototype becomes Trade Arena, by the user's decision. Two slots, "Strategy A" and "Strategy B", each open a searchable list grouped by kind, so the screen holds 50 or more strategies. The screen opens on one year, with range buttons for one week, one month, three months, one year, five years, and all years. A Line or Candles toggle shows either both strategies on all 13 funds or one fund's candles with each strategy's buys and sells. The export gains `windows.json`, which holds each range's growth, exposure, and biggest fall on the portfolio, and `funds/{symbol}.json`, which holds the bars and the trades. Each strategy's plain sentence moves from the site into `catalog.py` as `Strategy.plain`. The fingerprint still reads only the positions, so no version changes. A range other than all years is too short to tell skill from luck, and the screen says so for every pair.
+- **2026-10-14.** PR #13 merges as the deferred plan, by the user's decision. The current product spec stays the Trade Arena spec. The "Which one wins?" spec moves to [which-wins-spec.md](which-wins-spec.md), and its sections on markets, learner verdicts, and the volatile-stock data source stay in this plan. Its verdicts, honesty rules, and first screen do not apply until statistics return. Milestones 12 and 13 are deferred like 9 and 11. The next work plans the hourly market's data, backtest, and bar counts on screen, without verdicts.

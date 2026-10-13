@@ -37,3 +37,14 @@ export function formatLevel(level: string): string {
     .join(" ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+const dollars = numberFormat({ style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const compactDollars = numberFormat({ style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
+export const formatDollars = (value: number, { compact = false } = {}) => (compact ? compactDollars : dollars)(value);
+export const formatShare = percent(0);
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "2008-01" reads "Jan 2008". */
+export const formatMonth = (month: string) => `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+/** "2025-10-07" reads "Oct 7, 2025". */
+export const formatDay = (day: string) => `${MONTHS[Number(day.slice(5, 7)) - 1]} ${Number(day.slice(8, 10))}, ${day.slice(0, 4)}`;
