@@ -1,0 +1,6 @@
+Gaussian two-sided 95% critical value, 8 pairs at correlation 0.5: 2.652
+3y rho=0.75: bootstrap c mean 2.635 (range 2.553 to 2.713, 20 sets); pair sd 0.413 vs analytic 0.408; draw correlation 0.52; 0.15s per rule
+3y rho=0.25: bootstrap c mean 2.633 (range 2.560 to 2.712, 10 sets); pair sd 0.705 vs analytic 0.707; draw correlation 0.51; 0.15s per rule
+1y rho=0.75: bootstrap c mean 2.632 (range 2.570 to 2.729, 10 sets); pair sd 0.632 vs analytic 0.707; draw correlation 0.43; 0.13s per rule
+5y rho=0.75: bootstrap c mean 2.621 (range 2.559 to 2.685, 5 sets); pair sd 0.320 vs analytic 0.316; draw correlation 0.51; 0.18s per rule
+vectorized 2,000-rep bootstrap of 9 series over 5 years: 0.004s

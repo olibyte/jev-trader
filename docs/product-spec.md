@@ -59,13 +59,18 @@ A rule is written in bars. On daily bars a bar is a session, so "the 50-day aver
 
 In an intraday market, a strategy decides at the close of a bar and trades at the open of the next bar, inside regular session hours. A position can stay open overnight and earns the gap to the next open. Bar returns compound into one return per session, and the excess Sharpe, the bootstrap, and the portfolio read those daily returns. That keeps intervals comparable across markets.
 
-Each market has a cost per switch, fixed before its first run. Daily ETFs keep 5 basis points. Intraday and stock markets get higher costs that we set from the instruments' typical spreads. Every market also shows its figures at 2 and 4 times its cost as point values.
+Each market has a cost per switch, fixed before its first run. Daily ETFs keep 5 basis points. Every market also shows its figures at 2 and 4 times its cost as point values. The costs for the planned markets are proposals that wait for a decision:
+
+- **13 ETFs, hourly: 5 basis points.** A switch pays the instrument's spread, and the bar size does not change the spread. On 2026-10-12, State Street listed a 30-day median quoted spread of 0.02% for XLB and 0.00% for SPY. Five basis points is at least 5 times the half-spread of either. Spreads are wider just after the open, and the figures at 2 and 4 times the cost cover that.
+- **Volatile stocks, daily: 25 basis points, or the measured median spread if that is higher.** Before the first run, we measure the quoted spread of the stocks that the universe picks, from the data source's quotes. A full spread on each switch leaves room for price impact in thinner stocks. The 25 is a guess. We do not estimate spreads from daily highs and lows, because those estimates are biased for volatile stocks. The spread depends on the universe's floor, and the proposed floor is a closing price of at least $5 and a median daily dollar volume of at least $20 million over the previous 63 sessions.
 
 ### Volatile stocks need a universe chosen without hindsight
 
 Today's list of volatile stocks leaves out the ones that collapsed or were delisted, and that flatters every long strategy. A fixed rule chooses the universe at each past date instead. Each January, it takes the 20 US common stocks with the highest volatility over the previous 252 sessions, among stocks above a price and volume floor, using only data from before that January. The universe holds for the year. A stock that is delisted during the year moves to cash.
 
-The rule needs listings that include delisted stocks. If Twelve Data does not supply them, another source does.
+The rule needs listings that include delisted stocks. The proposed source is Massive, formerly Polygon.io. Its ticker list answers which stocks were listed on a past date, and its daily files cover every US stock from 2003-09-10. The first January with a full prior year is then January 2005, which starts this market's backtest. Three facts about it are unchecked. Do its past daily files hold stocks that were delisted since? Do its terms let us publish figures derived from its prices? How does it adjust for dividends? The implementation plan compares the alternatives, and the choice waits for a decision.
+
+A delisted stock exits at its last close. Only some sources record what holders got after the last trade, so that price can flatter a stock that collapsed after it. The market states how many of its stocks were delisted during a year.
 
 ### The catalog is small and fixed
 
@@ -94,7 +99,20 @@ Learners building and testing their own rules is the long-term goal. It needs a 
 
 A learner's rule gets a verdict only from its live period, which starts at the first session after the rule is saved. Its backtest is shown with no verdict. A learner can try hundreds of rules on the backtest years and keep the one that wins, and no interval can correct for tries that nobody logged. Forward play cannot be tuned that way.
 
-The site logs each rule, with its fingerprint and the time it was saved, before it shows any result. Which pairs a learner's verdict accounts for is an open question. Counting every saved rule keeps each win honest, but wins get rarer as the site grows. Counting only one rule's pairs keeps wins possible, and the site then states how many rules have played and how many wins luck alone would give.
+The site logs each rule, with its fingerprint and the time it was saved, before it shows any result.
+
+A learner rule's verdict accounts for that rule's pairs with every catalog entry, in every market where the rule's inputs exist. The learner does not choose the markets. The verdict does not account for other saved rules. One learner's save therefore changes no other verdict, and a rule with a real edge keeps the same chance of a win however large the site grows. A pair of two learner rules shows its interval with no verdict.
+
+The cost is that luck wins grow with the number of rules, so the site states them on the same screen. Next to every learner verdict, it states four numbers:
+
+- how many rules have played
+- how many would show a win that night if none had a real edge
+- the higher count that luck gives on 1 night in 20
+- how many rules show a win that night
+
+Deleted rules keep counting. The rule page lists the learner's other saved rules in save order, with no verdicts. A public log lists every saved rule with its fingerprint and save time, also with no verdicts.
+
+Wins will be rare. In a simulation, a rule that beat buy and hold by a true 0.5 excess Sharpe showed a win at the 5-year mark in at most 15% of runs. The [learner-verdict arena](arena/2026-10-13-learner-verdicts/synthesis.md) measured this answer against counting every saved rule, every rule from one account, and a false-discovery rate. It also found two problems that wait for a decision, because they change every live verdict. Today's interval is too narrow on short windows, and a verdict recomputed every night lets luck show a win on some night. The implementation plan's open questions describe both.
 
 ### The finished Jev study stays, and Jev competes
 
@@ -151,7 +169,7 @@ The site stays static until a learner needs a result that `jt arena` cannot comp
 
 - A backtest engine that runs in the browser must first pass a parity check that compares every position and metric with `research/` on the same bars.
 - A server that scores learner-built rules must log each rule before it shows any result.
-- A learner-built rule gets a verdict only from its live period.
+- A learner-built rule gets a verdict only from its live period, over its own pairs with the catalog, with the count of luck wins beside it.
 
 The nightly job records intraday positions after the close, not before each bar. The replay still fails a rule that reads a later bar, but the ledger proves the order of each day's decisions only, not each bar's. A job that records each bar as it closes is a backend, and it waits for the same trigger.
 
@@ -167,6 +185,7 @@ The first version asked "Can you tell them apart?". It was accurate, but it aske
 | First intraday bar size | Hourly | 1-minute | Shorter bars do not narrow intervals. Hourly bars have spreads we can model, and 1-minute strategies would be judged mostly on a cost model we cannot yet check. |
 | Volatile-stock universe | Chosen each January by a fixed rule, delisted stocks included | Today's most volatile stocks | Today's list hides every stock that collapsed. That bias favours every long strategy. |
 | Learner-built rules | Verdict from the live period only | Backtest verdicts with a wider interval | Nobody can count the tries a learner makes before saving a rule. Forward play needs no count. |
+| Pairs that a learner rule's verdict covers | The rule's own pairs with the catalog, with the luck count beside the verdict | Every saved rule, every rule from one account, or a false-discovery rate | With every saved rule in one family, a rule that beat buy and hold by a true 1.0 excess Sharpe showed a win within 5 years in 0.3% of runs at 10,000 rules. A family of one account's rules fails as soon as a person opens a second account. A false-discovery rate makes each verdict's level move with strangers' rules. |
 | Sharpe in intraday markets | Computed from daily returns | Computed per bar | Precision depends on years, not bars, so per-bar Sharpe gains nothing. Daily returns keep markets comparable and reuse the existing code. |
 
 The cost of this direction is that "Too close to call" will stay the most common answer for a long time. We think that is the honest product, and the live period is where wins can come from. Each session adds evidence that nobody can tune.

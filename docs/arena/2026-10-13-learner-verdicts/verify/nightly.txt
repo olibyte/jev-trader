@@ -1,0 +1,61 @@
+critical values, pairs corr 0.5 within a rule (equicorrelated stand-in)
+  family      1 pairs: 1.96
+  family      8 pairs: 2.66
+  family     80 pairs: 3.41
+  family    800 pairs: 3.99
+  family   8000 pairs: 4.51
+  family  80000 pairs: 4.98
+one rule's 8 pairs c=2.66 rho=0.75 d=0.0 1y rule-wins single-look 0.027 ever 0.166 any-verdict ever 0.314
+one rule's 8 pairs c=2.66 rho=0.75 d=0.0 3y rule-wins single-look 0.032 ever 0.230 any-verdict ever 0.413
+one rule's 8 pairs c=2.66 rho=0.75 d=0.0 5y rule-wins single-look 0.025 ever 0.252 any-verdict ever 0.454
+one rule's 8 pairs c=2.66 rho=0.75 d=0.5 1y rule-wins single-look 0.138 ever 0.387 any-verdict ever 0.438
+one rule's 8 pairs c=2.66 rho=0.75 d=0.5 3y rule-wins single-look 0.301 ever 0.614 any-verdict ever 0.648
+one rule's 8 pairs c=2.66 rho=0.75 d=0.5 5y rule-wins single-look 0.487 ever 0.775 any-verdict ever 0.805
+one rule's 8 pairs c=2.66 rho=0.75 d=1.0 1y rule-wins single-look 0.389 ever 0.636 any-verdict ever 0.646
+one rule's 8 pairs c=2.66 rho=0.75 d=1.0 3y rule-wins single-look 0.832 ever 0.945 any-verdict ever 0.950
+one rule's 8 pairs c=2.66 rho=0.75 d=1.0 5y rule-wins single-look 0.970 ever 0.992 any-verdict ever 0.992
+one rule's 8 pairs c=2.66 rho=0.25 d=0.0 1y rule-wins single-look 0.026 ever 0.146 any-verdict ever 0.288
+one rule's 8 pairs c=2.66 rho=0.25 d=0.0 3y rule-wins single-look 0.021 ever 0.216 any-verdict ever 0.411
+one rule's 8 pairs c=2.66 rho=0.25 d=0.0 5y rule-wins single-look 0.028 ever 0.212 any-verdict ever 0.432
+one rule's 8 pairs c=2.66 rho=0.25 d=0.5 1y rule-wins single-look 0.068 ever 0.259 any-verdict ever 0.325
+one rule's 8 pairs c=2.66 rho=0.25 d=0.5 3y rule-wins single-look 0.138 ever 0.415 any-verdict ever 0.503
+one rule's 8 pairs c=2.66 rho=0.25 d=0.5 5y rule-wins single-look 0.176 ever 0.517 any-verdict ever 0.598
+one rule's 8 pairs c=2.66 rho=0.25 d=1.0 1y rule-wins single-look 0.154 ever 0.396 any-verdict ever 0.435
+one rule's 8 pairs c=2.66 rho=0.25 d=1.0 3y rule-wins single-look 0.416 ever 0.697 any-verdict ever 0.724
+one rule's 8 pairs c=2.66 rho=0.25 d=1.0 5y rule-wins single-look 0.565 ever 0.825 any-verdict ever 0.848
+         100 rules c=3.99 rho=0.75 d=0.0 1y rule-wins single-look 0.001 ever 0.015 any-verdict ever 0.019
+         100 rules c=3.99 rho=0.75 d=0.0 3y rule-wins single-look 0.002 ever 0.013 any-verdict ever 0.018
+         100 rules c=3.99 rho=0.75 d=0.0 5y rule-wins single-look 0.000 ever 0.009 any-verdict ever 0.017
+         100 rules c=3.99 rho=0.75 d=0.5 1y rule-wins single-look 0.004 ever 0.027 any-verdict ever 0.027
+         100 rules c=3.99 rho=0.75 d=0.5 3y rule-wins single-look 0.026 ever 0.087 any-verdict ever 0.088
+         100 rules c=3.99 rho=0.75 d=0.5 5y rule-wins single-look 0.061 ever 0.148 any-verdict ever 0.149
+         100 rules c=3.99 rho=0.75 d=1.0 1y rule-wins single-look 0.039 ever 0.109 any-verdict ever 0.109
+         100 rules c=3.99 rho=0.75 d=1.0 3y rule-wins single-look 0.247 ever 0.412 any-verdict ever 0.413
+         100 rules c=3.99 rho=0.75 d=1.0 5y rule-wins single-look 0.579 ever 0.709 any-verdict ever 0.709
+         100 rules c=3.99 rho=0.25 d=0.0 1y rule-wins single-look 0.000 ever 0.004 any-verdict ever 0.011
+         100 rules c=3.99 rho=0.25 d=0.0 3y rule-wins single-look 0.000 ever 0.008 any-verdict ever 0.014
+         100 rules c=3.99 rho=0.25 d=0.0 5y rule-wins single-look 0.000 ever 0.010 any-verdict ever 0.019
+         100 rules c=3.99 rho=0.25 d=0.5 1y rule-wins single-look 0.003 ever 0.020 any-verdict ever 0.023
+         100 rules c=3.99 rho=0.25 d=0.5 3y rule-wins single-look 0.007 ever 0.031 any-verdict ever 0.032
+         100 rules c=3.99 rho=0.25 d=0.5 5y rule-wins single-look 0.005 ever 0.050 any-verdict ever 0.053
+         100 rules c=3.99 rho=0.25 d=1.0 1y rule-wins single-look 0.009 ever 0.039 any-verdict ever 0.040
+         100 rules c=3.99 rho=0.25 d=1.0 3y rule-wins single-look 0.034 ever 0.132 any-verdict ever 0.133
+         100 rules c=3.99 rho=0.25 d=1.0 5y rule-wins single-look 0.070 ever 0.200 any-verdict ever 0.200
+       1,000 rules c=4.51 rho=0.75 d=0.0 1y rule-wins single-look 0.000 ever 0.001 any-verdict ever 0.003
+       1,000 rules c=4.51 rho=0.75 d=0.0 3y rule-wins single-look 0.000 ever 0.002 any-verdict ever 0.002
+       1,000 rules c=4.51 rho=0.75 d=0.0 5y rule-wins single-look 0.000 ever 0.001 any-verdict ever 0.004
+       1,000 rules c=4.51 rho=0.75 d=0.5 1y rule-wins single-look 0.002 ever 0.008 any-verdict ever 0.010
+       1,000 rules c=4.51 rho=0.75 d=0.5 3y rule-wins single-look 0.003 ever 0.024 any-verdict ever 0.024
+       1,000 rules c=4.51 rho=0.75 d=0.5 5y rule-wins single-look 0.008 ever 0.038 any-verdict ever 0.038
+       1,000 rules c=4.51 rho=0.75 d=1.0 1y rule-wins single-look 0.010 ever 0.043 any-verdict ever 0.043
+       1,000 rules c=4.51 rho=0.75 d=1.0 3y rule-wins single-look 0.106 ever 0.203 any-verdict ever 0.203
+       1,000 rules c=4.51 rho=0.75 d=1.0 5y rule-wins single-look 0.353 ever 0.486 any-verdict ever 0.486
+       1,000 rules c=4.51 rho=0.25 d=0.0 1y rule-wins single-look 0.000 ever 0.001 any-verdict ever 0.002
+       1,000 rules c=4.51 rho=0.25 d=0.0 3y rule-wins single-look 0.001 ever 0.001 any-verdict ever 0.002
+       1,000 rules c=4.51 rho=0.25 d=0.0 5y rule-wins single-look 0.000 ever 0.000 any-verdict ever 0.001
+       1,000 rules c=4.51 rho=0.25 d=0.5 1y rule-wins single-look 0.001 ever 0.004 any-verdict ever 0.004
+       1,000 rules c=4.51 rho=0.25 d=0.5 3y rule-wins single-look 0.000 ever 0.005 any-verdict ever 0.005
+       1,000 rules c=4.51 rho=0.25 d=0.5 5y rule-wins single-look 0.000 ever 0.002 any-verdict ever 0.002
+       1,000 rules c=4.51 rho=0.25 d=1.0 1y rule-wins single-look 0.000 ever 0.010 any-verdict ever 0.010
+       1,000 rules c=4.51 rho=0.25 d=1.0 3y rule-wins single-look 0.011 ever 0.030 any-verdict ever 0.030
+       1,000 rules c=4.51 rho=0.25 d=1.0 5y rule-wins single-look 0.022 ever 0.066 any-verdict ever 0.066
