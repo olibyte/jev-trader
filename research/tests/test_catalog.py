@@ -1,12 +1,16 @@
+import hashlib
 import json
+import shutil
 from datetime import date, timedelta
 
 import numpy as np
 import polars as pl
 import pytest
 
+from jevtrader import cli
 from jevtrader.catalog import (
     CATALOG,
+    SCOPES,
     Strategy,
     critical_value,
     decisions,
@@ -17,10 +21,14 @@ from jevtrader.catalog import (
     refusals,
 )
 from jevtrader.evaluate import ARMS, HOLDOUT_PATH, holdout_result, render_json
+from jevtrader.export import ARENA_PATH
 from jevtrader.states import ALL_STATES, CASH, STUDY, labels, state_key
 
 END = date(2019, 6, 30)
-DAYS = 5300  # 2005-01-03 to 2019-07-07 in calendar days, so bars run past END
+DAYS = 5300  # 2005-01-03 to 2019-07-08 in calendar days, so bars run past END
+FILES = sorted(
+    ["catalog.json", "comparisons.json", "manifest.json", *(f"curves/{s}.json" for s in SCOPES)]
+)
 
 
 def first_peek(strategy: Strategy, bars: pl.DataFrame) -> int | None:
@@ -188,3 +196,103 @@ def test_reconcile_reproduces_the_holdout_sharpe_intervals_exactly(template):
         " is not {'point': 0.8061769532882747, 'lo': -2.25, 'hi': 4.137028667561658},"
         " the sma_filter arm in holdout.json"
     ]
+
+
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+@pytest.fixture
+def arena(tmp_path, template, monkeypatch):
+    """A private copy of the template with `jt` pointed at it."""
+    shutil.copytree(template, tmp_path, dirs_exist_ok=True)
+    monkeypatch.setattr(cli, "REPO_ROOT", tmp_path / "repo")
+    monkeypatch.setattr(cli, "DATA_DIR", tmp_path / "data")
+    return tmp_path
+
+
+def snapshot(repo) -> dict[str, tuple[bytes, int]]:
+    root = repo / ARENA_PATH
+    return {
+        p.relative_to(root).as_posix(): (p.read_bytes(), p.stat().st_mtime_ns)
+        for p in root.rglob("*")
+        if p.is_file()
+    }
+
+
+def test_a_second_arena_run_changes_no_files_and_records_cover_the_period(arena, capsys):
+    repo, data = arena / "repo", arena / "data"
+    assert cli.main(["arena"]) == 0
+    first = capsys.readouterr().out.splitlines()
+    assert [line.split()[:2] for line in first] == [
+        [f"export/arena/v1/{f}", "changed"] for f in FILES
+    ]
+    before = snapshot(repo)
+
+    assert cli.main(["arena"]) == 0
+    second = capsys.readouterr().out.splitlines()
+    assert [line.split()[:2] for line in second] == [
+        [f"export/arena/v1/{f}", "unchanged"] for f in FILES
+    ]
+    assert snapshot(repo) == before
+
+    manifest = json.loads(before["manifest.json"][0])
+    assert manifest["files"] == {f: sha256(before[f][0]) for f in FILES if f != "manifest.json"}
+    assert manifest["inputs"] == {
+        "research/holdout.json": sha256((repo / HOLDOUT_PATH).read_bytes()),
+        **{
+            f"data/market/{s}.parquet": sha256((data / "market" / f"{s}.parquet").read_bytes())
+            for s in (*STUDY, CASH)
+        },
+    }
+    assert manifest["periods"] == {
+        "backtest": {"first": "2008-01-01", "last": "2019-07-06", "barsEnd": "2026-10-09"}
+    }
+
+    comparisons = json.loads(before["comparisons.json"][0])
+    pairs, strategies = comparisons["pairs"], comparisons["strategies"]
+
+    assert [(p["scope"], p["a"], p["b"]) for p in pairs[:6]] == [
+        ("portfolio", "buy_hold", "golden_cross"),
+        ("portfolio", "buy_hold", "macd_cross"),
+        ("portfolio", "buy_hold", "bollinger_bounce"),
+        ("portfolio", "golden_cross", "macd_cross"),
+        ("portfolio", "golden_cross", "bollinger_bounce"),
+        ("portfolio", "macd_cross", "bollinger_bounce"),
+    ]
+    assert [p["scope"] for p in pairs[::6]] == list(SCOPES)
+    assert [s["scope"] for s in strategies[::4]] == list(SCOPES)
+    assert {p["verdict"] for p in pairs[6:]} == {None}
+    assert {p["family"] for p in pairs} == {6}
+
+    spy = json.loads(before["curves/SPY.json"][0])
+    curve = spy["periods"]["backtest"]
+    assert (curve["date"][0], curve["date"][-1]) == ("2008-01-01", "2019-07-06")
+    bars = pl.read_parquet(data / "market" / "SPY.parquet")
+    opens = dict(zip(bars["date"].cast(pl.String), bars["open"], strict=True))
+    r = opens["2008-01-03"] / opens["2008-01-02"] - 1
+    assert curve["equity"]["buy_hold"][0] == round((1 - 5 / 1e4) * (1 + r), 6)
+
+
+def test_arena_refuses_a_changed_rule_and_a_dropped_strategy(arena, capsys):
+    repo = arena / "repo"
+    assert cli.main(["arena"]) == 0
+    path = repo / ARENA_PATH / "catalog.json"
+    catalog = json.loads(path.read_text())
+    catalog["strategies"][2]["fingerprint"] = "0" * 64
+    catalog["strategies"].append({**catalog["strategies"][0], "id": "old_rule"})
+    path.write_text(json.dumps(catalog, indent=2) + "\n")
+    before = snapshot(repo)
+    capsys.readouterr()
+
+    assert cli.main(["arena"]) == 1
+    captured = capsys.readouterr()
+    assert captured.err == (
+        "macd_cross version 1 has fingerprint"
+        " d9ce2e036327ac78f688a83d382c10720cfc0a644db15d916c288db90c634ed4,"
+        f" not {'0' * 64} as in catalog.json. A changed rule needs a new version\n"
+        "catalog.json has old_rule, which CATALOG drops\n"
+        f"refusing, {repo / ARENA_PATH} is unchanged\n"
+    )
+    assert captured.out == ""
+    assert snapshot(repo) == before

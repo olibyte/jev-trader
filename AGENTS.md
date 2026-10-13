@@ -19,14 +19,17 @@ Check the source before treating a planned command or module as available.
 - `research/prereg.toml` is the committed pre-registration. Never edit it by hand. `jt evaluate --prereg` writes it and refuses to replace a different file.
 - `research/holdout.json` and `research/holdout.manifest.json` are the one-shot holdout result and its run manifest. Never edit, delete, or regenerate them. `jt holdout` writes them once and refuses a second run. `jt holdout --verify` reruns the holdout and compares the bytes. Never run `jt holdout` on the real data. The user runs it.
 - `research/src/jevtrader/jev.py` owns the Jev prompt, the OpenRouter Decisions call, the append-only call log, and the policy table.
-- `research/src/jevtrader/export.py` owns the `export/v1/` contract that the site reads. It checks that its inputs are the files the holdout read, renders every file, and converges the directory.
+- `research/src/jevtrader/export.py` owns the `export/v1/` and `export/arena/v1/` contracts that the site reads. It checks that the `export/v1/` inputs are the files the holdout read, renders every file, and converges each directory.
 - `export/v1/` is the committed site export. Never edit it by hand. Regenerate it with `jt export`, which changes no files when the inputs are unchanged.
+- `research/src/jevtrader/catalog.py` owns the arena strategies in `CATALOG`, their fingerprints, their decisions, the reconciliation with `research/holdout.json`, the refusals, and the pair comparisons.
+- `export/arena/v1/` is the committed arena export. Never edit it by hand. Regenerate it with `jt arena`, which changes no files when the inputs are unchanged.
 - `research/src/jevtrader/cli.py` owns the `jt` command and reads the API keys, clock, and network at the CLI boundary. Only `jt fetch` and `jt adjust-check` read `TWELVE_DATA_API_KEY`. Only `jt jev-table` without `--offline` reads `OPENROUTER_API_KEY`.
 - `research/jev_calls.jsonl` is the frozen Jev call log. Never edit or regenerate it. Build from it with `jt jev-table --offline`.
 - `research/tests/test_data.py` checks the data pipeline with recorded fixtures and mocked HTTP responses.
 - `research/tests/test_states.py` holds the truncation property test, which fails if an indicator reads a later bar.
 - `research/tests/test_jev.py` checks the Jev call, the call log, and the policy table with mocked HTTP responses.
 - `research/tests/test_export.py` checks the export preconditions, the copied holdout numbers, the rebuilt Jev requests, and the unchanged rerun on synthetic data.
+- `research/tests/test_catalog.py` checks the truncation property over `CATALOG`, the `oracle` negative control, the fingerprints, the refusals, the reconciliation, and `jt arena` on synthetic data.
 - `research/tests/test_holdout.py` checks the holdout lock, the single run, and the byte-identical rerun on synthetic data in a temporary git repository.
 - `research/pyproject.toml` defines dependencies and Ruff rules. Keep `research/uv.lock` in sync with dependency changes.
 - `web/src/lib/export.ts` owns the zod schemas and the cross-file checks for `export/v1/`. Every page reads the export through `loadExport()`, so a bad file fails `next build`.

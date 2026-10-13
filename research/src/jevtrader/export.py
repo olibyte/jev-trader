@@ -1,4 +1,4 @@
-"""The export/v1 files the site reads, rendered from the inputs the holdout run hashed."""
+"""The files the site reads: export/v1 from the holdout run's inputs, and export/arena/v1."""
 
 from __future__ import annotations
 
@@ -13,15 +13,31 @@ from typing import Literal, NamedTuple
 
 import polars as pl
 
+from jevtrader.catalog import (
+    BACKTEST_END,
+    CATALOG,
+    CATALOG_VERSION,
+    RECONCILE,
+    SCOPES,
+    CatalogEntry,
+    entry,
+    scope_records,
+)
+from jevtrader.catalog import decisions as arena_decisions
 from jevtrader.data import REPO_ROOT, atomic_write, forward_return
 from jevtrader.evaluate import (
     ARMS,
     BASELINE,
+    BLOCK,
     CANDIDATE,
     COST_BPS,
+    COSTS_BPS,
     HOLDOUT_PATH,
     HOLDOUT_RUN_PATH,
+    LEVEL,
+    POWER,
     PREREG_PATH,
+    REPS,
     SHRINK_K,
     backtest,
     decisions,
@@ -57,6 +73,7 @@ from jevtrader.states import (
 
 # Relative to the repository root.
 EXPORT_PATH = Path("export") / "v1"
+ARENA_PATH = Path("export") / "arena" / "v1"
 CALL_LOG_PATH = CALLS_PATH.relative_to(REPO_ROOT)
 EQUITY_ARMS = (CANDIDATE, BASELINE, "buy_hold")
 DEVELOPMENT = ("fit", "validate")
@@ -464,3 +481,118 @@ def write_export(directory: Path, files: dict[str, bytes]) -> list[Written]:
         if not any(folder.iterdir()):
             folder.rmdir()
     return written
+
+
+class ArenaInputs(NamedTuple):
+    holdout: dict  # research/holdout.json
+    market: dict[str, pl.DataFrame]  # STUDY then CASH, uncut
+    committed: list[CatalogEntry] | None  # export/arena/v1/catalog.json, None before the first run
+    sha256: dict[str, str]  # repo-relative path of each hashed input file -> sha256 of its bytes
+
+
+def read_arena_inputs(repo: Path, data_dir: Path) -> ArenaInputs:
+    """Read every arena input file once. Raises FileNotFoundError for a missing one.
+
+    The committed catalog.json is not hashed as an input, because the arena also writes it.
+    """
+    symbols = (*STUDY, CASH)
+    paths = {
+        str(HOLDOUT_PATH): repo / HOLDOUT_PATH,
+        **{_market_path(s): data_dir / "market" / f"{s}.parquet" for s in symbols},
+    }
+    raw = {label: path.read_bytes() for label, path in paths.items()}
+    committed = repo / ARENA_PATH / "catalog.json"
+    return ArenaInputs(
+        holdout=json.loads(raw[str(HOLDOUT_PATH)]),
+        market={s: pl.read_parquet(io.BytesIO(raw[_market_path(s)])) for s in symbols},
+        committed=json.loads(committed.read_text())["strategies"] if committed.exists() else None,
+        sha256={label: sha256(data) for label, data in raw.items()},
+    )
+
+
+def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
+    """Every export/arena/v1 file's bytes, keyed by its path in the export directory.
+
+    Raises ExportError if a scope's curve does not span the portfolio's dates.
+    """
+    made = arena_decisions(inputs.market)
+    returns = open_returns(inputs.market, BACKTEST_END + timedelta(days=1))
+    sleeves = {bps: backtest(made, returns, bps) for bps in COSTS_BPS}
+    scopes = {scope: scope_records(sleeves, scope) for scope in SCOPES}
+    dates = scopes["portfolio"].equity["date"]
+    span = (dates.min(), dates.max())
+    for scope, result in scopes.items():
+        if (result.equity["date"].min(), result.equity["date"].max()) != span:
+            raise ExportError(f"the {scope} curve does not span {span[0]} to {span[1]}")
+
+    files = {
+        "catalog.json": _indented(
+            {
+                "catalogVersion": CATALOG_VERSION,
+                "strategies": [entry(s) for s in CATALOG.values()],
+            }
+        ),
+        "comparisons.json": _indented(
+            {
+                "pairs": [p for result in scopes.values() for p in result.pairs],
+                "strategies": [s for result in scopes.values() for s in result.strategies],
+            }
+        ),
+        **{
+            f"curves/{scope}.json": _compact(
+                {
+                    "scope": scope,
+                    "costBps": COST_BPS,
+                    "periods": {
+                        "backtest": {
+                            "date": _dates(result.equity["date"]),
+                            "equity": {i: _rounded(result.equity[i], 6) for i in CATALOG},
+                        }
+                    },
+                }
+            )
+            for scope, result in scopes.items()
+        },
+    }
+    files["manifest.json"] = _indented(arena_manifest(inputs, span, files))
+    return files
+
+
+def arena_manifest(inputs: ArenaInputs, span: tuple[date, date], files: dict[str, bytes]) -> dict:
+    """manifest.json: the period bounds, the settings, the reconciliation, and every hash.
+
+    It holds no git commit. The export is committed, so a commit would change on every run and
+    the export would never converge. The input hashes and the fingerprints identify the run.
+    """
+    holdout = inputs.holdout
+    return {
+        "version": ARENA_PATH.relative_to("export").as_posix(),
+        "catalogVersion": CATALOG_VERSION,
+        "periods": {
+            "backtest": {
+                "first": span[0].isoformat(),
+                "last": span[1].isoformat(),
+                "barsEnd": BACKTEST_END.isoformat(),
+            }
+        },
+        "scopes": list(SCOPES),
+        "cash": CASH,
+        "settings": {
+            "costBps": COST_BPS,
+            "costsBps": list(COSTS_BPS),
+            "block": BLOCK,
+            "reps": REPS,
+            "seed": 0,
+            "level": LEVEL,
+            "power": POWER,
+        },
+        "reconciliation": {
+            "holdout": str(HOLDOUT_PATH),
+            "sha256": inputs.sha256[str(HOLDOUT_PATH)],
+            "first": holdout["first"],
+            "last": holdout["last"],
+            "strategies": RECONCILE,
+        },
+        "inputs": inputs.sha256,
+        "files": {path: sha256(files[path]) for path in sorted(files)},
+    }
