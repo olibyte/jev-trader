@@ -33,9 +33,9 @@ Check the source before treating a planned command or module as available.
 - `research/tests/test_holdout.py` checks the holdout lock, the single run, and the byte-identical rerun on synthetic data in a temporary git repository.
 - `research/pyproject.toml` defines dependencies and Ruff rules. Keep `research/uv.lock` in sync with dependency changes.
 - `web/src/lib/export.ts` owns the zod schemas and the cross-file checks for `export/v1/`. Every page reads the export through `loadExport()`, so a bad file fails `next build`.
-- `web/src/lib/arena.ts` reads `export/arena/v1/` for the "Pick two" prototype at `/preview/`. The Jev study pages live in the `web/src/app/(study)/` route group, which owns their layout and `globals.css`.
+- `web/src/lib/arena.ts` reads `export/arena/v1/` for the Trade Arena prototype at `/preview/`. The route handlers under `web/src/app/preview/data/` write the daily curve and each fund's bars as static JSON, and the page fetches them on demand. The Jev study pages live in the `web/src/app/(study)/` route group, which owns their layout and `globals.css`.
 - `web/src/lib/format.ts` owns every number format on the site. `web/e2e/expected.ts` keeps an independent copy for the end-to-end test.
-- `web/scripts/check-schema.mjs` builds against broken copies of the export and fails unless each build fails. `web/scripts/check-honesty.mjs` fails on banned wording such as "confidence" or "Reasoning".
+- `web/scripts/check-schema.mjs` builds against broken copies of `export/v1/` and `export/arena/v1/` and fails unless each build fails. `web/scripts/check-honesty.mjs` fails on banned wording such as "confidence" or "Reasoning".
 - `web/pnpm-workspace.yaml` refuses packages published in the last 14 days. Keep `web/pnpm-lock.yaml` in sync with dependency changes.
 
 Keep changes focused on the requested task.

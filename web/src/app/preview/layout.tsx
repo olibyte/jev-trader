@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Famous trading strategies, run on the same US funds with the same costs, explained in plain words.",
 };
 
-export const viewport: Viewport = { themeColor: "#f6f5f1", colorScheme: "light" };
+export const viewport: Viewport = { themeColor: "#0b1220", colorScheme: "dark" };
 
 export default function PreviewLayout({ children }: { children: ReactNode }) {
   const { costBps } = loadArena();
@@ -18,6 +18,10 @@ export default function PreviewLayout({ children }: { children: ReactNode }) {
       <header className="arena-top">
         <span>
           <Link href="/preview/" className="arena-brand">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+              <polyline points="3,17 9,11 13,15 21,7" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="15,7 21,7 21,13" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             Trade Arena
           </Link>
           <span className="arena-tag">Prototype</span>

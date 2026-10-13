@@ -47,6 +47,7 @@ class Strategy:
     id: str
     version: int
     title: str
+    plain: str
     rule: str
     citation: str
     kind: Kind
@@ -91,6 +92,7 @@ CATALOG: dict[str, Strategy] = {
             "buy_hold",
             1,
             "Buy and hold",
+            "Put the money in on day one and never take it out.",
             "Always long.",
             "No parameters.",
             "benchmark",
@@ -100,6 +102,7 @@ CATALOG: dict[str, Strategy] = {
             "golden_cross",
             1,
             "Golden cross",
+            "Stay in while prices are on a long climb. Move to cash when the climb ends.",
             "Long when the 50-day average is above the 200-day average.",
             "Murphy, J. J. (1999). Technical Analysis of the Financial Markets."
             " New York Institute of Finance.",
@@ -110,6 +113,7 @@ CATALOG: dict[str, Strategy] = {
             "macd_cross",
             1,
             "MACD crossover",
+            "Stay in while prices are speeding up. Move to cash when they slow down.",
             "Long when MACD(12, 26) is above its 9-day signal line.",
             "Appel, G. (2005). Technical Analysis: Power Tools for Active Investors."
             " FT Prentice Hall.",
@@ -120,6 +124,7 @@ CATALOG: dict[str, Strategy] = {
             "bollinger_bounce",
             1,
             "Bollinger bounce",
+            "Jump in after an unusually sharp drop. Get out once the price is back to normal.",
             "Enter when the close falls below the lower band (20 days, 2 standard deviations)."
             " Exit when the close reaches the middle band.",
             "Bollinger, J. (2001). Bollinger on Bollinger Bands. McGraw-Hill.",
@@ -130,12 +135,22 @@ CATALOG: dict[str, Strategy] = {
 }
 HOLDOUT_ARMS = {"buy_hold": "buy_hold", "golden_cross": "sma_filter"}
 SCOPES = ("portfolio", *STUDY)
+# Each range button's calendar offset back from the last curve date, as a polars duration.
+RANGES: dict[str, str | None] = {
+    "1W": "-1w",
+    "1M": "-1mo",
+    "3M": "-3mo",
+    "1Y": "-1y",
+    "5Y": "-5y",
+    "All": None,
+}
 
 
 class CatalogEntry(TypedDict):
     id: str
     version: int
     title: str
+    plain: str
     rule: str
     citation: str
     kind: Kind
@@ -165,6 +180,23 @@ class StrategyRecord(TypedDict):
     maxDrawdown: float
     switchesPerYear: float
     exposure: float
+
+
+class WindowStats(TypedDict):
+    growth: float
+    exposure: float
+    maxDrawdown: float
+
+
+class WindowRecord(TypedDict):  # export/arena/v1/windows.json, one per RANGES entry
+    range: str
+    base: str | None  # the curve date the window grows from, None for All
+    strategies: dict[str, WindowStats]
+
+
+class Trades(TypedDict):  # export/arena/v1/funds/{symbol}.json, one per strategy
+    buy: list[str]
+    sell: list[str]
 
 
 class ScopeResult(NamedTuple):
@@ -200,6 +232,7 @@ def entry(strategy: Strategy) -> CatalogEntry:
         "id": strategy.id,
         "version": strategy.version,
         "title": strategy.title,
+        "plain": strategy.plain,
         "rule": strategy.rule,
         "citation": strategy.citation,
         "kind": strategy.kind,
@@ -365,10 +398,68 @@ def scope_records(
             }
         )
 
-    equity = (
-        days[COST_BPS]
-        .with_columns((1 + pl.col("ret")).cum_prod().over("arm").alias("equity"))
+    return ScopeResult(strategies, records, _equity(days[COST_BPS]))
+
+
+def _equity(days: pl.DataFrame) -> pl.DataFrame:
+    """date, then each CATALOG strategy's growth of 1 over evaluate.portfolio rows."""
+    return (
+        days.with_columns((1 + pl.col("ret")).cum_prod().over("arm").alias("equity"))
         .pivot("arm", index="date", values="equity")
         .select("date", *CATALOG)
     )
-    return ScopeResult(strategies, records, equity)
+
+
+def windows(sleeves: pl.DataFrame) -> list[WindowRecord]:
+    """Each RANGES window's growth, exposure, and max drawdown on the portfolio scope.
+
+    sleeves holds the COST_BPS evaluate.backtest rows of every CATALOG strategy on every symbol.
+    A window holds the curve dates after its base through the last date, and `base` is the last
+    curve date on or before the offset cutoff.
+    """
+    days = portfolio(sleeves)
+    equity = _equity(days)
+    dates = equity["date"]
+    last = dates[-1]
+    records: list[WindowRecord] = []
+    for label, offset in RANGES.items():
+        if offset is None:
+            base, kept, start = None, pl.lit(True), dict.fromkeys(CATALOG, 1.0)
+        else:
+            cutoff = pl.Series([last]).dt.offset_by(offset)[0]
+            base = dates.filter(dates <= cutoff)[-1]
+            kept = pl.col("date") > base
+            start = equity.row(by_predicate=pl.col("date") == base, named=True)
+        strategies: dict[str, WindowStats] = {}
+        for i in CATALOG:
+            ret = days.filter(pl.col("arm") == i, kept)["ret"].to_numpy()
+            position = sleeves.filter(pl.col("arm") == i, kept)["position"]
+            strategies[i] = {
+                "growth": round(equity[i][-1] / start[i], 6),
+                "exposure": float(position.cast(pl.Float64).mean()),
+                "maxDrawdown": max_drawdown(ret),
+            }
+        records.append(
+            {
+                "range": label,
+                "base": None if base is None else base.isoformat(),
+                "strategies": strategies,
+            }
+        )
+    return records
+
+
+def trades(sleeves: pl.DataFrame, bars: pl.DataFrame) -> dict[str, Trades]:
+    """Each CATALOG strategy's buy and sell dates on one symbol.
+
+    sleeves holds that symbol's evaluate.backtest rows. A switch decided at the close of t
+    trades at the next open, so its date is the bar after t in `bars`.
+    """
+    after = bars.select("date", pl.col("date").shift(-1).alias("trade"))
+    switched = sleeves.filter(pl.col("switch")).join(after, on="date", how="left").sort("date")
+
+    def on(i: str, position: int) -> list[str]:
+        mine = switched.filter(pl.col("arm") == i, pl.col("position") == position)
+        return [d.isoformat() for d in mine["trade"]]
+
+    return {i: {"buy": on(i, 1), "sell": on(i, 0)} for i in CATALOG}

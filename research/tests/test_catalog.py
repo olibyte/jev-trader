@@ -20,15 +20,31 @@ from jevtrader.catalog import (
     reconcile,
     refusals,
     scope_records,
+    trades,
+    windows,
 )
-from jevtrader.evaluate import ARMS, COSTS_BPS, HOLDOUT_PATH, holdout_result, render_json
+from jevtrader.evaluate import (
+    ARMS,
+    COSTS_BPS,
+    HOLDOUT_PATH,
+    backtest,
+    holdout_result,
+    render_json,
+)
 from jevtrader.export import ARENA_PATH
 from jevtrader.states import ALL_STATES, CASH, STUDY, labels, state_key
 
 END = date(2019, 6, 30)
 DAYS = (date(2019, 7, 8) - date(2005, 1, 3)).days + 1
 FILES = sorted(
-    ["catalog.json", "comparisons.json", "manifest.json", *(f"curves/{s}.json" for s in SCOPES)]
+    [
+        "catalog.json",
+        "comparisons.json",
+        "manifest.json",
+        "windows.json",
+        *(f"curves/{s}.json" for s in SCOPES),
+        *(f"funds/{s}.json" for s in STUDY),
+    ]
 )
 
 
@@ -45,7 +61,9 @@ def _oracle(bars: pl.DataFrame) -> pl.Series:
     return labels(bars).select(long.cast(pl.Int8).alias("position")).to_series()
 
 
-ORACLE = Strategy("oracle", 1, "Oracle", "Reads fwd_ret_20.", "None.", "control", _oracle)
+ORACLE = Strategy(
+    "oracle", 1, "Oracle", "Knows the future.", "Reads fwd_ret_20.", "None.", "control", _oracle
+)
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -191,6 +209,87 @@ def test_a_portfolio_verdict_names_the_side_its_simultaneous_interval_favours():
     ]
 
 
+def weekdays(first: date, last: date) -> list[date]:
+    days = (first + timedelta(days=i) for i in range((last - first).days + 1))
+    return [d for d in days if d.weekday() < 5]
+
+
+def test_windows_grow_from_the_last_curve_date_on_or_before_each_cutoff():
+    days = [d for d in weekdays(date(2018, 12, 31), date(2024, 1, 8)) if d != date(2024, 1, 1)]
+    moves = {date(2023, 12, 4): 0.25, date(2023, 12, 11): -0.2, date(2024, 1, 8): -0.1}
+
+    def row(arm: str, symbol: str, day: date) -> tuple[int, float]:
+        match arm:
+            case "buy_hold":
+                return 1, 0.01 if day > date(2023, 12, 20) else 0.0
+            case "golden_cross":
+                return int(symbol == "SPY" or day >= date(2024, 1, 3)), 0.0
+            case "macd_cross":
+                return 1, moves.get(day, 0.0)
+        return 0, 0.0
+
+    rows = [
+        (arm, symbol, day, *row(arm, symbol, day))
+        for arm in CATALOG
+        for symbol in ("SPY", "QQQ")
+        for day in days
+    ]
+    sleeves = pl.DataFrame(
+        rows, schema=["arm", "symbol", "date", "position", "ret"], orient="row"
+    ).with_columns(pl.lit(0.0).alias("r_cash"))
+
+    found = windows(sleeves)
+
+    assert [(w["range"], w["base"]) for w in found] == [
+        ("1W", "2023-12-29"),
+        ("1M", "2023-12-08"),
+        ("3M", "2023-10-06"),
+        ("1Y", "2023-01-06"),
+        ("5Y", "2019-01-08"),
+        ("All", None),
+    ]
+    figures = {
+        w["range"]: {i: tuple(s.values()) for i, s in w["strategies"].items()} for w in found
+    }
+    assert figures["1W"] == {
+        "buy_hold": (1.05101, 1.0, 0.0),
+        "golden_cross": (1.0, 0.9, 0.0),
+        "macd_cross": (0.9, 1.0, pytest.approx(0.1)),
+        "bollinger_bounce": (1.0, 0.0, 0.0),
+    }
+    assert figures["1M"] == {
+        "buy_hold": (1.126825, 1.0, 0.0),
+        "golden_cross": (1.0, 0.6, 0.0),
+        "macd_cross": (0.72, 1.0, pytest.approx(0.28)),
+        "bollinger_bounce": (1.0, 0.0, 0.0),
+    }
+    assert figures["All"]["macd_cross"] == (0.9, 1.0, pytest.approx(0.28))
+    assert figures["All"]["buy_hold"] == figures["3M"]["buy_hold"] == (1.126825, 1.0, 0.0)
+
+
+def test_a_trade_falls_on_the_bar_after_the_decision():
+    days = weekdays(date(2024, 1, 2), date(2024, 1, 9))
+    bars = pl.DataFrame({"date": days})
+    positions = {"buy_hold": [1, 1, 1, 1], "golden_cross": [0, 1, 0, 1]}
+    made = pl.DataFrame(
+        [
+            (i, "SPY", day, p)
+            for i in CATALOG
+            for day, p in zip(days[:4], positions.get(i, [0] * 4), strict=True)
+        ],
+        schema=["arm", "symbol", "date", "position"],
+        orient="row",
+    )
+    returns = pl.DataFrame({"symbol": "SPY", "date": days[:4], "r": 0.0, "r_cash": 0.0})
+
+    assert trades(backtest(made, returns, 5), bars) == {
+        "buy_hold": {"buy": ["2024-01-03"], "sell": []},
+        "golden_cross": {"buy": ["2024-01-04", "2024-01-08"], "sell": ["2024-01-05"]},
+        "macd_cross": {"buy": [], "sell": []},
+        "bollinger_bounce": {"buy": [], "sell": []},
+    }
+
+
 @pytest.fixture(scope="module")
 def template(tmp_path_factory):
     root = tmp_path_factory.mktemp("template")
@@ -325,3 +424,57 @@ def test_arena_refuses_a_changed_rule_and_a_dropped_strategy(arena, capsys):
     )
     assert captured.out == ""
     assert snapshot(repo) == before
+
+
+def test_the_arena_windows_and_funds_agree_with_the_curves_and_comparisons(arena):
+    repo, data = arena / "repo", arena / "data"
+    assert cli.main(["arena"]) == 0
+
+    def read(path: str) -> dict:
+        return json.loads((repo / ARENA_PATH / path).read_text())
+
+    windows_file, portfolio = read("windows.json"), read("curves/portfolio.json")
+    curve = portfolio["periods"]["backtest"]
+
+    assert (windows_file["scope"], windows_file["last"]) == ("portfolio", "2019-07-06")
+    assert [(w["range"], w["base"]) for w in windows_file["windows"]] == [
+        ("1W", "2019-06-29"),
+        ("1M", "2019-06-06"),
+        ("3M", "2019-04-06"),
+        ("1Y", "2018-07-06"),
+        ("5Y", "2014-07-06"),
+        ("All", None),
+    ]
+    whole = windows_file["windows"][-1]["strategies"]
+    rows = read("comparisons.json")["strategies"]
+    for i in CATALOG:
+        (row,) = (r for r in rows if r["id"] == i and r["scope"] == "portfolio")
+        assert whole[i] == {
+            "growth": curve["equity"][i][-1],
+            "exposure": row["exposure"],
+            "maxDrawdown": row["maxDrawdown"],
+        }
+    year = windows_file["windows"][3]["strategies"]["buy_hold"]["growth"]
+    at = curve["date"].index("2018-07-06")
+    assert year == pytest.approx(curve["equity"]["buy_hold"][-1] / curve["equity"]["buy_hold"][at])
+
+    spy = read("funds/SPY.json")
+    bars = pl.read_parquet(data / "market" / "SPY.parquet").filter(
+        pl.col("date") >= date(2008, 1, 1)
+    )
+    assert spy["symbol"] == "SPY"
+    assert (spy["date"][0], spy["date"][-1], len(spy["date"])) == (
+        "2008-01-01",
+        "2019-07-08",
+        bars.height,
+    )
+    assert spy["close"][0] == round(bars["close"][0], 4)
+    assert spy["trades"]["buy_hold"] == {"buy": ["2008-01-02"], "sell": []}
+    for symbol in STUDY:
+        fund = read(f"funds/{symbol}.json")
+        assert list(fund["trades"]) == list(CATALOG)
+        for i, side in fund["trades"].items():
+            assert set(side["buy"] + side["sell"]) <= set(fund["date"]), (symbol, i)
+            marked = sorted([(d, "buy") for d in side["buy"]] + [(d, "sell") for d in side["sell"]])
+            sides = [s for _, s in marked]
+            assert sides == [("buy", "sell")[k % 2] for k in range(len(sides))], (symbol, i)
