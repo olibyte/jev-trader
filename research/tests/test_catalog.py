@@ -19,8 +19,9 @@ from jevtrader.catalog import (
     random_walk,
     reconcile,
     refusals,
+    scope_records,
 )
-from jevtrader.evaluate import ARMS, HOLDOUT_PATH, holdout_result, render_json
+from jevtrader.evaluate import ARMS, COSTS_BPS, HOLDOUT_PATH, holdout_result, render_json
 from jevtrader.export import ARENA_PATH
 from jevtrader.states import ALL_STATES, CASH, STUDY, labels, state_key
 
@@ -158,6 +159,37 @@ def test_critical_value_scales_each_pair_by_its_spread_around_its_point():
     points = np.array([2.0, 1.0])
 
     assert critical_value(draws, points) == pytest.approx(1 + 0.9 * (3**0.5 - 1))
+
+
+def test_a_portfolio_verdict_names_the_side_its_simultaneous_interval_favours():
+    rng = np.random.default_rng(0)
+    days = [date(2008, 1, 1) + timedelta(days=i) for i in range(400)]
+    edge = {"buy_hold": 0.004, "golden_cross": 0.0, "macd_cross": 0.0, "bollinger_bounce": 0.004}
+    rows = pl.concat(
+        pl.DataFrame(
+            {
+                "arm": arm,
+                "symbol": "SPY",
+                "date": days,
+                "ret": 0.0001 + mean + rng.normal(0, 0.01, len(days)),
+                "r_cash": 0.0001,
+                "position": pl.Series([1] * len(days), dtype=pl.Int8),
+                "switch": False,
+            }
+        )
+        for arm, mean in edge.items()
+    )
+
+    pairs = scope_records({bps: rows for bps in COSTS_BPS}, "portfolio").pairs
+
+    assert [(p["a"], p["b"], p["verdict"]) for p in pairs] == [
+        ("buy_hold", "golden_cross", "a_ahead"),
+        ("buy_hold", "macd_cross", "a_ahead"),
+        ("buy_hold", "bollinger_bounce", "no_difference"),
+        ("golden_cross", "macd_cross", "no_difference"),
+        ("golden_cross", "bollinger_bounce", "b_ahead"),
+        ("macd_cross", "bollinger_bounce", "b_ahead"),
+    ]
 
 
 @pytest.fixture(scope="module")
