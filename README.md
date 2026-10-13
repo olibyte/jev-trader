@@ -1,11 +1,11 @@
 # jev-trader
 
-A trade arena where you pick two well-known trading strategies, run them on the same ETFs with the same costs, and see whether you can tell them apart. It grew out of a finished study of Jev, TypeSafe AI's decision model, against technical-analysis rules.
+A trade arena where you pick two famous trading strategies and see, in plain words, what $1,000 became in each on the same 13 US stock funds. It is a proof of concept. It grew out of a finished study of Jev, TypeSafe AI's decision model, against technical-analysis rules.
 
-- [Product spec](docs/product-spec.md) explains the question, the audience, and the honesty rules for the public site.
+- [Product spec](docs/product-spec.md) explains the first screen, the audience, and the rules for plain, honest copy.
 - [Implementation plan](docs/implementation-plan.md) lists the architecture, data shapes, methods, milestones, and decision log.
-- [Arena synthesis](docs/arena/2026-10-13-trade-arena/synthesis.md) records the candidate concepts behind the arena design.
+- [First-screen synthesis](docs/arena/2026-10-14-first-screen/synthesis.md) records how the "Pick two" screen was chosen.
 
-`research/` computes the study and `jt export` writes `export/v1/`. `web/` is a static Next.js site that reads only those files. Today it lands on the Jev study's pre-registered holdout result. The arena milestones in the plan move that result to `/studies/jev/` and make the matchup the home page.
+`research/` computes the results. `jt export` writes `export/v1/` for the Jev study, and `jt arena` writes `export/arena/v1/` for the arena. `web/` is a static Next.js site that reads only those files. Today it lands on the Jev study's pre-registered holdout result, and the "Pick two" prototype is at `/preview/`. Milestone 8 in the plan makes "Pick two" the home page and moves the study to `/studies/jev/`.
 
 Both documents change as the research progresses.
