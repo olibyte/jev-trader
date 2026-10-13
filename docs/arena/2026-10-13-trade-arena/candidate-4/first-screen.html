@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade arena mock</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1c1d1f; --muted: #62656b; --line: #e2e2de;
+  --a: #2f6fdb; --b: #c2571a; --ok: #1f7a4d; --warn: #9a6a00; --chip: #eef1f6; --mock: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #121315; --panel: #1b1d20; --ink: #ececec; --muted: #9da1a8; --line: #2c2f34;
+    --a: #6b9cf0; --b: #e58a52; --ok: #4fbf8a; --warn: #e0b04a; --chip: #23272d; --mock: #f2726a; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+header { display: flex; align-items: center; gap: 16px; padding: 16px 0; flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 18px; }
+nav { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a[aria-current] { color: var(--ink); font-weight: 600; }
+.mock { margin-left: auto; background: var(--mock); color: #fff; font-weight: 700; font-size: 12px;
+  letter-spacing: .04em; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; }
+h1 { font-size: 26px; line-height: 1.25; margin: 8px 0 4px; }
+.lede { color: var(--muted); margin: 0 0 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.picks { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; }
+.picks label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.picks select { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.vs { font-weight: 700; color: var(--muted); padding-bottom: 8px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.tag { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; min-height: 18px; }
+.tabs { display: flex; gap: 6px; margin: 16px 0 6px; flex-wrap: wrap; }
+.tabs button { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--chip); color: var(--ink); border-color: var(--muted); font-weight: 600; }
+.period { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; margin-top: 4px; }
+svg { width: 100%; height: auto; display: block; }
+.axis { stroke: var(--line); }
+.axislbl { fill: var(--muted); font-size: 11px; }
+.verdict-word { font-size: 28px; font-weight: 750; margin: 0; }
+.verdict-word.tie { color: var(--warn); }
+.verdict-word.win { color: var(--ok); }
+.plain { margin: 4px 0 12px; }
+.facts { margin: 0; display: grid; gap: 8px; font-size: 14px; }
+.facts div { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+.strip { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  margin-top: 16px; padding: 14px 18px; }
+.strip p { margin: 0; font-size: 14px; }
+.cta { font: inherit; font-weight: 650; background: var(--ink); color: var(--bg); border: 0;
+  padding: 10px 18px; border-radius: 10px; cursor: pointer; }
+footer { color: var(--muted); font-size: 12px; padding: 20px 0 32px; }
+footer p { margin: 2px 0; }
+@media (max-width: 720px) {
+  .grid { grid-template-columns: 1fr; }
+  .picks { grid-template-columns: 1fr; }
+  .vs { padding: 0; text-align: center; }
+  h1 { font-size: 22px; }
+  .strip { flex-direction: column; align-items: stretch; }
+  .cta { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="brand">Trade arena</span>
+    <nav aria-label="Main">
+      <a href="#" aria-current="page">Matchups</a>
+      <a href="#">Strategies</a>
+      <a href="#">Seal log</a>
+      <a href="#">Studies: Jev</a>
+    </nav>
+    <span class="mock" title="Every number on this page is invented">Mock data</span>
+  </header>
+
+  <h1>Pick two strategies. See if one really beats the other.</h1>
+  <p class="lede">Each strategy was written down and sealed before it saw the test years. Most pairs can't be told apart, and that is a real answer.</p>
+
+  <section class="card" aria-label="Matchup">
+    <div class="picks">
+      <div>
+        <label for="pickA"><span class="swatch" style="background:var(--a)"></span>Strategy A</label>
+        <select id="pickA"></select>
+        <span class="tag" id="tagA"></span>
+      </div>
+      <div class="vs">vs</div>
+      <div>
+        <label for="pickB"><span class="swatch" style="background:var(--b)"></span>Strategy B</label>
+        <select id="pickB"></select>
+        <span class="tag" id="tagB"></span>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Window">
+      <button role="tab" data-w="dev" aria-selected="false">Development</button>
+      <button role="tab" data-w="sealed" aria-selected="true">Sealed test</button>
+      <button role="tab" data-w="live" aria-selected="false">Live</button>
+    </div>
+    <p class="period" id="period"></p>
+
+    <div class="grid">
+      <div>
+        <svg id="chart" viewBox="0 0 600 300" role="img" aria-label="Growth of 1 dollar for both strategies"></svg>
+      </div>
+      <div>
+        <p class="verdict-word tie" id="verdict">Can't tell apart</p>
+        <p class="plain" id="plain"></p>
+        <svg id="ci" viewBox="0 0 300 64" role="img" aria-label="95% CI of the difference"></svg>
+        <dl class="facts">
+          <div><dt>Excess Sharpe difference, A minus B</dt><dd id="diff"></dd></div>
+          <div><dt>95% CI</dt><dd id="cirange"></dd></div>
+          <div><dt>Independent observations</dt><dd id="blocks"></dd></div>
+          <div><dt>Smallest difference this window can detect</dt><dd id="mde"></dd></div>
+          <div><dt>Bar for "ahead" after 14 seals</dt><dd id="bar"></dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="card strip" aria-label="Arena status">
+    <p><strong>14 strategies sealed.</strong> The best of 14 random strategies would show +0.08 Sharpe by luck alone.</p>
+    <button class="cta" type="button">Build your own</button>
+  </section>
+
+  <footer>
+    <p>Research, not investment advice. Nothing here is a recommendation to buy or sell any security.</p>
+    <p>Backtests are hypothetical, include modeled trading costs only, and do not predict future returns.</p>
+    <p>All 13 ETFs, equal weight, long or flat, 5 bps per switch. Mock data: every number above is invented.</p>
+  </footer>
+</div>
+
+<script>
+const STRATS = [
+  { id: "boll", name: "Bollinger bounce", tag: "Rule, sealed 2026-10-20", s: 0.38 },
+  { id: "hold", name: "Always long", tag: "Pre-registered baseline", s: 0.52 },
+  { id: "macd", name: "MACD rising", tag: "Rule, sealed 2026-10-20", s: 0.21 },
+  { id: "trend", name: "200-day trend filter", tag: "Rule, sealed 2026-10-20", s: 0.47 },
+  { id: "sma", name: "50/200 average filter", tag: "Pre-registered arm", s: 0.44 },
+  { id: "jev", name: "Jev (frozen rulebook)", tag: "Study result: inconclusive, AUC diff -0.012", s: 0.29 },
+  { id: "table", name: "History table (ML)", tag: "Pre-registered arm", s: 0.41 },
+];
+const WINDOWS = {
+  dev: { label: "Development", dates: "2008-01-02 to 2018-12-31", n: 2768, blocks: 139, mde: 0.41,
+         note: "In-sample. Rules were tuned here, so these numbers prove nothing alone." },
+  sealed: { label: "Sealed test", dates: "2019-01-02 to 2026-10-09", n: 1954, blocks: 98, mde: 0.61,
+            note: "Each strategy saw these years only after it was sealed." },
+  live: { label: "Live", dates: "since each seal, 2026-10-20 to 2026-11-06", n: 13, blocks: 1, mde: null,
+          note: "Too short for a verdict. Live grows by one session each trading day." },
+};
+let win = "sealed";
+const $ = (id) => document.getElementById(id);
+const fmt = (x) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(2);
+
+function rng(seed) { let t = seed >>> 0; return () => { t += 0x6d2b79f5; let r = Math.imul(t ^ (t >>> 15), 1 | t);
+  r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; }; }
+function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h; }
+
+function curves(a, b) {
+  const W = WINDOWS[win], r = rng(hash(win)), n = Math.min(W.n, 400);
+  const out = [[1], [1]];
+  for (let i = 1; i < n; i++) {
+    const m = (r() - 0.5) * 0.024;
+    out[0].push(out[0][i - 1] * (1 + m * 0.9 + a.s / 2500 + (rng(i * 7 + hash(a.id))() - 0.5) * 0.006));
+    out[1].push(out[1][i - 1] * (1 + m + b.s / 2500 + (rng(i * 7 + hash(b.id))() - 0.5) * 0.006));
+  }
+  return out;
+}
+
+function drawChart(cs) {
+  const svg = $("chart"), w = 600, h = 300, p = { l: 44, r: 10, t: 12, b: 26 };
+  const all = cs.flat(), lo = Math.min(...all), hi = Math.max(...all);
+  const x = (i) => p.l + (i / (cs[0].length - 1)) * (w - p.l - p.r);
+  const y = (v) => p.t + (1 - (v - lo) / (hi - lo || 1)) * (h - p.t - p.b);
+  let g = "";
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (k / 4) * (hi - lo);
+    g += `<line class="axis" x1="${p.l}" x2="${w - p.r}" y1="${y(v)}" y2="${y(v)}"/>`;
+    g += `<text class="axislbl" x="${p.l - 6}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(2)}</text>`;
+  }
+  const W = WINDOWS[win], ends = W.dates.match(/\d{4}-\d{2}-\d{2}/g);
+  g += `<text class="axislbl" x="${p.l}" y="${h - 6}">${ends[0]}</text>`;
+  g += `<text class="axislbl" x="${w - p.r}" y="${h - 6}" text-anchor="end">${ends[1]}</text>`;
+  ["--a", "--b"].forEach((c, j) => {
+    const d = cs[j].map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    g += `<path d="${d}" fill="none" stroke="var(${c})" stroke-width="2"/>`;
+  });
+  g += `<text class="axislbl" x="${p.l + 4}" y="${p.t + 10}">Growth of $1, net of 5 bps per switch</text>`;
+  svg.innerHTML = g;
+}
+
+function drawCi(point, lo, hi, bar) {
+  const svg = $("ci"), x = (v) => 150 + v * 110;
+  let g = `<line class="axis" x1="10" x2="290" y1="34" y2="34"/>`;
+  g += `<line x1="${x(0)}" x2="${x(0)}" y1="14" y2="54" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+  g += `<text class="axislbl" x="${x(0)}" y="10" text-anchor="middle">0</text>`;
+  if (bar != null) {
+    g += `<line x1="${x(bar)}" x2="${x(bar)}" y1="18" y2="50" stroke="var(--warn)"/>`;
+    g += `<text class="axislbl" x="${Math.min(x(bar) + 4, 250)}" y="60">"ahead" bar</text>`;
+  }
+  g += `<line x1="${x(lo)}" x2="${x(hi)}" y1="34" y2="34" stroke="var(--ink)" stroke-width="3"/>`;
+  g += `<circle cx="${x(point)}" cy="34" r="5" fill="var(--ink)"/>`;
+  svg.innerHTML = g;
+}
+
+function render() {
+  const a = STRATS.find((s) => s.id === $("pickA").value), b = STRATS.find((s) => s.id === $("pickB").value);
+  $("tagA").textContent = a.tag; $("tagB").textContent = b.tag;
+  const W = WINDOWS[win];
+  $("period").textContent = `${W.label}: ${W.dates}. ${W.note}`;
+  drawChart(curves(a, b));
+  const v = $("verdict");
+  if (win === "live") {
+    v.textContent = "Too early"; v.className = "verdict-word tie";
+    $("plain").textContent = "Live has 13 sessions, under one 20-session block. A verdict needs years.";
+    ["diff", "cirange", "mde", "bar"].forEach((id) => ($(id).textContent = "not shown"));
+    $("blocks").textContent = "under 1 block";
+    $("ci").innerHTML = "";
+    return;
+  }
+  const d = a.s - b.s + (win === "dev" ? 0.06 : 0), half = W.mde * 0.7, se = half / 1.96;
+  const bar = 3.19 * se; // z for 1 - 0.05/14, two-sided
+  const lo = d - half, hi = d + half, ahead = d - bar > 0 || d + bar < 0;
+  v.textContent = ahead ? (d > 0 ? "A ahead" : "B ahead") : "Can't tell apart";
+  v.className = "verdict-word " + (ahead ? "win" : "tie");
+  $("plain").textContent = ahead
+    ? "The gap clears the bar set for 14 sealed strategies."
+    : `The gap of ${fmt(d)} is smaller than this window can reliably detect, so either could be ahead.`;
+  $("diff").textContent = fmt(d);
+  $("cirange").textContent = `${fmt(lo)} to ${fmt(hi)}`;
+  $("blocks").textContent = `${W.blocks} blocks of 20 sessions`;
+  $("mde").textContent = W.mde.toFixed(2);
+  $("bar").textContent = `beyond ±${bar.toFixed(2)}`;
+  drawCi(d, lo, hi, d >= 0 ? bar : -bar);
+}
+
+for (const id of ["pickA", "pickB"]) {
+  const sel = $(id);
+  STRATS.forEach((s) => sel.add(new Option(s.name, s.id)));
+  sel.addEventListener("change", render);
+}
+$("pickA").value = "boll"; $("pickB").value = "hold";
+document.querySelectorAll(".tabs button").forEach((btn) => btn.addEventListener("click", () => {
+  win = btn.dataset.w;
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b === btn)));
+  render();
+}));
+render();
+</script>
+</body>
+</html>

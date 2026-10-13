@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trade Arena mock</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1220; --panel: #111a2b; --raised: #16223a; --border: #24314d;
+  --text: #e6edf7; --muted: #a3b1c8; --a: #6ea8ff; --b: #f5a65b; --hold: #6b7a94;
+  --warn: #fbbf24; --radius: 10px;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--sans); overflow-wrap: anywhere; }
+header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brand { font-weight: 700; }
+nav { display: flex; gap: 16px; font-size: 14px; color: var(--muted); }
+nav a { color: inherit; text-decoration: none; }
+nav a[aria-current] { color: var(--text); }
+.mock { margin-left: auto; background: var(--warn); color: #1a1300; font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 999px; letter-spacing: .04em; }
+main { max-width: 1080px; margin: 0 auto; padding: 20px 24px 8px; display: grid; gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.matchup { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; }
+.side { background: var(--raised); border-radius: 8px; padding: 12px; border-left: 4px solid var(--a); }
+.side.b { border-left-color: var(--b); }
+.side select { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font: inherit; }
+.params { font: 13px var(--mono); color: var(--muted); margin: 6px 0; }
+.vs { align-self: center; color: var(--muted); font-weight: 700; }
+button { font: inherit; font-size: 14px; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+.drawer { display: none; margin-top: 8px; font-size: 13px; }
+.drawer.open { display: grid; gap: 6px; }
+.drawer label { display: grid; grid-template-columns: 70px 1fr 40px; gap: 6px; align-items: center; }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 12px; }
+.seg button[aria-pressed="true"] { background: var(--raised); color: var(--text); font-weight: 600; }
+.seg button:disabled { color: #56627a; cursor: not-allowed; }
+.small { font-size: 13px; color: var(--muted); }
+.badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
+.verdict h1 { margin: 0 0 4px; font-size: 32px; }
+.figure { font: 15px var(--mono); }
+svg { display: block; width: 100%; height: auto; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.stats table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.stats th { text-align: left; font-weight: 500; color: var(--muted); padding: 3px 0; }
+.stats td { text-align: right; font-family: var(--mono); padding: 3px 0; }
+.stats caption { text-align: left; font-weight: 600; padding-bottom: 4px; }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.prov { display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.prov code { font-family: var(--mono); color: var(--text); }
+.jev { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+footer { max-width: 1080px; margin: 0 auto; padding: 8px 24px 24px; font-size: 13px; color: var(--muted); }
+footer p { margin: 4px 0; }
+@media (max-width: 720px) {
+  header, main, footer { padding-left: 16px; padding-right: 16px; }
+  .matchup { grid-template-columns: 1fr; }
+  .vs { justify-self: center; }
+  .grid2, .stats { grid-template-columns: 1fr; }
+  .verdict h1 { font-size: 26px; }
+  .mock { margin-left: 0; }
+  nav { flex-wrap: wrap; gap: 4px 12px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; }
+  .seg button { padding: 6px 4px; font-size: 13px; }
+  .stats td { white-space: normal; }
+}
+.matchup > *, .grid2 > *, .stats > * { min-width: 0; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Trade Arena</span>
+  <nav aria-label="Main">
+    <a href="#" aria-current="page">Arena</a><a href="#">Catalog</a><a href="#">How it works</a><a href="#">Studies: Jev</a>
+  </nav>
+  <span class="mock" role="note">MOCK DATA</span>
+</header>
+
+<main>
+  <section class="panel" aria-label="Matchup">
+    <div class="matchup">
+      <div class="side a">
+        <select aria-label="Strategy A"><option>Bollinger bounce</option><option>MACD crossover</option><option>SMA filter</option><option>Hammer candlestick</option><option>History table (ML)</option><option>Jev (frozen rulebook)</option></select>
+        <div class="params" id="paramsA">window 20 · k 2.0</div>
+        <button type="button" data-drawer="drawerA" aria-expanded="false">Adjust</button>
+        <div class="drawer" id="drawerA">
+          <label>window <input type="range" min="0" max="8" value="2" data-p="A" data-name="window" data-steps="10,15,20,25,30,40,50,60,80"><span>20</span></label>
+          <label>k <input type="range" min="0" max="6" value="3" data-p="A" data-name="k" data-steps="1.0,1.5,1.75,2.0,2.25,2.5,3.0"><span>2.0</span></label>
+          <span class="small">Fixed steps only. Each new setting counts as a try.</span>
+        </div>
+      </div>
+      <span class="vs">vs</span>
+      <div class="side b">
+        <select aria-label="Strategy B"><option>MACD crossover</option><option>Bollinger bounce</option><option>SMA filter</option><option>Hammer candlestick</option><option>History table (ML)</option><option>Jev (frozen rulebook)</option></select>
+        <div class="params" id="paramsB">fast 12 · slow 26 · signal 9</div>
+        <button type="button" data-drawer="drawerB" aria-expanded="false">Adjust</button>
+        <div class="drawer" id="drawerB">
+          <label>fast <input type="range" min="0" max="4" value="2" data-p="B" data-name="fast" data-steps="8,10,12,15,20"><span>12</span></label>
+          <label>slow <input type="range" min="0" max="4" value="2" data-p="B" data-name="slow" data-steps="20,24,26,30,40"><span>26</span></label>
+          <span class="small">Fixed steps only. Each new setting counts as a try.</span>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span class="small">Universe</span><span class="badge">13 ETFs, equal weight</span>
+      <span class="small">Period</span>
+      <div class="seg" role="group" aria-label="Period">
+        <button type="button" data-period="development" aria-pressed="false">Development 2008 to 2018</button>
+        <button type="button" data-period="holdout" aria-pressed="true">Holdout 2019 to 2026</button>
+        <button type="button" disabled title="No bars after 2026-10-09 yet">Live</button>
+      </div>
+      <span class="badge" id="periodBadge">holdout, not pre-registered</span>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel verdict" aria-labelledby="verdict">
+      <p class="small" style="margin:0">Which earned more over cash per unit of risk?</p>
+      <h1 id="verdict">No clear winner</h1>
+      <p class="figure" style="margin:4px 0">Sharpe difference A − B: <strong id="diff">0.09</strong><br><span id="ci">95% CI −0.52 to 0.71</span>, <span id="blocks">98</span> blocks of 20 sessions</p>
+      <svg viewBox="0 0 400 60" role="img" aria-label="Confidence interval of the Sharpe difference">
+        <line x1="20" x2="380" y1="30" y2="30" stroke="#24314d" stroke-width="2"/>
+        <line id="zero" x1="200" x2="200" y1="10" y2="50" stroke="#a3b1c8" stroke-dasharray="3 3"/>
+        <text x="200" y="58" fill="#a3b1c8" font-size="10" text-anchor="middle">0</text>
+        <rect id="ciBar" x="140" y="24" width="125" height="12" rx="6" fill="#6ea8ff" opacity=".35"/>
+        <circle id="ciPt" cx="209" cy="30" r="6" fill="#e6edf7"/>
+      </svg>
+      <p class="small" id="explain">The interval includes zero, so this period cannot tell the two apart. Tries this session: 1, so the interval is a plain 95% CI.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="eq">
+      <div class="row" style="justify-content:space-between"><strong id="eq">Growth of $1, net of 5 bps costs</strong>
+        <span class="small"><span class="key" style="background:var(--a)"></span>A <span class="key" style="background:var(--b);margin-left:8px"></span>B <span class="key" style="background:var(--hold);margin-left:8px"></span>Always long (buy_hold)</span></div>
+      <svg id="chart" viewBox="0 0 400 200" role="img" aria-label="Equity curves, mock data"></svg>
+    </section>
+  </div>
+
+  <section class="panel stats" aria-label="Per-strategy figures">
+    <table><caption><span class="key" style="background:var(--a)"></span>A: Bollinger bounce</caption>
+      <tr><th>Excess Sharpe (95% CI)</th><td id="sA">0.48 (−0.09 to 1.15)</td></tr>
+      <tr><th>Max drawdown</th><td>21.4%</td></tr><tr><th>Switches per year</th><td>9.8</td></tr><tr><th>Time long</th><td>31.0%</td></tr></table>
+    <table><caption><span class="key" style="background:var(--b)"></span>B: MACD crossover</caption>
+      <tr><th>Excess Sharpe (95% CI)</th><td id="sB">0.39 (−0.30 to 1.08)</td></tr>
+      <tr><th>Max drawdown</th><td>18.7%</td></tr><tr><th>Switches per year</th><td>14.2</td></tr><tr><th>Time long</th><td>52.3%</td></tr></table>
+  </section>
+
+  <section class="panel jev" aria-label="Jev contestant">
+    <span><strong>Jev is in the arena too.</strong> <span class="small">Its frozen rulebook, long when P(higher in 20 trading days) &gt; 0.5. Pre-registered study result: inconclusive.</span></span>
+    <button type="button">Put Jev in slot B</button>
+  </section>
+
+  <div class="prov" aria-label="Provenance">
+    <span>Computed in your browser</span>
+    <span>engine <code>e3f1a2c</code></span>
+    <span>spec A <code id="hashA">9b04…c1</code></span>
+    <span>bars <code>51d7…8e</code></span>
+    <span>tries this session: <code id="tries">1</code></span>
+    <span>A ranks <code id="rank">14 of 25</code> nearby settings</span>
+    <span><a href="#" style="color:var(--a)">Build your own</a></span>
+  </div>
+</main>
+
+<footer>
+  <p>Research, not investment advice. Nothing here is a recommendation to buy or sell any security.</p>
+  <p>Backtests are hypothetical, include modeled trading costs only, and do not predict future returns.</p>
+  <p>Every number on this page is invented for a layout mock.</p>
+</footer>
+
+<script>
+(() => {
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const gauss = () => { let s = 0; for (let i = 0; i < 6; i++) s += rnd(); return s - 3; };
+  const curve = (mu, sd, n) => { let v = 1; const out = [1]; for (let i = 1; i < n; i++) { v *= 1 + mu + sd * gauss() * 0.4; out.push(v); } return out; };
+  function draw(period) {
+    seed = period === "holdout" ? 7 : 11;
+    const n = 160, sets = [[curve(0.0022, 0.02, n), "#6ea8ff"], [curve(0.0018, 0.022, n), "#f5a65b"], [curve(0.0028, 0.03, n), "#6b7a94"]];
+    const all = sets.flatMap((s) => s[0]), lo = Math.min(...all), hi = Math.max(...all);
+    const x = (i) => 30 + (i / (n - 1)) * 360, y = (v) => 180 - ((v - lo) / (hi - lo)) * 160;
+    let svg = `<line x1="30" x2="390" y1="${y(1)}" y2="${y(1)}" stroke="#24314d"/><text x="2" y="${y(1) + 4}" fill="#a3b1c8" font-size="10">$1</text>`;
+    const [l, r] = period === "holdout" ? ["2019", "2026"] : ["2008", "2018"];
+    svg += `<text x="30" y="198" fill="#a3b1c8" font-size="10">${l}</text><text x="390" y="198" fill="#a3b1c8" font-size="10" text-anchor="end">${r}</text>`;
+    sets.slice().reverse().forEach(([c, col], k) => {
+      svg += `<polyline fill="none" stroke="${col}" stroke-width="${k === 0 ? 1.5 : 2}" ${k === 0 ? 'stroke-dasharray="4 3"' : ""} points="${c.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}"/>`;
+    });
+    document.getElementById("chart").innerHTML = svg;
+  }
+  const P = {
+    holdout: { diff: 0.09, lo: -0.52, hi: 0.71, blocks: 98, badge: "holdout, not pre-registered", a: "0.48 (−0.09 to 1.15)", b: "0.39 (−0.30 to 1.08)" },
+    development: { diff: 0.14, lo: -0.38, hi: 0.66, blocks: 139, badge: "development: tune here", a: "0.55 (0.02 to 1.10)", b: "0.41 (−0.12 to 0.95)" },
+  };
+  const fmt = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
+  let period = "holdout";
+  const tries = { holdout: new Set(["A:20,2.0"]), development: new Set() };
+  const state = { A: { window: "20", k: "2.0" }, B: { fast: "12", slow: "26" } };
+  function render() {
+    const p = P[period], n = Math.max(1, tries[period].size);
+    const widen = 1 + 0.18 * Math.log(n);
+    const lo = p.diff - (p.diff - p.lo) * widen, hi = p.diff + (p.hi - p.diff) * widen;
+    const level = n === 1 ? "95%" : `${(100 - 5 / n).toFixed(n > 10 ? 2 : 1)}% (Bonferroni, ${n} tries)`;
+    document.getElementById("diff").textContent = fmt(p.diff);
+    document.getElementById("ci").textContent = `${level} CI ${fmt(lo)} to ${fmt(hi)}`;
+    document.getElementById("blocks").textContent = p.blocks;
+    document.getElementById("periodBadge").textContent = p.badge;
+    document.getElementById("sA").textContent = p.a;
+    document.getElementById("sB").textContent = p.b;
+    document.getElementById("tries").textContent = n;
+    document.getElementById("rank").textContent = `${8 + (n * 3) % 15} of 25`;
+    const sx = (v) => 200 + v * 120;
+    const bar = document.getElementById("ciBar");
+    bar.setAttribute("x", sx(lo)); bar.setAttribute("width", sx(hi) - sx(lo));
+    document.getElementById("ciPt").setAttribute("cx", sx(p.diff));
+    const verdict = n > 50 ? "Too many tries to call" : lo > 0 ? "A better" : hi < 0 ? "B better" : "No clear winner";
+    document.getElementById("verdict").textContent = verdict;
+    document.getElementById("explain").textContent = n === 1
+      ? "The interval includes zero, so this period cannot tell the two apart. Tries this session: 1, so the interval is a plain 95% CI."
+      : `You have tried ${n} settings on this period, so the interval widens to keep the overall error rate at 5%. It still includes zero.`;
+    document.getElementById("hashA").textContent = (state.A.window + state.A.k).split("").map((c) => c.charCodeAt(0).toString(16)).join("").slice(0, 4) + "…" + state.A.window.slice(-1) + "c";
+    draw(period);
+  }
+  document.querySelectorAll("[data-period]").forEach((b) => b.addEventListener("click", () => {
+    period = b.dataset.period;
+    if (!tries[period].size) tries[period].add("A:" + state.A.window + "," + state.A.k);
+    document.querySelectorAll("[data-period]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    render();
+  }));
+  document.querySelectorAll("[data-drawer]").forEach((b) => b.addEventListener("click", () => {
+    const d = document.getElementById(b.dataset.drawer), open = d.classList.toggle("open");
+    b.setAttribute("aria-expanded", String(open));
+  }));
+  document.querySelectorAll("input[type=range]").forEach((r) => r.addEventListener("input", () => {
+    const v = r.dataset.steps.split(",")[r.value], side = r.dataset.p;
+    r.nextElementSibling.textContent = v;
+    state[side][r.dataset.name] = v;
+    document.getElementById("params" + side).textContent = side === "A" ? `window ${state.A.window} · k ${state.A.k}` : `fast ${state.B.fast} · slow ${state.B.slow} · signal 9`;
+    tries[period].add(side + ":" + Object.values(state[side]).join(","));
+    render();
+  }));
+  render();
+})();
+</script>
+</body>
+</html>
