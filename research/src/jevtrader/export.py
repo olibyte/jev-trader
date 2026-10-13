@@ -15,6 +15,7 @@ import polars as pl
 
 from jevtrader.catalog import (
     BACKTEST_END,
+    BACKTEST_START,
     CATALOG,
     CATALOG_VERSION,
     HOLDOUT_ARMS,
@@ -22,6 +23,8 @@ from jevtrader.catalog import (
     CatalogEntry,
     entry,
     scope_records,
+    trades,
+    windows,
 )
 from jevtrader.catalog import decisions as arena_decisions
 from jevtrader.data import REPO_ROOT, atomic_write, forward_return
@@ -553,9 +556,31 @@ def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
             )
             for scope, result in scopes.items()
         },
+        "windows.json": _indented(
+            {
+                "scope": "portfolio",
+                "last": span[1].isoformat(),
+                "windows": windows(sleeves[COST_BPS]),
+            }
+        ),
+        **{
+            f"funds/{s}.json": _compact(fund(s, inputs.market[s], sleeves[COST_BPS])) for s in STUDY
+        },
     }
     files["manifest.json"] = _indented(arena_manifest(inputs, span, files))
     return files
+
+
+def fund(name: str, bars: pl.DataFrame, sleeves: pl.DataFrame) -> dict:
+    """funds/{name}.json: the bars from BACKTEST_START through BACKTEST_END and each strategy's
+    trades on them."""
+    bars = bars.filter(pl.col("date").is_between(BACKTEST_START, BACKTEST_END))
+    return {
+        "symbol": name,
+        "date": _dates(bars["date"]),
+        **{c: _rounded(bars[c], 4) for c in ("open", "high", "low", "close")},
+        "trades": trades(sleeves.filter(pl.col("symbol") == name), bars),
+    }
 
 
 def arena_manifest(inputs: ArenaInputs, span: tuple[date, date], files: dict[str, bytes]) -> dict:

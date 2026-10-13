@@ -43,7 +43,8 @@ class Strategy:  # catalog.py. CATALOG: dict[str, Strategy] is append-only.
 	id: str  # "macd_cross"
 	version: int  # a changed rule is a new version, never an edit
 	title: str
-	rule: str  # one plain sentence for the strategy card
+	plain: str  # one sentence for a visitor who has never traded, shown under the strategy slot
+	rule: str  # the exact rule, shown in the technical section
 	citation: str  # where the textbook parameters come from
 	kind: Kind
 	positions: Callable[[pl.DataFrame], pl.Series]  # adjusted bars -> 0 or 1 per session, decided at the close of t
@@ -52,6 +53,7 @@ class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
 	id: str
 	version: int
 	title: str
+	plain: str
 	rule: str
 	citation: str
 	kind: Kind
@@ -80,6 +82,15 @@ class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json, one per st
 	switchesPerYear: float
 	exposure: float
 
+class WindowRecord(TypedDict):  # export/arena/v1/windows.json, one per range button, portfolio scope
+	range: Literal["1W", "1M", "3M", "1Y", "5Y", "All"]
+	base: str | None  # last curve date on or before `last` minus the range, None for All
+	strategies: dict[str, WindowStats]  # growth (equity at last / equity at base), exposure, maxDrawdown over the dates after base
+
+class Trades(TypedDict):  # export/arena/v1/funds/{symbol}.json, one per strategy
+	buy: list[str]  # the bar after each decision that moved the strategy into the market
+	sell: list[str]  # the bar after each decision that moved it to cash
+
 class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planned, milestone 11), append-only
 	date: date  # the session whose close made the decisions
 	catalog_version: int
@@ -87,7 +98,7 @@ class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planne
 	bars_sha256: str  # hash of the bars the decisions read
 ```
 
-The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, and `curves/{scope}.json` (growth of $1 for each strategy in each period). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision dates that earn a return, and every record and curve covers exactly those dates. `barsEnd` is the last bar the decisions read. For the backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2.
+The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, `curves/{scope}.json` (growth of $1 for each strategy in each period), `windows.json` (each range button's figures on the portfolio), and `funds/{symbol}.json` (the daily bars from 2008-01-02 through `barsEnd` and each strategy's trades). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The only windows are the fixed ranges in `windows.json`, each counted back from `last`. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision dates that earn a return, and every record and curve covers exactly those dates. `barsEnd` is the last bar the decisions read. For the backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2.
 
 ### Jev study (finished)
 
@@ -378,3 +389,4 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** `reconcile` takes the market bars and cuts the returns at the last date of `research/holdout.json`, as `evaluate.holdout_result` does. Returns cut at the end of the backtest period would give the last two holdout sessions returns that the holdout never saw. On synthetic bars that run past the holdout end, that cut moved the golden cross excess Sharpe from 0.806 to 0.652, and the reconciliation failed. On the real data the two cuts are the same date.
 - **2026-10-13.** Milestone 7 measured the four-strategy backtest from 2008-01-02 through 2026-10-07 on the portfolio of 13 ETFs, in 236 blocks. The reconciliation reproduced the `buy_hold` and `sma_filter` intervals in `research/holdout.json` exactly. The simultaneous critical value for the 6 pairs is 2.53. No portfolio pair's simultaneous interval excludes zero, so every verdict is "no_difference". The MDE runs from 0.52 to 0.96 excess Sharpe across the pairs. Excess Sharpe at 5 bps is 0.61 for buy and hold, 0.64 for the golden cross, 0.45 for the MACD crossover, and 0.41 for the Bollinger bounce.
 - **2026-10-14.** The product is a proof of concept with a simple first screen for people who have never traded. It is no longer a Jev product. Statistical rigor, new data sources, and live scoring are deferred, and PR #13 holds their plan. An arena of four first-screen concepts picked "Pick two": a visitor taps two strategies and sees what $1,000 became in each, then reads why more money is not the whole story. The user approved it over a guess-first game, a single-strategy story, and an all-strategies view. The first screen shows no statistics words, and it says a gap "could be luck" only where `comparisons.json` reads `no_difference`. Milestone 8 now builds this screen. Milestones 9 and 11 are deferred. The record is in `docs/arena/2026-10-14-first-screen/`.
+- **2026-10-14.** The "Pick two" prototype becomes Trade Arena, by the user's decision. Two slots, "Strategy A" and "Strategy B", each open a searchable list grouped by kind, so the screen holds 50 or more strategies. The screen opens on one year, with range buttons for one week, one month, three months, one year, five years, and all years. A Line or Candles toggle shows either both strategies on all 13 funds or one fund's candles with each strategy's buys and sells. The export gains `windows.json`, which holds each range's growth, exposure, and biggest fall on the portfolio, and `funds/{symbol}.json`, which holds the bars and the trades. Each strategy's plain sentence moves from the site into `catalog.py` as `Strategy.plain`. The fingerprint still reads only the positions, so no version changes. A range other than all years is too short to tell skill from luck, and the screen says so for every pair.

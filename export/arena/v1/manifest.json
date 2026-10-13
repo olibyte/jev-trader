@@ -67,7 +67,7 @@
     "data/market/BIL.parquet": "23b614e53ff4561e2457d28bb152ae5dc44fd5f27d5decc86cc6dc1dc95c830c"
   },
   "files": {
-    "catalog.json": "2eae136b832493403f2012b2b48c7d1e5b4ffb427015bb1828ede8ae13473732",
+    "catalog.json": "9a2c9aca95201536c2c04ba1c531534527a2eea9e9453eac262a9c76878fb3fd",
     "comparisons.json": "afa6043df167f996f44a9890fc0cb53529c093bb8164db01be05fc840c782f76",
     "curves/DIA.json": "32ee50900770c9a429f55a2c0020930c9eaab80b1764980e46d8fecc8fc8bb5b",
     "curves/IWM.json": "87a8e0740f8abd7abf25ec9f2634f1b4647d57346f32087b39a04350154dc8b4",
@@ -82,6 +82,20 @@
     "curves/XLU.json": "01134234bc3f63112f2c4cf9c12b1c84a10bcc99148c494719b73d7ec577c90b",
     "curves/XLV.json": "911e2626eaf439a92c46379d338431b752e89d6a8afd6a52cc52067be4bb5a0e",
     "curves/XLY.json": "f744daaecfa9a4eecec571786f2a4cbffa6f89b3b24fb0aed977b402d2618cf6",
-    "curves/portfolio.json": "d4a98b4c6b2ec42aa3eb23b1126d0c1dda30c17c3e9161142c7df91f9013a625"
+    "curves/portfolio.json": "d4a98b4c6b2ec42aa3eb23b1126d0c1dda30c17c3e9161142c7df91f9013a625",
+    "funds/DIA.json": "4028a7d0c622fde8c163bd4d195f23076c00ecff1e3a635e24ff865c4c463165",
+    "funds/IWM.json": "4a42b0909769bf946aed102a2e658d60b1f8b78f106a4d3732f967a6309b296c",
+    "funds/QQQ.json": "ef924dc52d95e42eb4236779888710b01fc5b5643e3fb2874f6671fb1e8dae1b",
+    "funds/SPY.json": "64c5197a1e0fbcef1f438b7ab39ea9f6bd3bd206914895964b5a3c8a09a565e9",
+    "funds/XLB.json": "c030089dfa56a8a04e070c8866452fe25ffc500d0d6e8aa480adee82504729fa",
+    "funds/XLE.json": "41f9d83e6c7d7b09ab029bfd9c86a81b1bef8531d3e04ad49abf6abc91d5df55",
+    "funds/XLF.json": "0de7dfc44c05d73cd73b10376123211ef63a494db51c3b4bf18497ebe2133c8e",
+    "funds/XLI.json": "93142c8e6e52b199bd166940d60d64a41cd9efb4457289ca06536ac4218821b6",
+    "funds/XLK.json": "415f80d529829f7107579a029eb6926ef99b4a56573064e15e29b42b042ea073",
+    "funds/XLP.json": "8bc04f937c07c8e00d9ce6e16322ad793a6dd6691e5c60546382c5186faa0e7d",
+    "funds/XLU.json": "ea1714f78e4c5208f62ba826eb2097e149a529dbfc5c533cd20a8b67fbdf6272",
+    "funds/XLV.json": "6fa1f0c32154e77c7adf31623c3719a7aef056de56801c3cd72f814aa64adc8f",
+    "funds/XLY.json": "80d2d5360d30c1d373a3184d796d47609be9c02a195ba68907ceb3fd445000b7",
+    "windows.json": "11ff95a6fdfcf94592f35e6f2a3aa59159d6991f8b4b2f96257c69e75f019886"
   }
 }
