@@ -57,6 +57,14 @@ from jevtrader.evaluate import (
     render_prereg,
     write_prereg,
 )
+from jevtrader.export import (
+    EXPORT_PATH,
+    ExportError,
+    preconditions,
+    read_inputs,
+    render,
+    write_export,
+)
 from jevtrader.jev import (
     CALLS_PATH,
     POLICY_PATH,
@@ -102,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     report.add_argument("--prereg", action="store_true", help="write research/prereg.toml")
     once = commands.add_parser("holdout", help="run the pre-registered holdout once")
     once.add_argument("--verify", action="store_true", help="rerun from the manifest and compare")
+    commands.add_parser("export", help="write export/v1/ for the site from the holdout inputs")
     jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
     jev.add_argument("--offline", action="store_true", help="build from the call log only")
     jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
@@ -117,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
         return evaluate(args.prereg)
     if args.command == "holdout":
         return holdout(REPO_ROOT, DATA_DIR, args.verify)
+    if args.command == "export":
+        return export(REPO_ROOT, DATA_DIR)
     return online(args)
 
 
@@ -491,6 +502,28 @@ def holdout(repo: Path, data_dir: Path, verify: bool) -> int:
     )
     print(f"outcome {result.outcome}")
     print(f"wrote {result_path} and {run_path}")
+    return 0
+
+
+def export(repo: Path, data_dir: Path) -> int:
+    """Write export/v1 from the files the holdout read, after checking they are those files."""
+    try:
+        inputs = read_inputs(repo, data_dir)
+    except FileNotFoundError as e:
+        print(f"missing {e.filename}", file=sys.stderr)
+        return 2
+    try:
+        failures = preconditions(inputs)
+        if not failures:
+            files = render(inputs)
+    except ExportError as e:
+        failures = [str(e)]
+    if failures:
+        print("\n".join(failures), file=sys.stderr)
+        print(f"refusing, {repo / EXPORT_PATH} is unchanged", file=sys.stderr)
+        return 1
+    for path, status, digest in write_export(repo / EXPORT_PATH, files):
+        print(f"{EXPORT_PATH / path} {status} {digest}")
     return 0
 
 

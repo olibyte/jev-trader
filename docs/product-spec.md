@@ -42,7 +42,7 @@ These rules change the mockup in specific places.
 5. Every period carries its label: development, holdout, or live. The site has no free date picker for performance figures, because a free picker lets a reader search for a window where Jev wins.
 6. Mock data appears only in prototypes, and only behind a visible "mock data" badge.
 7. The site shows the model version that actually served the calls (`jev-1.13`). The mockup's "jev-1.3.0" is wrong.
-8. The site states that it is research and not investment advice. Check whether publishing trading signals needs any further disclaimers before launch.
+8. Every page shows two disclaimers. "Research, not investment advice. Nothing here is a recommendation to buy or sell any security." and "Backtests are hypothetical, include modeled trading costs only, and do not predict future returns."
 
 ## Scope
 
