@@ -28,7 +28,7 @@ Each module owns one area of the domain. The web app never recomputes an indicat
 | Jev call log | `jev_calls.jsonl`, append-only, committed to git | The log grows past what git handles well. |
 | Backend | None | A learner needs a result that `jt arena` cannot compute in advance, such as a parameter they set or a rule they build. The product spec names the prerequisites. |
 | Hosting | Static export in `web/out/`, to be served from S3 behind CloudFront and managed with Terraform. Not deployed yet. | The same trigger as the backend. |
-| Live scoring | None yet | Milestone 11 adds a scheduled job that fetches bars, appends positions to a ledger, and rebuilds the static files. |
+| Live scoring | None yet | Milestone 11 adds a nightly GitHub Actions job that fetches bars, appends positions to a ledger on the `ledger` branch, and rebuilds the static files. |
 
 ## Core data shapes
 
@@ -69,7 +69,7 @@ class PairRecord(TypedDict):  # export/arena/v1/comparisons.json, one per pair, 
 	mde: float  # smallest difference this period can detect at 80% power, with the simultaneous critical value
 	verdict: Literal["a_ahead", "b_ahead", "no_difference", "too_early"] | None  # None off the portfolio scope
 
-class LedgerRow(TypedDict):  # arena/ledger.jsonl (planned, milestone 11), append-only
+class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planned, milestone 11), append-only
 	date: date  # the session whose close made the decisions
 	catalog_version: int
 	positions: dict[str, dict[str, Literal[0, 1]]]  # strategy id -> symbol -> position
@@ -256,7 +256,7 @@ Milestones 1 to 6 are merged. The arena milestones follow. Each one ships alone.
    - Check that a second `jt arena` reports every file unchanged, and rerun the five `web/` checks.
 10. **Deploy.** Terraform creates the S3 bucket, the CloudFront distribution, and the CloudFront function that appends `index.html` to paths that end in `/`. The user runs `terraform apply`.
     - Check that a script requests every file in `web/out/` from the CloudFront URL, gets status 200, and gets the same bytes.
-11. **Live period.** `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A scheduled job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. `jt fetch` spends Twelve Data credits, so the user starts the first run.
+11. **Live period.** `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A nightly GitHub Actions job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. It commits the ledger to the `ledger` branch, reads `TWELVE_DATA_API_KEY` from a repository secret, and deploys to AWS through a GitHub OIDC role, so no AWS key is stored. `jt fetch` spends Twelve Data credits, so the user starts the first run.
     - Check that `tests/test_arena_live.py` passes on synthetic bars in a temporary git repository: 30 simulated sessions append 30 rows, the replay equals the ledger, an edited row fails `verify`, a strategy that reads the next bar fails `verify`, and a second tick on the same bars changes no file.
     - Check that `jt arena verify` exits 0 after the user runs one `jt fetch` and one `jt arena tick`.
 
@@ -267,9 +267,6 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 ## Open questions
 
 - Does OpenRouter require a minimum credit purchase? Unverified.
-- Which scheduler runs the live period: GitHub Actions on the public repository, or EventBridge with CodeBuild beside the Terraform-managed site? Either one needs the Twelve Data key as a secret and spends 28 credits on each run.
-- Where does the live ledger get its public timestamp? A bot commit to the public repository is the simplest option.
-- Does the learned model need more features than the `State` levels and candle flags? The study found that the states carry no signal on validate, so the model may read "no detectable difference" against buy and hold. That result is publishable as it is.
 
 ## Risks
 
@@ -360,3 +357,6 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** Arena strategies live in a new `CATALOG` of causal `positions(bars)` functions, not in `ARMS`, because `score > threshold` cannot express an exit or a hold. The backtest, portfolio, Sharpe, and bootstrap code in `evaluate.py` serve both.
 - **2026-10-13.** The learned model is an L2 logistic regression from scikit-learn, refit each January on purged labels. The 2026-10-12 cut of logistic regression applied to the Jev study, and the arena needs a machine-learning entry that learners recognise.
 - **2026-10-13.** The live period records positions in an append-only ledger before the next bar exists, and `jt arena verify` replays it. This turns the spec's planned "live forward testing" into milestone 11.
+- **2026-10-13.** GitHub Actions runs the live period, by the user's decision. The code is on GitHub, scheduled runs are free for a public repository, and the job only has to finish between the close and the next open, so a late start does not matter. The job reads the Twelve Data key from a repository secret and deploys through a GitHub OIDC role. EventBridge with CodeBuild would need more Terraform for the same job.
+- **2026-10-13.** A bot commits the live ledger every night to a separate `ledger` branch, by the user's decision. GitHub's record of each push is the public proof that a position came before the next bar. A commit's own date is set by its author and proves nothing alone. The separate branch keeps about 250 bot commits a year out of `main`.
+- **2026-10-13.** The learned model reads only the `State` levels and the candle flags, by the user's decision. It sees the same information as the other entries and as Jev. Adding inputs after a weak result would be the tuning the arena warns against. A richer model enters as a new catalog entry with its inputs fixed before any run.
