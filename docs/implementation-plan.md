@@ -26,7 +26,7 @@ Each module owns one area of the domain. The web app never recomputes an indicat
 | Storage | Local files under `data/` (gitignored), `pathlib` | The site deploys and needs shared files. Then swap the read and write functions for S3. |
 | Jev call log | `jev_calls.jsonl`, append-only, committed to git | The log grows past what git handles well. |
 | Backend | None | Users need parameters that cannot be precomputed. |
-| Hosting | Host-neutral static export in `web/out/`. No host is chosen yet. | The user picks a host. The site uses no host-specific features, so a move to S3 and CloudFront changes only the deploy step. |
+| Hosting | Static export in `web/out/`, to be served from S3 behind CloudFront and managed with Terraform. Not deployed yet. | Users need parameters that cannot be precomputed. |
 
 ## Core data shapes
 
@@ -160,7 +160,6 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 ## Open questions
 
 - Does OpenRouter require a minimum credit purchase? Unverified.
-- Where does the site deploy? Vercel and a Terraform-managed S3 and CloudFront setup are both open.
 
 ## Risks
 
@@ -231,3 +230,4 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** Each table and panel carries one "Source" link to its run on the manifest page, instead of one link per cell. The Sharpe block count links to the export run on its own. The symbol panel shows each sample's raw P(higher) and P(lower or equal), not a per-sample `p_up`, so the site computes nothing. It calls the development `n` "labelled symbol-days", because it pools the 13 ETFs.
 - **2026-10-13.** Milestone 6 checks the built site with Playwright. The test reads `export/v1/` itself and formats numbers with its own copy of the rules. It checks every number on the result page, all 960 rulebook rows in the static HTML, the time-travel panel of each symbol on its default day and on 5 seeded days, every hash on the manifest page, both disclaimers, and that pages request nothing beyond the static host. A separate check of the result page against `research/holdout.json` found 0 mismatches in 111 values.
 - **2026-10-13.** `web/` pins next 16.3.6, react 19.3.0, zod 4.6.5, lightweight-charts 5.2.1, and TypeScript 6.0.3. pnpm refuses any package published in the last 14 days. TypeScript 7 needs an opt-in from Next, so the site stays on 6. lightweight-charts shows the TradingView attribution that its license asks for.
+- **2026-10-13.** The site will be hosted on AWS, by the user's decision: S3 behind CloudFront, managed with Terraform. The deploy pipeline is later work. With `trailingSlash: true`, every page is a directory `index.html`, so a private S3 origin needs a CloudFront function that appends `index.html` to paths ending in `/`.
