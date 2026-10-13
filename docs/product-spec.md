@@ -1,69 +1,110 @@
-# Jev Trader product spec
+# Trade arena product spec
 
-> **This spec will change.** Jev Trader is an evolving research app. The requirements below record what we believe on 2026-10-12. Expect them to move as experiments return results. When a decision changes, update this file and add a line to the decision log in [implementation-plan.md](implementation-plan.md).
+> **This spec will change.** The trade arena is an evolving research app. The requirements below record what we believe on 2026-10-13. Expect them to move as experiments return results. When a decision changes, update this file and add a line to the decision log in [implementation-plan.md](implementation-plan.md). The [arena synthesis](arena/2026-10-13-trade-arena/synthesis.md) records how this version was chosen.
 
 ## The question we answer
 
-How good is Jev at making stock-trading decisions, compared with traditional technical-analysis rules given the same information?
+Pick two well-known trading strategies, run them on the same ETFs with the same costs, and ask one question. Can you tell them apart?
 
-Jev is TypeSafe AI's decision model (`jev-1.13`). It answers typed questions about a block of state and returns probabilities, not text. Whether those probabilities have trading value is an empirical question. We do not assume Jev wins. A result that says "Jev does no better than a simple rule" is a valid result, and we publish it.
+Examples are a Bollinger bounce against a MACD crossover, or a candlestick pattern against a machine-learning model. The arena answers with a difference, an interval, and one of three verdicts: "A ahead", "B ahead", or "No detectable difference". We do not assume any strategy wins. Most pairs will read "No detectable difference", and we publish that as the answer, not as a failure.
 
-## Why the question is narrower than "can Jev trade"
+## Why most answers will be "no detectable difference"
 
-Jev's own documentation says it is weak with numbers ("Jev is not a calculator") and stronger with descriptive text. It is trained to judge things whose answer is in the state it receives. A future price move is not in a technical-analysis snapshot. So when Jev sees "RSI overbought, price above the 200-day average", it can only apply its built-in sense of what those signals mean.
+Twenty years of daily bars sounds like a lot of data. It is not. Thirteen ETFs that move together give about 236 independent 20-session blocks from 2008 onward. In the arena's scratch runs over 2019 to 2026, the 95% interval on the difference in excess Sharpe between two strategies was ±0.36 to ±0.44. An interval that covers many comparisons at once is wider. Over 2008 to 2018, ±0.42 for one comparison became ±0.78 for 55. The site explains this on the first screen instead of hiding it behind a ranking.
 
-That makes the testable question this one. Does Jev's mapping from a described market situation to "will it be higher in 20 trading days?" rank good days above bad days better than rules and history-based tables that see exactly the same situation?
-
-We expect Jev to be most useful later on unstructured inputs such as news text. The technical-analysis study comes first because it is cheap, and because it builds the data, evaluation, and publishing pipeline that the news study needs.
+A window can also flatter a strategy. In a scratch run, a MACD crossover scored an excess Sharpe of 0.82 over 2019 to 2026 and 0.45 over 2008 to 2026. Readers cannot choose the window, for this reason.
 
 ## Who it is for
 
-- **Readers of the public site.** These are people curious whether AI decision models add anything to trading. They need honest numbers with error bars, and a way to see exactly what Jev was shown.
-- **The researcher (us).** We need reproducible experiments. Rerunning a notebook must never change a result or trigger a paid API call.
+- **Curious learners.** People who have heard of Bollinger bands or a golden cross and want to know whether they work. They need plain words, one comparison at a time, and an honest picture of luck. They do not tune parameters or build rules in this version.
+- **The researcher (us).** We need reproducible results. Rerunning `jt arena` must never change a published number or trigger a paid API call.
 
-## What the public site shows
+## What the site shows
 
-The [dashboard mockup](assets/dashboard-mockup.png) sets the visual direction: a dark dashboard with a symbol selector, a candlestick chart with Jev markers, an indicator snapshot, a Jev decision panel, backtest curves, a metrics table, and a decision history. The numbers in the mockup are invented and are not results.
+### The first screen is one matchup
 
-The core interaction is "time travel". You select any day on the chart and see what Jev was shown, what it answered, and what the price did over the next 20 trading days.
+The home page asks "Pick two strategies. Can you tell them apart?" and shows five things:
 
-The site lands on the pre-registered study result: the main comparison, its 95% confidence interval, and one of three pre-declared outcomes. The outcomes are "Jev better", "Jev worse", and "inconclusive". Per-symbol pages come after that result and are labelled descriptive.
+1. Two strategy pickers, A and B, and a scope picker: "All 13 ETFs" or one ETF. Each strategy shows its rule in one plain sentence.
+2. A period switch with two fixed periods: "Backtest" and "Live". There is no other way to choose dates.
+3. The verdict, in large type. Below it are the difference A minus B, its interval drawn as a bar against zero, the number of independent blocks, and the smallest difference this period can detect.
+4. One chart with the growth of $1 for A and B over the selected period. The chart has no zoom and no scroll.
+5. One row of figures for each side: excess Sharpe with its interval, maximum drawdown, switches per year, and time in the market. The last three are labelled as point values with no interval.
 
-The site also shows Jev's rulebook. Jev's inputs come from a small fixed set of described situations (960 in the first study), so we can publish Jev's answer for every one of them.
+The default pair follows catalog order, never a result. Everything else (strategy pages, the method, the run manifest, and the Jev study) sits one link away.
+
+### The catalog is small and fixed
+
+The arena compares strategies from one fixed catalog. Each entry has a name, a rule in one sentence, a short "how it works" note, a citation for its textbook parameters, and a kind. Learners choose entries. They do not change them.
+
+The first catalog version has 8 entries:
+
+| Strategy | Kind | Rule |
+|---|---|---|
+| Buy and hold | Benchmark | Always long. |
+| Golden cross | Indicator | Long when the 50-day average is above the 200-day average. |
+| MACD crossover | Indicator | Long when MACD(12, 26) is above its 9-day signal line. |
+| Bollinger bounce | Indicator | Enter when the close falls below the lower band (20 days, 2 standard deviations). Exit when the close reaches the middle band. |
+| Bullish engulfing | Candlestick | Enter after a bullish engulfing candle. Hold for 5 sessions. |
+| Learned model | Machine learning | A logistic regression on the indicator states and candle flags, refit each January on past data only. Long when its probability of a rise over 20 sessions is above 0.5. |
+| Jev (frozen rulebook) | AI model | Long when Jev's frozen P(higher in 20 trading days) is above 0.5. |
+| Coin flip | Control | A seeded coin, flipped again every 20 sessions. It shows what luck looks like. |
+
+Every strategy is long or flat on each ETF. It decides at the close and trades at the next open. Flat days earn the cash return (BIL), and each switch costs 5 basis points.
+
+The catalog only grows. A changed rule is a new version of the entry, and an entry never disappears, so a losing strategy stays on the site. Each new entry widens every interval, so the catalog stays near 8 to 10 entries for learners.
+
+### The finished Jev study stays, and Jev competes
+
+The Jev study is finished, and its pages move unchanged to `/studies/jev/`. Its question was whether Jev ranks 20-day outcomes better than a history table that sees the same indicator states. The pre-registered outcome is "inconclusive". AUC(`jev`) minus AUC(`empirical_table`) is -0.012, with a 95% CI of -0.045 to 0.024, over 97 blocks.
+
+Jev also enters the arena as "Jev (frozen rulebook)". It plays from the frozen policy table and makes no API call. Its strategy card states the study result and links to `/studies/jev/`. An arena verdict on Sharpe never replaces the study's pre-registered result on AUC.
 
 ## Honesty rules for the UI
 
-These rules change the mockup in specific places.
+1. **Periods are fixed and named, never chosen.** Every figure belongs to the `backtest` period or the `live` period. The backtest period runs from 2008-01-02 to the last bar before the catalog version froze. The live period starts at the first session after the freeze. The site has no date input, no date range in a URL, and no chart zoom. The build fails if any of these appears, or if a figure's first and last dates differ from its period's bounds in the arena manifest.
+2. **The backtest period is not a holdout.** The people who chose the catalog had seen these years. The site says so next to every backtest figure. Only the live period is out of sample.
+3. **A verdict accounts for every pair.** The verdict uses a simultaneous 95% interval that covers all pairs in the catalog version at once, so 28 pairs for 8 entries. Only the "All 13 ETFs" scope gets a verdict. A single-ETF view shows its interval with no verdict and states how many single-ETF comparisons exist and how many would exclude zero by chance. The build fails if a verdict disagrees with its interval or if the family size differs from the catalog's pair count.
+4. **Every metric shows its interval and the number of independent blocks behind it.** Figures without an interval say so.
+5. **No ranks.** The site lists strategies in catalog order. It never sorts them by a result, numbers them by a result, or picks a default pair by a result. In the live period, a verdict reads "Too early" until the period has 3 blocks.
+6. **Every number links to the run manifest that produced it:** dataset hashes, the catalog version, each strategy's version, and the git commit.
+7. **The site does not use the words** "beats", "outperforms", "winner", "best strategy", "confidence", or "Reasoning". `pnpm check:honesty` enforces the list.
+8. **Mock data appears only in prototypes, and only behind a visible "mock data" badge.**
+9. **Every page shows two disclaimers.** "Research, not investment advice. Nothing here is a recommendation to buy or sell any security." and "Backtests are hypothetical, include modeled trading costs only, and do not predict future returns."
 
-1. Jev returns no reasoning or free text. The site never shows a "Reasoning" panel. In its place, a "What Jev saw" panel shows the exact state sent to Jev.
-2. Jev's yes/no answers carry no confidence value. The site shows Jev's probability as "P(higher in 20 trading days)". It never labels that number as confidence or as a chance of profit. Next to it, the site shows how often that situation actually rose during the development period.
-3. Every number links to the run manifest that produced it: dataset hashes, state version, prompt version, the model snapshot that served the calls, and the git commit.
-4. Every metric shows its confidence interval and the number of independent observations behind it.
-5. Every period carries its label: development, holdout, or live. The site has no free date picker for performance figures, because a free picker lets a reader search for a window where Jev wins.
-6. Mock data appears only in prototypes, and only behind a visible "mock data" badge.
-7. The site shows the model version that actually served the calls (`jev-1.13`). The mockup's "jev-1.3.0" is wrong.
-8. Every page shows two disclaimers. "Research, not investment advice. Nothing here is a recommendation to buy or sell any security." and "Backtests are hypothetical, include modeled trading costs only, and do not predict future returns."
+The Jev study pages and the Jev strategy card keep three more rules from the study:
+
+10. Jev returns no reasoning or free text. The site never shows a "Reasoning" panel. A "What Jev saw" panel shows the exact state sent to Jev.
+11. The site shows Jev's probability as "P(higher in 20 trading days)". It never labels that number as confidence or as a chance of profit.
+12. The site shows the model version that served the calls, `jev-1.13`.
 
 ## Scope
 
 ### In scope now
 
 - Daily OHLC data from Twelve Data for 13 US equity ETFs, plus BIL as the cash return.
-- Six technical indicators, described as categorical states.
-- One Jev question, asked once per state and frozen.
-- Deterministic baselines, evaluation, and a static public site.
+- One fixed catalog of up to about 10 strategies, all long or flat.
+- Backtests computed in `research/` and published as static files.
+- A static site on S3 behind CloudFront, managed with Terraform.
+- A live period, scored by a scheduled job that fetches bars, records each strategy's positions before the next bar exists, and rebuilds the static files.
 
 ### Out of scope for now
 
 These items may return later.
 
-- News and sentiment inputs (Alpha Vantage, Marketaux, EODHD).
-- Individual stocks inside the study. Stock pages may appear as out-of-study demos.
-- Intraday data, short selling, and portfolio allocation across assets.
+- Parameters that learners set, and rules that learners build.
 - User accounts, watchlists, and settings.
-- FastAPI, a database, AWS, and Terraform.
-- Live forward testing. With a frozen rulebook, live testing later is a scheduled job that fetches bars and looks up answers.
+- A backend that computes on request.
+- Individual stocks, intraday data, short selling, and allocation across assets.
+- News and sentiment inputs.
+
+### What brings a backend back
+
+The site stays static until a learner needs a result that `jt arena` cannot compute in advance. Examples are parameters that learners set, rules that learners build, or a catalog too large to precompute. Nothing is built for a backend before that. When the trigger arrives, two prerequisites carry over from the arena candidates:
+
+- A backtest engine that runs in the browser must first pass a parity check that compares every position and metric with `research/` on the same bars.
+- A server that scores learner-built rules must log each rule before it shows any result, and must count every logged rule in the family that the verdict accounts for.
 
 ## Data and licensing
 
-Twelve Data supplies the OHLC data. We assume we have display and redistribution rights. The API key stays server-side in `TWELVE_DATA_API_KEY` and never reaches the browser or git. The website reads only exported files and never calls Twelve Data or Jev.
+Twelve Data supplies the OHLC data. We checked our display and redistribution rights, and they cover publishing these prices. The API key stays server-side in `TWELVE_DATA_API_KEY` and never reaches the browser or git. The website reads only exported files and never calls Twelve Data or Jev.
