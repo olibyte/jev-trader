@@ -1,10 +1,9 @@
-import math
-import random
 from datetime import date, timedelta
 
 import polars as pl
 import pytest
 
+from jevtrader.catalog import random_walk
 from jevtrader.states import (
     ALL_STATES,
     ATR_WINDOW,
@@ -22,22 +21,6 @@ from jevtrader.states import (
 )
 
 FIRST_DEFINED = 13 + ATR_WINDOW - 1
-
-
-def random_walk(seed: int, n: int = 700) -> pl.DataFrame:
-    """OHLC bars whose volatility drifts, so the ATR regime moves through all three levels."""
-    rng = random.Random(seed)
-    rows, close = [], 100.0
-    for i in range(n):
-        sigma = 0.01 * (1 + 0.6 * math.sin(i / 40))
-        open_ = close * math.exp(rng.gauss(0, sigma / 3))
-        close = open_ * math.exp(rng.gauss(0, sigma))
-        high = max(open_, close) * (1 + abs(rng.gauss(0, sigma / 2)))
-        low = min(open_, close) * (1 - abs(rng.gauss(0, sigma / 2)))
-        rows.append((date(2005, 1, 3) + timedelta(days=i), open_, high, low, close, 1000))
-    return pl.DataFrame(
-        rows, schema=["date", "open", "high", "low", "close", "volume"], orient="row"
-    )
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
