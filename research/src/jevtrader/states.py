@@ -95,12 +95,10 @@ def _ema(x: pl.Expr, span: int) -> pl.Expr:
 
 
 def sma(n: int) -> pl.Expr:
-    """The n-session simple moving average of the close."""
     return pl.col("close").rolling_mean(n)
 
 
 def macd_hist() -> pl.Expr:
-    """MACD(12, 26) minus its 9-session signal line."""
     macd = _ema(pl.col("close"), 12) - _ema(pl.col("close"), 26)
     return macd - _ema(macd, 9)
 

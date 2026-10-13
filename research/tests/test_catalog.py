@@ -26,14 +26,13 @@ from jevtrader.export import ARENA_PATH
 from jevtrader.states import ALL_STATES, CASH, STUDY, labels, state_key
 
 END = date(2019, 6, 30)
-DAYS = 5300  # 2005-01-03 to 2019-07-08 in calendar days, so bars run past END
+DAYS = (date(2019, 7, 8) - date(2005, 1, 3)).days + 1
 FILES = sorted(
     ["catalog.json", "comparisons.json", "manifest.json", *(f"curves/{s}.json" for s in SCOPES)]
 )
 
 
 def first_peek(strategy: Strategy, bars: pl.DataFrame) -> int | None:
-    """The first row t whose position on bars.head(t + 1) differs from the full frame's."""
     full = strategy.positions(bars).to_list()
     for t in range(bars.height):
         if strategy.positions(bars.head(t + 1))[-1] != full[t]:
@@ -194,7 +193,6 @@ def test_a_portfolio_verdict_names_the_side_its_simultaneous_interval_favours():
 
 @pytest.fixture(scope="module")
 def template(tmp_path_factory):
-    """A repo with a holdout.json from synthetic bars, and a data dir of those bars."""
     root = tmp_path_factory.mktemp("template")
     repo, data = root / "repo", root / "data"
     (repo / "research").mkdir(parents=True)
@@ -236,7 +234,6 @@ def sha256(data: bytes) -> str:
 
 @pytest.fixture
 def arena(tmp_path, template, monkeypatch):
-    """A private copy of the template with `jt` pointed at it."""
     shutil.copytree(template, tmp_path, dirs_exist_ok=True)
     monkeypatch.setattr(cli, "REPO_ROOT", tmp_path / "repo")
     monkeypatch.setattr(cli, "DATA_DIR", tmp_path / "data")

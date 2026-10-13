@@ -34,8 +34,9 @@ from jevtrader.evaluate import (
 from jevtrader.states import SPLIT_STARTS, STUDY, bollinger, macd_hist, sma
 
 CATALOG_VERSION = 1
-BACKTEST_START = dict(SPLIT_STARTS)["fit"]  # first session 2008-01-02
-BACKTEST_END = date(2026, 10, 9)  # last bar before catalog version 1 froze
+BACKTEST_START = dict(SPLIT_STARTS)["fit"]
+BACKTEST_ENDS = {1: date(2026, 10, 9)}
+BACKTEST_END = BACKTEST_ENDS[CATALOG_VERSION]
 Period = Literal["backtest", "live"]
 Kind = Literal["benchmark", "indicator", "candlestick", "ml", "jev", "control"]
 Verdict = Literal["a_ahead", "b_ahead", "no_difference", "too_early"]
@@ -127,11 +128,11 @@ CATALOG: dict[str, Strategy] = {
         ),
     )
 }
-RECONCILE = {"buy_hold": "buy_hold", "golden_cross": "sma_filter"}  # catalog id -> holdout.json arm
+HOLDOUT_ARMS = {"buy_hold": "buy_hold", "golden_cross": "sma_filter"}
 SCOPES = ("portfolio", *STUDY)
 
 
-class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
+class CatalogEntry(TypedDict):
     id: str
     version: int
     title: str
@@ -141,7 +142,7 @@ class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
     fingerprint: str
 
 
-class PairRecord(TypedDict):  # export/arena/v1/comparisons.json
+class PairRecord(TypedDict):
     a: str
     b: str
     scope: str
@@ -154,7 +155,7 @@ class PairRecord(TypedDict):  # export/arena/v1/comparisons.json
     verdict: Verdict | None
 
 
-class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json
+class StrategyRecord(TypedDict):
     id: str
     scope: str
     period: Period
@@ -169,7 +170,7 @@ class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json
 class ScopeResult(NamedTuple):
     strategies: list[StrategyRecord]
     pairs: list[PairRecord]
-    equity: pl.DataFrame  # date, then each strategy's growth of $1 at COST_BPS
+    equity: pl.DataFrame
 
 
 def random_walk(seed: int, n: int = 700) -> pl.DataFrame:
@@ -236,15 +237,14 @@ def _sharpe_interval(days: pl.DataFrame) -> dict[str, float]:
 
 
 def reconcile(made: pl.DataFrame, market: Mapping[str, pl.DataFrame], holdout: dict) -> list[str]:
-    """Each RECONCILE strategy whose excess Sharpe interval differs from its holdout.json arm.
+    """Each HOLDOUT_ARMS strategy whose excess Sharpe interval differs from its holdout.json arm.
 
-    The window and the returns are the holdout's: decisions from its first to its last date, and
-    returns from bars through its last date, as in evaluate.holdout_result. An empty list passes.
+    An empty list passes.
     """
     first, last = (date.fromisoformat(holdout[k]) for k in ("first", "last"))
     returns = open_returns(market, last + timedelta(days=1))
     failures = []
-    for strategy_id, arm in RECONCILE.items():
+    for strategy_id, arm in HOLDOUT_ARMS.items():
         window = made.filter(pl.col("arm") == strategy_id, pl.col("date").is_between(first, last))
         found = _sharpe_interval(portfolio(backtest(window, returns, COST_BPS)))
         recorded = holdout["arms"][arm]["excess_sharpe"]

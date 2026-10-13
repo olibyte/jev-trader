@@ -65,6 +65,7 @@ from jevtrader.export import (
     ExportError,
     preconditions,
     read_arena_inputs,
+    read_committed_catalog,
     read_inputs,
     render,
     render_arena,
@@ -536,14 +537,15 @@ def export(repo: Path, data_dir: Path) -> int:
 
 
 def arena(repo: Path, data_dir: Path) -> int:
-    """Write export/arena/v1 after the reconciliation with holdout.json and the catalog checks."""
     try:
         inputs = read_arena_inputs(repo, data_dir)
     except FileNotFoundError as e:
         print(f"missing {e.filename}", file=sys.stderr)
         return 2
     made = arena_decisions(inputs.market)
-    failures = reconcile(made, inputs.market, inputs.holdout) + refusals(inputs.committed, made)
+    failures = reconcile(made, inputs.market, inputs.holdout) + refusals(
+        read_committed_catalog(repo), made
+    )
     try:
         if not failures:
             files = render_arena(inputs)

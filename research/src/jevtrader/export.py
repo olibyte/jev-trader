@@ -17,7 +17,7 @@ from jevtrader.catalog import (
     BACKTEST_END,
     CATALOG,
     CATALOG_VERSION,
-    RECONCILE,
+    HOLDOUT_ARMS,
     SCOPES,
     CatalogEntry,
     entry,
@@ -484,30 +484,30 @@ def write_export(directory: Path, files: dict[str, bytes]) -> list[Written]:
 
 
 class ArenaInputs(NamedTuple):
-    holdout: dict  # research/holdout.json
-    market: dict[str, pl.DataFrame]  # STUDY then CASH, uncut
-    committed: list[CatalogEntry] | None  # export/arena/v1/catalog.json, None before the first run
-    sha256: dict[str, str]  # repo-relative path of each hashed input file -> sha256 of its bytes
+    holdout: dict
+    market: dict[str, pl.DataFrame]
+    sha256: dict[str, str]
 
 
 def read_arena_inputs(repo: Path, data_dir: Path) -> ArenaInputs:
-    """Read every arena input file once. Raises FileNotFoundError for a missing one.
-
-    The committed catalog.json is not hashed as an input, because the arena also writes it.
-    """
+    """Read every arena input file once. Raises FileNotFoundError for a missing one."""
     symbols = (*STUDY, CASH)
     paths = {
         str(HOLDOUT_PATH): repo / HOLDOUT_PATH,
         **{_market_path(s): data_dir / "market" / f"{s}.parquet" for s in symbols},
     }
     raw = {label: path.read_bytes() for label, path in paths.items()}
-    committed = repo / ARENA_PATH / "catalog.json"
     return ArenaInputs(
         holdout=json.loads(raw[str(HOLDOUT_PATH)]),
         market={s: pl.read_parquet(io.BytesIO(raw[_market_path(s)])) for s in symbols},
-        committed=json.loads(committed.read_text())["strategies"] if committed.exists() else None,
         sha256={label: sha256(data) for label, data in raw.items()},
     )
+
+
+def read_committed_catalog(repo: Path) -> list[CatalogEntry] | None:
+    """The strategies in the last run's catalog.json, None before the first run."""
+    path = repo / ARENA_PATH / "catalog.json"
+    return json.loads(path.read_text())["strategies"] if path.exists() else None
 
 
 def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
@@ -559,11 +559,6 @@ def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
 
 
 def arena_manifest(inputs: ArenaInputs, span: tuple[date, date], files: dict[str, bytes]) -> dict:
-    """manifest.json: the period bounds, the settings, the reconciliation, and every hash.
-
-    It holds no git commit. The export is committed, so a commit would change on every run and
-    the export would never converge. The input hashes and the fingerprints identify the run.
-    """
     holdout = inputs.holdout
     return {
         "version": ARENA_PATH.relative_to("export").as_posix(),
@@ -591,7 +586,7 @@ def arena_manifest(inputs: ArenaInputs, span: tuple[date, date], files: dict[str
             "sha256": inputs.sha256[str(HOLDOUT_PATH)],
             "first": holdout["first"],
             "last": holdout["last"],
-            "strategies": RECONCILE,
+            "strategies": HOLDOUT_ARMS,
         },
         "inputs": inputs.sha256,
         "files": {path: sha256(files[path]) for path in sorted(files)},
