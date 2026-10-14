@@ -50,6 +50,9 @@ NEW_YORK = ZoneInfo("America/New_York")
 # The regular session closes at 16:00. Wait until 20:00 so the provider has settled the bar.
 SETTLED = clock_time(20, 0)
 MAX_OVERNIGHT_MOVE = 0.40
+OPEN, CLOSE = clock_time(9, 30), clock_time(16, 0)
+# Provisional. The first real hourly fetch measures the gaps and sets this.
+GAP_TOLERANCE = 0.01
 RATE_LIMIT_WAIT = 60.0
 MINUTE_MARGIN = 2.0
 
@@ -59,16 +62,31 @@ Window = tuple[date | None, date | None]
 
 @dataclass(frozen=True)
 class BarSize:
-    interval: Literal["1day"]  # the Twelve Data interval and the `jt fetch --bars` value
+    interval: Literal["1day", "1h"]  # the Twelve Data interval and the `jt fetch --bars` value
     windows: tuple[Window, ...]
-    capped: (
-        bool  # True: a window is the last OUTPUTSIZE bars. False: a full response may be cut off.
-    )
+    # True: a window is the last OUTPUTSIZE bars. False: a full response may be cut off.
+    capped: bool
     folder: str  # under data/market/ and data/raw/
+    # Bars carry `time`, keep regular hours, and are checked against the daily snapshot.
+    intraday: bool
+    last: date | None = None  # the session the snapshot must end on
+
+    @property
+    def key(self) -> Literal["date", "time"]:
+        return "time" if self.intraday else "date"
 
 
-DAY = BarSize("1day", RANGES, capped=False, folder="")
-BAR_SIZES = {b.interval: b for b in (DAY,)}
+DAY = BarSize("1day", RANGES, capped=False, folder="", intraday=False)
+# 2026-10-10 is a Saturday, so the window ends on Friday whether or not end_date includes its day.
+HOUR = BarSize(
+    "1h",
+    ((None, date(2026, 10, 10)),),
+    capped=True,
+    folder="1h",
+    intraday=True,
+    last=date(2026, 10, 9),
+)
+BAR_SIZES = {b.interval: b for b in (DAY, HOUR)}
 
 BARS_SCHEMA = {
     "date": pl.Date,
@@ -103,23 +121,33 @@ class FetchResult:
     rows: int
     first: date
     last: date
-    up_base_rate: float
+    up_base_rate: float | None  # daily only: the horizon counts sessions
     changed: bool
+    gap: float | None  # the largest session gap against the daily snapshot, intraday only
 
 
 # Pure core
 
 
-def parse_response(payload: dict) -> pl.DataFrame:
-    """Raw Twelve Data JSON to Bars. Raises DataError on status != "ok"."""
+def parse_response(payload: dict, size: BarSize = DAY) -> pl.DataFrame:
+    """Raw Twelve Data JSON to Bars. Raises DataError on status != "ok".
+
+    Intraday bars carry `time`, the New York clock time, and `date`, its session.
+    """
     if payload.get("status") != "ok":
         raise DataError(f"Twelve Data error {payload.get('code')}: {payload.get('message')}")
+    schema = {"time": pl.Datetime("us"), **BARS_SCHEMA} if size.intraday else BARS_SCHEMA
     values = payload.get("values") or []
     if not values:
-        return pl.DataFrame(schema=BARS_SCHEMA)
+        return pl.DataFrame(schema=schema)
     raw = pl.DataFrame(values, schema={k: pl.String for k in values[0]})
+    if size.intraday:
+        when = pl.col("datetime").str.to_datetime("%Y-%m-%d %H:%M:%S", time_unit="us")
+        keys = (when.alias("time"), when.dt.date().alias("date"))
+    else:
+        keys = (pl.col("datetime").str.to_date("%Y-%m-%d").alias("date"),)
     return raw.select(
-        pl.col("datetime").str.to_date("%Y-%m-%d").alias("date"),
+        *keys,
         *(pl.col(c).cast(pl.Float64) for c in ("open", "high", "low", "close")),
         pl.col("volume").cast(pl.Int64),
     )
@@ -136,8 +164,23 @@ def closed_bars(bars: pl.DataFrame, now: datetime) -> pl.DataFrame:
     return bars.filter(pl.col("date") < today)
 
 
-def validate(symbol: str, bars: pl.DataFrame, reference_dates: pl.Series | None) -> None:
-    """OHLC invariants, duplicate dates, sessions against SPY, overnight moves over 40%."""
+def regular_hours(bars: pl.DataFrame) -> pl.DataFrame:
+    """Keep bars from 09:30 to 16:00, from the first 09:30 bar on.
+
+    A capped window starts mid-session, so its first session is partial.
+    """
+    clock = pl.col("time").dt.time()
+    inside = bars.filter((clock >= OPEN) & (clock < CLOSE))
+    return inside.filter((clock == OPEN).cum_sum() > 0)
+
+
+def validate(
+    symbol: str,
+    bars: pl.DataFrame,
+    reference: pl.Series | None,
+    key: Literal["date", "time"] = "date",
+) -> None:
+    """OHLC invariants, duplicate keys, keys against SPY, overnight moves over 40%."""
     if bars.height == 0:
         raise DataError(f"{symbol}: no bars")
     o, h, lo, c = (pl.col(x) for x in ("open", "high", "low", "close"))
@@ -145,24 +188,25 @@ def validate(symbol: str, bars: pl.DataFrame, reference_dates: pl.Series | None)
         (pl.min_horizontal(o, h, lo, c) <= 0, "price <= 0"),
         (lo > pl.min_horizontal(o, c), "low > min(open, close)"),
         (h < pl.max_horizontal(o, c), "high < max(open, close)"),
-        (pl.col("date").is_duplicated(), "duplicate date"),
+        (pl.col(key).is_duplicated(), f"duplicate {key}"),
         ((o / c.shift(1) - 1).abs() > MAX_OVERNIGHT_MOVE, "overnight move over 40%"),
     )
     problems = []
     for mask, rule in rules:
-        bad = bars.filter(mask)["date"]
+        bad = bars.filter(mask)[key]
         if bad.len():
             problems.append(f"{symbol} {bad[0]}: {rule} ({bad.len()} rows)")
 
-    if reference_dates is not None:
-        first, last = bars["date"].min(), bars["date"].max()
-        own = set(bars["date"].to_list())
-        ref = {d for d in reference_dates.to_list() if first <= d <= last}
+    if reference is not None:
+        first, last = bars[key].min(), bars[key].max()
+        own = set(bars[key].to_list())
+        ref = {d for d in reference.to_list() if first <= d <= last}
         missing, extra = sorted(ref - own), sorted(own - ref)
         if missing or extra:
             where = (missing or extra)[0]
+            what = {"date": "sessions", "time": "times"}[key]
             problems.append(
-                f"{symbol} {where}: sessions differ from SPY in {first}..{last} "
+                f"{symbol} {where}: {what} differ from SPY in {first}..{last} "
                 f"({len(missing)} missing, e.g. {_examples(missing)}; "
                 f"{len(extra)} extra, e.g. {_examples(extra)})"
             )
@@ -170,8 +214,39 @@ def validate(symbol: str, bars: pl.DataFrame, reference_dates: pl.Series | None)
         raise DataError("\n".join(problems))
 
 
-def _examples(dates: list[date]) -> str:
-    return ", ".join(str(d) for d in dates[:3]) or "none"
+def _examples(keys: list) -> str:
+    return ", ".join(str(k) for k in keys[:3]) or "none"
+
+
+def session_gap(symbol: str, hourly: pl.DataFrame, daily: pl.DataFrame) -> float:
+    """Largest relative gap of each session's first open and last close from its daily bar."""
+    sessions = (
+        hourly.sort("time")
+        .group_by("date", maintain_order=True)
+        .agg(pl.col("open").first(), pl.col("close").last())
+    )
+    joined = sessions.join(
+        daily.select("date", "open", "close"), on="date", how="left", suffix="_day"
+    )
+    missing = joined.filter(pl.col("open_day").is_null())["date"]
+    if missing.len():
+        raise DataError(
+            f"{symbol} {missing[0]}: session missing from the daily snapshot ({missing.len()} rows)"
+        )
+    gaps = joined.select(
+        "date",
+        pl.max_horizontal(
+            (pl.col("open") / pl.col("open_day") - 1).abs(),
+            (pl.col("close") / pl.col("close_day") - 1).abs(),
+        ).alias("gap"),
+    ).sort("gap", descending=True)
+    worst, gap = gaps.row(0)
+    if gap > GAP_TOLERANCE:
+        raise DataError(
+            f"{symbol} {worst}: hourly open or close is {gap:.2%} from the daily bar, "
+            f"over {GAP_TOLERANCE:.0%}"
+        )
+    return gap
 
 
 def forward_return(horizon: int = 20) -> pl.Expr:
@@ -248,7 +323,7 @@ def fetch_symbol(
     symbol: str,
     data_dir: Path,
     now: datetime,
-    reference_dates: pl.Series | None,
+    reference: pl.Series | None,
     sleep: Callable[[float], None],
     size: BarSize = DAY,
 ) -> FetchResult:
@@ -258,7 +333,7 @@ def fetch_symbol(
         payload, body = request(
             client, key, symbol, start, end, "all", sleep, interval=size.interval
         )
-        frame = parse_response(payload)
+        frame = parse_response(payload, size)
         if not size.capped and frame.height >= OUTPUTSIZE:
             raise DataError(
                 f"{symbol}: {start}..{end} hit the {OUTPUTSIZE}-bar cap, may be cut off"
@@ -266,8 +341,18 @@ def fetch_symbol(
         frames.append(frame)
         bodies.append(body)
 
-    bars = closed_bars(pl.concat(frames).unique().sort("date"), now)
-    validate(symbol, bars, reference_dates)
+    bars = closed_bars(pl.concat(frames).unique().sort(size.key), now)
+    gap = None
+    if size.intraday:
+        bars = regular_hours(bars)
+        if size.last is not None and bars.height and bars["date"][-1] != size.last:
+            raise DataError(f"{symbol}: last session {bars['date'][-1]}, expected {size.last}")
+    validate(symbol, bars, reference, size.key)
+    if size.intraday:
+        daily_path = data_dir / "market" / f"{symbol}.parquet"
+        if not daily_path.exists():
+            raise DataError(f"{symbol}: no daily snapshot to check hourly sessions against")
+        gap = session_gap(symbol, bars, pl.read_parquet(daily_path))
     bars = bars.rechunk()
 
     buffer = io.BytesIO()
@@ -300,8 +385,8 @@ def fetch_symbol(
             ranges=[(_iso(s), _iso(e)) for s, e in size.windows],
             fetched_at=now.isoformat(),
             rows=bars.height,
-            first=bars["date"][0].isoformat(),
-            last=bars["date"][-1].isoformat(),
+            first=bars[size.key][0].isoformat(),
+            last=bars[size.key][-1].isoformat(),
             sha256=digest,
             raw=raw_names,
         )
@@ -313,8 +398,9 @@ def fetch_symbol(
         rows=bars.height,
         first=bars["date"][0],
         last=bars["date"][-1],
-        up_base_rate=up_base_rate(bars),
+        up_base_rate=None if size.intraday else up_base_rate(bars),
         changed=changed,
+        gap=gap,
     )
 
 

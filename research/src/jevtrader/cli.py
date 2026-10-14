@@ -21,9 +21,11 @@ from dotenv import dotenv_values
 from jevtrader.catalog import decisions as arena_decisions
 from jevtrader.catalog import reconcile, refusals
 from jevtrader.data import (
+    BAR_SIZES,
     DATA_DIR,
     REPO_ROOT,
     UNIVERSE,
+    BarSize,
     DataError,
     adjust_check,
     atomic_write,
@@ -107,8 +109,9 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(line_buffering=True)
     parser = argparse.ArgumentParser(prog="jt")
     commands = parser.add_subparsers(dest="command", required=True)
-    fetch = commands.add_parser("fetch", help="fetch daily bars into data/market/")
+    fetch = commands.add_parser("fetch", help="fetch bars into data/market/")
     fetch.add_argument("symbols", nargs="*", metavar="SYMBOL", help="default: the full universe")
+    fetch.add_argument("--bars", choices=BAR_SIZES, default="1day", help="bar size (default 1day)")
     commands.add_parser("adjust-check", help="compare SPY adjusted and raw open/close ratios")
     commands.add_parser("states", help="classify each study session into data/states/")
     commands.add_parser("ceiling", help="state census and the validate AUC of empirical_table")
@@ -151,12 +154,13 @@ def online(args: argparse.Namespace) -> int:
             gap = adjust_check(client, key, time.sleep)
             print(f"max |open_all/open_none - close_all/close_none|: {gap:.3e}")
             return 0
-        return fetch_all(client, key, [s.upper() for s in args.symbols] or list(UNIVERSE))
+        symbols = [s.upper() for s in args.symbols] or list(UNIVERSE)
+        return fetch_all(client, key, symbols, BAR_SIZES[args.bars])
 
 
-def fetch_all(client: httpx.Client, key: str, symbols: list[str]) -> int:
+def fetch_all(client: httpx.Client, key: str, symbols: list[str], size: BarSize) -> int:
     symbols = list(dict.fromkeys(symbols))
-    spy_path = DATA_DIR / "market" / "SPY.parquet"
+    spy_path = DATA_DIR / "market" / size.folder / "SPY.parquet"
     if "SPY" in symbols or not spy_path.exists():
         symbols = ["SPY", *(s for s in symbols if s != "SPY")]
 
@@ -169,19 +173,20 @@ def fetch_all(client: httpx.Client, key: str, symbols: list[str]) -> int:
                 print(f"{symbol:<6}error: no SPY snapshot to check sessions against")
                 failed = True
                 continue
-            reference = pl.read_parquet(spy_path, columns=["date"])["date"]
+            reference = pl.read_parquet(spy_path, columns=[size.key])[size.key]
         try:
             r = fetch_symbol(
-                client, key, symbol, DATA_DIR, datetime.now(UTC), reference, time.sleep
+                client, key, symbol, DATA_DIR, datetime.now(UTC), reference, time.sleep, size
             )
         except DataError as e:
             print(f"{symbol:<6}error: {e}")
             failed = True
             continue
+        up_rate = "-" if r.up_base_rate is None else f"{r.up_base_rate:.3f}"
         status = "changed" if r.changed else "unchanged"
-        print(
-            ROW.format(symbol, r.rows, str(r.first), str(r.last), f"{r.up_base_rate:.3f}", status)
-        )
+        if r.gap is not None:
+            status += f", gap {r.gap:.2%}"
+        print(ROW.format(symbol, r.rows, str(r.first), str(r.last), up_rate, status))
     return 1 if failed else 0
 
 

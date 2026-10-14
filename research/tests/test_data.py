@@ -11,10 +11,12 @@ import pytest
 
 from jevtrader.data import (
     DAY,
+    HOUR,
     DataError,
     closed_bars,
     fetch_symbol,
     parse_response,
+    regular_hours,
     request,
     up_base_rate,
     validate,
@@ -234,3 +236,159 @@ def test_request_retries_once_after_rate_limit():
 
     assert payload["status"] == "ok"
     assert sleeps == [60.0]
+
+
+FIXTURE_HOUR = replace(HOUR, last=date(2024, 1, 4))
+HOURLY_BODY = (FIXTURES / "spy_1h.json").read_text()
+
+
+def hourly_client(seen: list[dict] | None = None) -> httpx.Client:
+    def handler(req: httpx.Request) -> httpx.Response:
+        if seen is not None:
+            seen.append({k: v for k, v in req.url.params.items() if k != "apikey"})
+        return httpx.Response(200, text=HOURLY_BODY, headers={"api-credits-left": "7"})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def write_daily(root: Path, opens: list[float], closes: list[float]) -> None:
+    days = [date(2024, 1, 3), date(2024, 1, 4)][: len(opens)]
+    market = root / "market"
+    market.mkdir(parents=True, exist_ok=True)
+    pl.DataFrame({"date": days, "open": opens, "close": closes}).write_parquet(
+        market / "SPY.parquet"
+    )
+
+
+def hourly_bars() -> pl.DataFrame:
+    return regular_hours(parse_response(json.loads(HOURLY_BODY), HOUR))
+
+
+def test_hourly_fetch_keeps_regular_hours_from_the_first_full_session(tmp_path):
+    write_daily(tmp_path, [100.0, 110.55], [107.0, 117.0])
+    seen = []
+
+    result = fetch_symbol(
+        hourly_client(seen), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR
+    )
+
+    assert seen == [
+        {
+            "symbol": "SPY",
+            "interval": "1h",
+            "adjust": "all",
+            "order": "asc",
+            "outputsize": "5000",
+            "end_date": "2026-10-10",
+        }
+    ]
+    assert (result.rows, result.first, result.last, result.changed) == (
+        14,
+        date(2024, 1, 3),
+        date(2024, 1, 4),
+        True,
+    )
+    assert result.gap == pytest.approx(0.55 / 110.55)
+
+    bars = pl.read_parquet(tmp_path / "market" / "1h" / "SPY.parquet")
+    assert bars.columns == ["time", "date", "open", "high", "low", "close", "volume"]
+    assert bars.row(0) == (
+        datetime(2024, 1, 3, 9, 30),
+        date(2024, 1, 3),
+        100.0,
+        101.5,
+        99.5,
+        101.0,
+        1000,
+    )
+    assert bars["time"].dt.strftime("%H:%M").unique(maintain_order=True).to_list() == [
+        "09:30",
+        "10:30",
+        "11:30",
+        "12:30",
+        "13:30",
+        "14:30",
+        "15:30",
+    ]
+
+    raw_name = hashlib.sha256(HOURLY_BODY.encode()).hexdigest() + ".json.gz"
+    manifest = json.loads((tmp_path / "market" / "1h" / "SPY.manifest.json").read_text())
+    assert manifest == {
+        "symbol": "SPY",
+        "adjust": "all",
+        "ranges": [[None, "2026-10-10"]],
+        "fetched_at": "2026-10-12T10:00:00+00:00",
+        "rows": 14,
+        "first": "2024-01-03T09:30:00",
+        "last": "2024-01-04T15:30:00",
+        "sha256": hashlib.sha256((tmp_path / "market/1h/SPY.parquet").read_bytes()).hexdigest(),
+        "raw": [raw_name],
+    }
+    assert sorted(snapshot(tmp_path)) == [
+        "market/1h/SPY.manifest.json",
+        "market/1h/SPY.parquet",
+        "market/SPY.parquet",
+        f"raw/1h/SPY/{raw_name}",
+    ]
+
+
+def test_second_hourly_fetch_changes_no_file(tmp_path):
+    write_daily(tmp_path, [100.0, 110.0], [107.0, 117.0])
+    fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    before = snapshot(tmp_path)
+
+    later = datetime(2026, 10, 13, 10, 0, tzinfo=UTC)
+    result = fetch_symbol(
+        hourly_client(), KEY, "SPY", tmp_path, later, None, no_sleep, FIXTURE_HOUR
+    )
+
+    assert result.changed is False
+    assert snapshot(tmp_path) == before, "bytes and mtimes of every file are unchanged"
+
+
+def test_validate_rejects_hourly_time_missing_against_reference():
+    bars = hourly_bars()
+    validate("QQQ", bars, bars["time"], "time")
+
+    gappy = bars.filter(pl.col("time") != datetime(2024, 1, 3, 12, 30))
+    with pytest.raises(DataError) as err:
+        validate("QQQ", gappy, bars["time"], "time")
+    assert str(err.value) == (
+        "QQQ 2024-01-03 12:30:00: times differ from SPY in "
+        "2024-01-03 09:30:00..2024-01-04 15:30:00 "
+        "(1 missing, e.g. 2024-01-03 12:30:00; 0 extra, e.g. none)"
+    )
+
+
+def test_hourly_fetch_rejects_a_session_far_from_the_daily_bar(tmp_path):
+    write_daily(tmp_path, [100.0, 110.0], [107.0, 120.0])
+
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    assert str(err.value) == (
+        "SPY 2024-01-04: hourly open or close is 2.50% from the daily bar, over 1%"
+    )
+    assert sorted(snapshot(tmp_path)) == ["market/SPY.parquet"], "nothing hourly is written"
+
+
+def test_hourly_fetch_rejects_a_session_missing_from_the_daily_bars(tmp_path):
+    write_daily(tmp_path, [100.0], [107.0])
+
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    assert str(err.value) == "SPY 2024-01-04: session missing from the daily snapshot (1 rows)"
+
+
+def test_hourly_fetch_needs_a_daily_snapshot(tmp_path):
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    assert str(err.value) == "SPY: no daily snapshot to check hourly sessions against"
+
+
+def test_hourly_fetch_rejects_an_unexpected_last_session(tmp_path):
+    write_daily(tmp_path, [100.0, 110.0], [107.0, 117.0])
+    size = replace(HOUR, last=date(2024, 1, 5))
+
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, size)
+    assert str(err.value) == "SPY: last session 2024-01-04, expected 2024-01-05"
