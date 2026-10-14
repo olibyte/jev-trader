@@ -368,7 +368,11 @@ def test_hourly_fetch_rejects_a_session_far_from_the_daily_bar(tmp_path):
     assert str(err.value) == (
         "SPY 2024-01-04: hourly open or close is 2.50% from the daily bar, over 1%"
     )
-    assert sorted(snapshot(tmp_path)) == ["market/SPY.parquet"], "nothing hourly is written"
+    raw_name = hashlib.sha256(HOURLY_BODY.encode()).hexdigest() + ".json.gz"
+    assert sorted(snapshot(tmp_path)) == [
+        "market/SPY.parquet",
+        f"raw/1h/SPY/{raw_name}",
+    ], "the response is archived and no hourly snapshot is written"
 
 
 def test_hourly_fetch_rejects_a_session_missing_from_the_daily_bars(tmp_path):

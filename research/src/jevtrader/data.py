@@ -327,19 +327,27 @@ def fetch_symbol(
     sleep: Callable[[float], None],
     size: BarSize = DAY,
 ) -> FetchResult:
-    """Fetch every window, archive raw, validate, write Parquet and manifest only on change."""
-    frames, bodies = [], []
+    """Fetch every window, archive raw, validate, write Parquet and manifest only on change.
+
+    Each response is archived before parsing, so a failed check keeps what the credits bought.
+    """
+    raw_dir = data_dir / "raw" / size.folder / symbol
+    frames, raw_names = [], []
     for start, end in size.windows:
         payload, body = request(
             client, key, symbol, start, end, "all", sleep, interval=size.interval
         )
+        text = body.encode()
+        name = f"{hashlib.sha256(text).hexdigest()}.json.gz"
+        if not (raw_dir / name).exists():
+            atomic_write(raw_dir / name, gzip.compress(text, mtime=0))
+        raw_names.append(name)
         frame = parse_response(payload, size)
         if not size.capped and frame.height >= OUTPUTSIZE:
             raise DataError(
                 f"{symbol}: {start}..{end} hit the {OUTPUTSIZE}-bar cap, may be cut off"
             )
         frames.append(frame)
-        bodies.append(body)
 
     bars = closed_bars(pl.concat(frames).unique().sort(size.key), now)
     gap = None
@@ -370,14 +378,6 @@ def fetch_symbol(
     )
 
     if changed:
-        raw_dir = data_dir / "raw" / size.folder / symbol
-        raw_names = []
-        for body in bodies:
-            text = body.encode()
-            name = f"{hashlib.sha256(text).hexdigest()}.json.gz"
-            if not (raw_dir / name).exists():
-                atomic_write(raw_dir / name, gzip.compress(text, mtime=0))
-            raw_names.append(name)
         atomic_write(parquet_path, parquet)
         manifest = Manifest(
             symbol=symbol,
