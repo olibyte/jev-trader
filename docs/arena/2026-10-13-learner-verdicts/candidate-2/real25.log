@@ -1,0 +1,41 @@
+
+### Real procedure, rho = 0.25, 400 datasets, every night 60..1260
+
+Null rule, percent of rules:
+
+| Horizon | Any win, single look | Rule wins, single look | Any win, ever | Rule wins, ever |
+|---|---|---|---|---|
+| 1y | 14.0 | 6.2 | 88.0 | 53.5 |
+| 3y | 8.5 | 3.0 | 90.8 | 56.8 |
+| 5y | 8.2 | 3.8 | 91.5 | 58.8 |
+
+Null 'any win' single-look rate by night (blocks):
+60 (3): 64%, 80 (4): 52%, 100 (5): 39%, 140 (7): 28%, 200 (10): 18%, 252 (13): 14%, 378 (19): 8%, 504 (26): 8%, 756 (38): 8%, 1008 (51): 7%, 1260 (63): 8%
+
+Power over buy and hold, single look (ever):
+
+| d | 1y | 3y | 5y |
+|---|---|---|---|
+| 0.3 | 2.2 (20.0) | 2.2 (24.2) | 3.0 (28.0) |
+| 0.5 | 3.0 (19.8) | 4.0 (26.2) | 5.5 (29.2) |
+| 1.0 | 6.8 (27.8) | 15.0 (41.8) | 26.0 (52.5) |
+
+Null 'rule wins, ever' to 5y if the first verdict waited for B blocks:
+- B = 3: ever 58.8%, any-win single look at the first night 63.5%
+- B = 6: ever 37.5%, any-win single look at the first night 30.0%
+- B = 13: ever 22.8%, any-win single look at the first night 15.0%
+- B = 25: ever 14.0%, any-win single look at the first night 8.0%
+
+Calibrated critical value by night (blocks): 60 (3): 11.16, 100 (5): 5.55, 140 (7): 4.57, 252 (13): 3.19, 504 (26): 2.85, 1260 (63): 2.78
+
+Calibrated, null rule 'rule wins': single look (ever) at 1y, 3y, 5y: 1.8 (18.0), 2.0 (23.2), 2.5 (27.0)
+
+Calibrated power over buy and hold, single look (ever):
+
+| d | 1y | 3y | 5y |
+|---|---|---|---|
+| 0.3 | 1.0 (3.5) | 1.5 (8.2) | 2.0 (11.0) |
+| 0.5 | 1.5 (5.0) | 3.2 (10.2) | 4.0 (14.2) |
+| 1.0 | 3.0 (10.2) | 10.5 (29.5) | 22.5 (42.8) |
+
+(204 s)

@@ -1,0 +1,7 @@
+  3 blocks: null rule gets a verdict other than Too close to call in 0.645
+  6 blocks: null rule gets a verdict other than Too close to call in 0.322
+ 13 blocks: null rule gets a verdict other than Too close to call in 0.157
+ 26 blocks: null rule gets a verdict other than Too close to call in 0.087
+ 63 blocks: null rule gets a verdict other than Too close to call in 0.073
+236 blocks: null rule gets a verdict other than Too close to call in 0.062
+matrix draws equal block_bootstrap: True

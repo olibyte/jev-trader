@@ -1,0 +1,8 @@
+critical values: single 2.67, nightly-held 3.54, yearly 3.07
+null rule, any verdict on some night with the single-look value: 0.418
+rho 0.75 d 0.3: win vs buy and hold by 3y/5y  nightly-plain 0.11/0.15  nightly-held 0.01/0.02  yearly 0.02/0.03
+rho 0.75 d 0.5: win vs buy and hold by 3y/5y  nightly-plain 0.20/0.31  nightly-held 0.04/0.07  yearly 0.05/0.09
+rho 0.75 d 1.0: win vs buy and hold by 3y/5y  nightly-plain 0.58/0.81  nightly-held 0.23/0.48  yearly 0.30/0.58
+rho 0.25 d 0.3: win vs buy and hold by 3y/5y  nightly-plain 0.08/0.09  nightly-held 0.01/0.01  yearly 0.01/0.01
+rho 0.25 d 0.5: win vs buy and hold by 3y/5y  nightly-plain 0.11/0.14  nightly-held 0.01/0.01  yearly 0.02/0.03
+rho 0.25 d 1.0: win vs buy and hold by 3y/5y  nightly-plain 0.24/0.38  nightly-held 0.05/0.09  yearly 0.07/0.14

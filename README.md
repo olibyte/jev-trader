@@ -1,8 +1,9 @@
 # jev-trader
 
-A trade arena where you pick two famous trading strategies and see, in plain words, what $1,000 became in each on the same 13 US stock funds. It is a proof of concept. It grew out of a finished study of Jev, TypeSafe AI's decision model, against technical-analysis rules.
+Trade Arena is a site where you pick two famous trading strategies and see, in plain words, what $1,000 became in each on the same 13 US stock funds. It is a proof of concept. It grew out of a finished study of Jev, TypeSafe AI's decision model, against technical-analysis rules.
 
 - [Product spec](docs/product-spec.md) explains the first screen, the audience, and the rules for plain, honest copy.
+- [Deferred "Which one wins?" spec](docs/which-wins-spec.md) keeps the plan for verdicts, markets such as hourly bars, and learner-built rules.
 - [Implementation plan](docs/implementation-plan.md) lists the architecture, data shapes, methods, milestones, and decision log.
 - [First-screen synthesis](docs/arena/2026-10-14-first-screen/synthesis.md) records how the "Pick two" screen was chosen.
 

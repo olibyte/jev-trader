@@ -6,7 +6,7 @@
 
 Trade Arena shows what famous trading strategies would have done with your money, in plain words. You pick two strategies and see what $1,000 became in each. Both ran on the same 13 US stock funds, over the same years, with the same small fee each time they moved in or out of the market. Then the site explains why the one with more money is not automatically the better strategy.
 
-Priority is a simple screen that a person who has never traded can use and share. Statistical rigor, new data sources, and live scoring wait until the screen works for people. [PR #13](https://github.com/olibyte/jev-trader/pull/13) holds the deferred plan for them.
+Priority is a simple screen that a person who has never traded can use and share. Statistical rigor, new data sources, and live scoring wait until the screen works for people. The [deferred "Which one wins?" spec](which-wins-spec.md) and the implementation plan hold the deferred plan for them.
 
 ## Who it is for
 
@@ -44,11 +44,11 @@ The default pair is the first two strategies in catalog order, never a pair chos
 
 ## What exists today
 
-Milestone 7 built four strategies: buy and hold, the golden cross, the MACD crossover, and the Bollinger bounce. Each one is in the market or in cash on each fund. It decides after the close and trades at the next open. Cash earns the short-term US Treasury bill return (BIL), and each move in or out costs 0.05%. The funds are SPY, QQQ, IWM, DIA, and nine sector funds, held in equal parts and rebalanced each day. The years run from 2008-01-02 to 2026-10-07.
+Milestone 7 built four strategies: buy and hold, the golden cross, the MACD crossover, and the Bollinger bounce. Each one is in the market or in cash on each fund. It decides after the close and trades at the next open. Cash earns the short-term US Treasury bill return (BIL), and each move in or out costs 0.05%. The funds are SPY, QQQ, IWM, DIA, and nine sector funds, held in equal parts and rebalanced each day. The years run from 2008-01-02 to 2026-10-07. Every bar is one trading day.
 
 ## Deferred
 
-These items wait until the first screen works for people. [PR #13](https://github.com/olibyte/jev-trader/pull/13) holds the plan for most of them.
+These items wait until the first screen works for people. The [deferred "Which one wins?" spec](which-wins-spec.md) holds the plan for most of them.
 
 - More strategies: a candlestick pattern, a learned model, Jev from its frozen policy table, and a coin flip.
 - Verdicts in words such as "A wins", and the statistics behind them.

@@ -200,6 +200,59 @@ The arena has no development and holdout split. Whoever built the catalog had se
 - The truncation property test runs over every catalog entry: the position at t on `bars.head(t + 1)` equals the position at t on the full frame, on `random_walk` bars. The `oracle` arm, which reads `fwd_ret_20`, must fail the same test, as a negative control.
 - Tripling every price after a cut date changes no position before it.
 
+## Markets and "Which one wins?" (deferred)
+
+The [deferred "Which one wins?" spec](which-wins-spec.md) reframes the arena question and adds markets, each a universe on one bar size. Statistics are deferred, so the verdict parts wait. The hourly market's data and backtest parts are the next to plan. The verdict rule does not change. This section lists what the change touches and what stays.
+
+### What stays
+
+- `evaluate.py` does not change. Every market compounds its bar returns into one return per session, so `sharpe` (with `YEAR` = 252), `block_bootstrap` (20-session blocks), and `portfolio` serve every market. A simulation of 2,000 runs of 5 years gave the same spread of annualised Sharpe on daily, hourly, and 5-minute bars (0.45, 0.46, and 0.46), so per-bar Sharpe would gain no precision.
+- The `PairRecord` verdict enum (`a_ahead`, `b_ahead`, `no_difference`, `too_early`) does not change. Only the labels that the site shows change.
+- `positions(bars)` and the fingerprints do not change. A rule reads bars, whatever their size.
+- The Jev study and its frozen files do not change.
+
+### What changes
+
+- **The arena contract.** `export/arena/v1/` has no market field, and the Trade Arena prototype already reads it. A second market needs a market field in every file with a matching site change, or `export/arena/v2/`.
+- **The family.** `catalog.scope_records` computes a critical value for one market's pairs. The simultaneous interval over all markets needs one draw of blocks on a calendar that every market shares. `block_bootstrap` can serve this unchanged if each pair's statistic receives weights on the union of the markets' dates and reads only its own. Markets with shorter histories add no weight before their first date.
+- **The catalog.** Jev (frozen rulebook) and the learned model read the daily `State` and a 20-session horizon. `Strategy` gains the markets an entry plays in, and the family counts pairs per market.
+- **The data pipeline.** `data.py` is daily only. Bars are keyed by a `date` column, `closed_bars` settles a bar at 20:00 New York time, `validate` compares sessions with SPY and flags open-to-previous-close moves over 40%, and `RANGES` and `OUTPUTSIZE` are sized for daily history. Intraday bars need a timestamp key, a regular-hours filter, a session check for each bar, and paged backfill.
+- **Backfill.** One call costs 1 credit for each symbol and returns up to 5,000 bars. Twenty years of hourly bars for 13 ETFs takes about 104 calls. Twenty years of 1-minute bars takes about 5,100, which is about 11 hours at 8 credits a minute, or 7 days at 800 credits a day. These counts are arithmetic from the published limits, not a measured run.
+- **Storage.** Twenty years of 1-minute bars is about 2 million rows for each symbol. That fits in `data/`, which is not committed. Committed curves keep one point per session in every market.
+- **The volatile-stock universe.** `STUDY` is a fixed tuple, and `catalog.decisions` loops over it. A universe that changes each January needs a table of symbols by year, and `open_returns` needs a cash return for a stock after its last bar.
+- **The live period.** The nightly job of milestone 11 records intraday positions after the close, so the ledger proves the order of each day's decisions, not each bar's. The replay still fails a rule that reads a later bar.
+- **The site and the docs.** If verdicts return, the first screen, `web/src/lib/format.ts`, `web/e2e/expected.ts`, `check:honesty`, and the README tagline change wording.
+
+### Learner verdicts (planned, no milestone)
+
+The [learner-verdict arena](arena/2026-10-13-learner-verdicts/synthesis.md) settled which pairs a learner rule's verdict covers. The backend that scores learner rules inherits these requirements:
+
+- **The family.** One rule's pairs with every catalog entry in every market where its inputs exist: 8 pairs on daily ETFs, with a critical value of 2.65 on synthetic data. Learner pairs never join the catalog family, so a save changes no other verdict.
+- **The luck line.** The expected count of luck wins and its 95th percentile come from a null simulation on the real save dates. False wins arrive in bursts when one catalog entry has a bad stretch, so the 95th percentile ran about 3 times the mean.
+- **Short windows.** Rules start on different dates. Each save cohort gets its own bootstrap draw, or exponential block weights, because a shared multinomial draw gives a 3-block window zero weight in about 5% of reps.
+- **Compute.** The per-pair `block_bootstrap` loop took about 20 ms a pair, or about 25 minutes a night at 10,000 rules. Vectorized draws, one of which reproduces `block_bootstrap` to 5e-15, took 1.6 to 40 s across the four candidates.
+- **Storage.** At 10,000 rules, the ledger holds about 33 million positions a year. It outgrows the git `ledger` branch, so learner results live in the backend store, not in a committed export.
+- **Attack checks.** Candidate 4's clone and loser-flood attacks become tests of the luck line.
+
+### Data source for volatile stocks (proposed)
+
+Milestone 13 needs listings for each past date that include delisted stocks, daily bars for every US common stock, and terms that allow publishing figures derived from those bars. "Checked" means read on the provider's own page on 2026-10-13. "Unchecked" means read on a third-party page or not found.
+
+| Source | What it offers | Checked | Unchecked |
+|---|---|---|---|
+| Massive, formerly Polygon.io (proposed) | A ticker list as of any date, daily bars for all US stocks in one file per day, and FIGI and CIK identifiers | The All Tickers `date` parameter returns "tickers available on that date". `active=false` returns delisted tickers, with `delisted_utc`. Daily files and the daily market summary cover all US stocks from 2003-09-10, with full history on the Advanced and Business plans. Bars are split-adjusted by default, and a dividends endpoint exists. | Whether a past daily file holds stocks delisted since. Dividend adjustment of the bars. Display and redistribution terms. Delisting reasons. Historical quotes for measuring spreads. Price. |
+| Twelve Data (current provider) | `/stocks?include_delisted=true` | The flag exists on `/stocks` and `/etfs`. The response has no listing or delisting date. `/time_series` accepts a FIGI on the Ultra and Enterprise plans. | Whether `/time_series` returns bars for a delisted symbol, and how far back. The count of delisted US symbols. One call per symbol would take tens of thousands of calls. |
+| CRSP, through WRDS | The research standard, including delisting returns | None | Delisting returns, coverage, license terms, and price. Shumway (1997) found delisting returns missing for most stocks delisted for poor performance. |
+| Norgate Data | Listed and delisted US stocks | Its FAQ calls US listed and delisted coverage "essentially complete back to late 1992". | Delisted stocks only in the Platinum and Diamond plans. License terms, price, and the delivery software. |
+| Sharadar, through Nasdaq Data Link | US prices with a tickers table | QuantRocket's documentation lists Sharadar end-of-day prices from 1998. | Delisted coverage. Table fields. License terms. |
+| EODHD | A delisted-symbol list | `exchange-symbol-list/US?delisted=1` lists inactive symbols with no delisting date, and delisted tickers keep their end-of-day history. | Handling of reused tickers. Plan and terms. |
+
+Massive is the proposal because it is the only source checked to answer "which stocks were listed on this date" directly, and its daily files hold the whole market for a date, which is the input the universe rule needs. CRSP is the fallback if the terms or the delisted coverage fail, and it is the only source that records delisting returns. Three probes settle the unchecked facts before any purchase, and the user runs them, because they call a paid API:
+
+1. A daily file from 2008 holds a stock that was delisted in 2008.
+2. All Tickers with `date=2008-06-02` and `active=true` lists that stock.
+3. The license allows publishing strategy curves and figures derived from the bars.
+
 ## Jev study method (finished)
 
 ### Universe
@@ -281,6 +334,16 @@ Milestones 1 to 6 are merged. The arena milestones follow. Each one ships alone.
 11. **Live period.** Deferred on 2026-10-14. `jt arena tick` reads the latest bars, decides each strategy's positions at the last close, and appends one `LedgerRow` before the next bar exists. `jt arena verify` replays every strategy over the current bars and fails unless each past position equals its ledger row. A nightly GitHub Actions job runs `jt fetch`, `jt arena tick`, `jt arena`, and the deploy after each close. It commits the ledger to the `ledger` branch, reads `TWELVE_DATA_API_KEY` from a repository secret, and deploys to AWS through a GitHub OIDC role, so no AWS key is stored. `jt fetch` spends Twelve Data credits, so the user starts the first run.
     - Check that `tests/test_arena_live.py` passes on synthetic bars in a temporary git repository: 30 simulated sessions append 30 rows, the replay equals the ledger, an edited row fails `verify`, a strategy that reads the next bar fails `verify`, and a second tick on the same bars changes no file.
     - Check that `jt arena verify` exits 0 after the user runs one `jt fetch` and one `jt arena tick`.
+12. **Hourly ETF market.** Deferred on 2026-10-14. `data.py` fetches hourly bars for the 13 ETFs, keyed by timestamp and cut to regular session hours. `jt arena` adds the "13 ETFs, hourly" market with its own cost per switch (5 basis points proposed), compounds bar returns and the overnight gap into one return per session, and computes one critical value over the pairs of both markets. Jev (frozen rulebook) and the learned model play only in the daily market.
+    - Check that the truncation test passes for every entry on hourly random-walk bars.
+    - Check that a hand-built session of hourly bars compounds to the expected daily return, switch costs included.
+    - Check that the family size equals the pairs in both markets, and that a second `jt arena` reports every file unchanged.
+13. **Volatile-stock market.** Deferred on 2026-10-14. A data source with point-in-time listings, delisted stocks included, supplies the universe. Massive is the proposed source, as [Data source for volatile stocks](#data-source-for-volatile-stocks-proposed) explains. Each January, the universe rule in the product spec picks 20 stocks from data dated before that January. A stock delisted during the year moves to cash.
+    - Check that tripling every price after a January changes no stock picked for that January.
+    - Check that a synthetic stock delisted mid-year earns the cash return from its last bar on.
+    - Check that a second `jt arena` reports every file unchanged.
+
+Learner-built rules get no milestone. They wait for the backend trigger in the product spec.
 
 ## Jev access
 
@@ -289,15 +352,25 @@ Use OpenRouter `POST https://openrouter.ai/api/alpha/decisions` with model `type
 ## Open questions
 
 - Does OpenRouter require a minimum credit purchase? Unverified.
+- **Should every live verdict use a critical value calibrated by block count?** We recommend it for the catalog's live period and for learner rules. Today's `block_bootstrap` with `critical_value` gave a null rule a verdict in 64.5% of synthetic datasets at 3 blocks, 15.7% at 13 blocks, 7.3% at 63 blocks, and 6.2% at 236 blocks, against a 5% target. The bootstrap's spread is right on average, but with few blocks it varies too much from one dataset to the next. A t cutoff with blocks minus 1 degrees of freedom or a simulated table by block count would fix it. Either one makes a verdict before about 1 year unlikely, so honesty rule 5's 3-block minimum would rarely bind. The milestone 7 backtest, at 236 blocks, would barely move.
+- **When does a live verdict get decided?** We recommend a verdict on each anniversary of the save, or of the catalog freeze, for 5 years, at a critical value that holds 5% over those 5 looks. With one rule's 8 pairs and a known spread, that value is 3.07, against 2.67 for one look. Recomputed every night at 2.67, a null rule showed a verdict on some night within 5 years in 41.8% of runs. A value held at 5% over every night is 3.54, and it gave a rule with a true edge of 1.0 a win by 5 years in 48% of runs, against 58% for the yearly verdict. A night count beside a nightly verdict discloses the leak but does not close it. This changes honesty rule 5 and milestone 11.
+- **Is the hourly ETF cost 5 basis points?** We recommend it, for the reason the product spec gives. State Street's pages give a 30-day median quoted spread of 0.02% for XLB and 0.00% for SPY on 2026-10-12. The other 11 ETFs are unchecked.
+- **What are the volatile-stock floor and cost?** We recommend a closing price of at least $5 and a median daily dollar volume of at least $20 million over the previous 63 sessions. The cost is 25 basis points per switch, or the measured median quoted spread of the picked stocks if that is higher. The floor values and the 25 are guesses until the data source's quotes measure the spread.
+- **Which source supplies point-in-time listings with delisted stocks?** We recommend Massive, after the three probes in [Data source for volatile stocks](#data-source-for-volatile-stocks-proposed). CRSP is the fallback.
 
 ## Risks
 
 ### Arena
 
-1. **Low power.** Most pairs will read "no detectable difference". The first screen says so, shows the smallest difference the period can detect, and keeps the coin flip in the catalog as a picture of luck.
+1. **Low power.** Most pairs will read "Too close to call". Milestone 7 measured six of six. The first screen says so, shows the smallest difference the period can detect, and keeps the coin flip in the catalog as a picture of luck.
 2. **Catalog snooping.** Whoever adds an entry has seen the backtest years. Cited textbook parameters, the append-only catalog, the family-wide interval, and the "not a holdout" label limit this. Only the live period removes it.
 3. **Look-ahead in stateful rules and refits.** The truncation test over `CATALOG`, the `oracle` negative control, the refit purge test, and the live replay guard against this.
 4. **Pressure to add knobs.** Each parameter value is a new catalog entry and widens every interval. A request for free parameters is the backend trigger, not a catalog change.
+5. **Pressure to call wins.** "Which one wins?" invites a winner on every screen. The verdict comes only from the simultaneous interval, the family covers every market, `check:honesty` limits where "wins" appears, and the site never counts a strategy's wins.
+6. **A cost model that decides intraday results.** A strategy that switches many times a day can win or lose on the cost per switch alone. Each market fixes its cost before its first run, and every market shows its figures at 2 and 4 times that cost.
+7. **Luck wins in the live period.** Short windows and nightly looks each let a null pair show a verdict far more often than 5% of the time. The open questions on calibration by block count and on yearly verdicts address both. Milestone 11 should settle both before it shows a live verdict.
+8. **Luck wins from many learner rules.** A learner verdict covers only its own rule's pairs, so a person who saves many rules, from many accounts, will see some wins by luck. The luck line, the public rule log, and the list of a learner's other rules disclose this. Nothing prevents it.
+9. **Delisting prices.** A delisted stock exits at its last close. A source without delisting returns can flatter a stock that collapsed after its last trade. The volatile-stock market states how many of its stocks were delisted.
 
 ### Jev study
 
@@ -388,5 +461,16 @@ These risks are ranked by impact on the answer.
 - **2026-10-13.** A period's `first` and `last` in the arena manifest are the scored decision dates, and `barsEnd` is the last bar. The last two bars before `barsEnd` decide nothing that earns a return, so `last` falls two sessions before `barsEnd`.
 - **2026-10-13.** `reconcile` takes the market bars and cuts the returns at the last date of `research/holdout.json`, as `evaluate.holdout_result` does. Returns cut at the end of the backtest period would give the last two holdout sessions returns that the holdout never saw. On synthetic bars that run past the holdout end, that cut moved the golden cross excess Sharpe from 0.806 to 0.652, and the reconciliation failed. On the real data the two cuts are the same date.
 - **2026-10-13.** Milestone 7 measured the four-strategy backtest from 2008-01-02 through 2026-10-07 on the portfolio of 13 ETFs, in 236 blocks. The reconciliation reproduced the `buy_hold` and `sma_filter` intervals in `research/holdout.json` exactly. The simultaneous critical value for the 6 pairs is 2.53. No portfolio pair's simultaneous interval excludes zero, so every verdict is "no_difference". The MDE runs from 0.52 to 0.96 excess Sharpe across the pairs. Excess Sharpe at 5 bps is 0.61 for buy and hold, 0.64 for the golden cross, 0.45 for the MACD crossover, and 0.41 for the Bollinger bounce.
+- **2026-10-13.** The arena question becomes "Which one wins?", by the user's decision, because it is the question learners bring. The three answers are "A wins", "B wins", and "Too close to call". The simultaneous interval still decides, and the `PairRecord` verdict enum does not change. "Wins" appears only in the question and in a verdict that its interval supports, and the site never counts a strategy's wins.
+- **2026-10-13.** The arena gains markets, each a universe on one bar size, by the user's decision. An hourly ETF market comes first, then a volatile-stock market, and 1-minute bars later. A simulation of 2,000 runs of 5 years showed that bar size and volatility do not narrow a Sharpe interval. The spread of annualised Sharpe was 0.45 on daily bars, 0.46 on hourly and on 5-minute bars, and 0.46 and 0.47 at 16% and 60% volatility. More markets can raise the real differences between strategies, not the precision. Each market compounds its bar returns into session returns, so `evaluate.py` serves every market unchanged.
+- **2026-10-13.** A verdict's simultaneous interval covers every pair in every market, so a learner cannot find a win by trying markets. Each market added widens every interval.
+- **2026-10-13.** The volatile-stock universe is chosen each January by a fixed rule from listings that include delisted stocks. Today's list of volatile stocks would hide every stock that collapsed.
+- **2026-10-13.** Learner-built rules are the long-term goal, by the user's decision, and they wait for the backend trigger. A learner's rule gets a verdict only from its live period, because nobody can count the tries made on the backtest years before a rule is saved.
+- **2026-10-13.** Twelve Data's redistribution rights cover intraday bars, by the user's check. The data source is replaceable, and history depth or plan tier does not constrain the design.
+- **2026-10-13.** Jev (frozen rulebook) and the learned model play only in daily markets, by the user's decision. Both read the daily `State` and a 20-session horizon. Jev can be asked again later for another bar size, as a new catalog entry with a new call log. The frozen `research/jev_calls.jsonl` does not change.
+- **2026-10-13.** A learner rule's verdict covers that rule's pairs with every catalog entry, in every market where its inputs exist. It does not cover other saved rules. The [learner-verdict arena](arena/2026-10-13-learner-verdicts/synthesis.md) compared four answers on synthetic data. With every saved rule in one family, a rule with a true edge of 1.0 excess Sharpe over buy and hold showed a win within 5 years in 0.3% of runs at 10,000 rules. With its own pairs, it did in 64% to 69% of runs at any site size. A family of one account's rules failed to a second account, and a false-discovery rate made each verdict's level move with strangers' rules. The site states the luck that this answer allows: rules played, expected luck wins, a 1-night-in-20 high, and wins shown. Deleted rules keep counting, and every saved rule appears in a public log with no verdicts.
+- **2026-10-13.** The learner-verdict arena measured today's `block_bootstrap` with `critical_value` on one null rule's 8 pairs, over 1,500 synthetic datasets. A null rule got a verdict in 64.5% of datasets at 3 blocks, 15.7% at 13, 7.3% at 63, and 6.2% at 236. The spread of the bootstrap is right on average and noisy with few blocks. The milestone 7 backtest, at 236 blocks, is close to the 5% target. The live period is not. The fix is an open question.
+- **2026-10-13.** The same arena measured nightly looks with a known spread. At today's single-look critical value of 2.67 for 8 pairs, a null rule showed a verdict on some night within 5 years in 41.8% of runs. The schedule is an open question.
 - **2026-10-14.** The product is a proof of concept with a simple first screen for people who have never traded. It is no longer a Jev product. Statistical rigor, new data sources, and live scoring are deferred, and PR #13 holds their plan. An arena of four first-screen concepts picked "Pick two": a visitor taps two strategies and sees what $1,000 became in each, then reads why more money is not the whole story. The user approved it over a guess-first game, a single-strategy story, and an all-strategies view. The first screen shows no statistics words, and it says a gap "could be luck" only where `comparisons.json` reads `no_difference`. Milestone 8 now builds this screen. Milestones 9 and 11 are deferred. The record is in `docs/arena/2026-10-14-first-screen/`.
 - **2026-10-14.** The "Pick two" prototype becomes Trade Arena, by the user's decision. Two slots, "Strategy A" and "Strategy B", each open a searchable list grouped by kind, so the screen holds 50 or more strategies. The screen opens on one year, with range buttons for one week, one month, three months, one year, five years, and all years. A Line or Candles toggle shows either both strategies on all 13 funds or one fund's candles with each strategy's buys and sells. The export gains `windows.json`, which holds each range's growth, exposure, and biggest fall on the portfolio, and `funds/{symbol}.json`, which holds the bars and the trades. Each strategy's plain sentence moves from the site into `catalog.py` as `Strategy.plain`. The fingerprint still reads only the positions, so no version changes. A range other than all years is too short to tell skill from luck, and the screen says so for every pair.
+- **2026-10-14.** PR #13 merges as the deferred plan, by the user's decision. The current product spec stays the Trade Arena spec. The "Which one wins?" spec moves to [which-wins-spec.md](which-wins-spec.md), and its sections on markets, learner verdicts, and the volatile-stock data source stay in this plan. Its verdicts, honesty rules, and first screen do not apply until statistics return. Milestones 12 and 13 are deferred like 9 and 11. The next work plans the hourly market's data, backtest, and bar counts on screen, without verdicts.
