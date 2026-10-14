@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import json
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import polars as pl
 import pytest
 
 from jevtrader.data import (
+    DAY,
     DataError,
     closed_bars,
     fetch_symbol,
@@ -22,6 +24,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 KEY = "test-key-123"
 NOW = datetime(2026, 10, 12, 10, 0, tzinfo=UTC)
 FIXTURE_RANGES = ((date(2024, 1, 1), date(2024, 3, 31)), (date(2024, 4, 1), date(2024, 6, 30)))
+FIXTURE_DAY = replace(DAY, windows=FIXTURE_RANGES)
 HEADERS = json.loads((FIXTURES / "spy_headers.json").read_text())
 
 
@@ -29,9 +32,11 @@ def fixture_body(start: str) -> str:
     return (FIXTURES / f"spy_{start}.json").read_text()
 
 
-def fixture_client() -> httpx.Client:
+def fixture_client(seen: list[dict] | None = None) -> httpx.Client:
     def handler(req: httpx.Request) -> httpx.Response:
         assert req.url.params["apikey"] == KEY, "key travels as a query param"
+        if seen is not None:
+            seen.append({k: v for k, v in req.url.params.items() if k != "apikey"})
         start = req.url.params["start_date"]
         return httpx.Response(200, text=fixture_body(start), headers=HEADERS[start])
 
@@ -56,9 +61,16 @@ def snapshot(root: Path) -> dict[str, tuple[bytes, int]]:
 
 
 def test_fetch_symbol_writes_parquet_manifest_and_archive(tmp_path):
+    seen = []
     result = fetch_symbol(
-        fixture_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, ranges=FIXTURE_RANGES
+        fixture_client(seen), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_DAY
     )
+
+    daily = {"symbol": "SPY", "interval": "1day", "adjust": "all", "order": "asc"}
+    assert seen == [
+        {**daily, "outputsize": "5000", "start_date": "2024-01-01", "end_date": "2024-03-31"},
+        {**daily, "outputsize": "5000", "start_date": "2024-04-01", "end_date": "2024-06-30"},
+    ]
 
     assert (result.rows, result.first, result.last, result.changed) == (
         124,
@@ -68,6 +80,9 @@ def test_fetch_symbol_writes_parquet_manifest_and_archive(tmp_path):
     )
 
     parquet = tmp_path / "market" / "SPY.parquet"
+    assert hashlib.sha256(parquet.read_bytes()).hexdigest() == (
+        "e56807e767ade2f95e146483fd5a238496d0745d231b90cc0807867836a609b7"
+    ), "daily Parquet bytes match the fetch before bar sizes existed"
     bars = pl.read_parquet(parquet)
     assert bars.row(0) == (date(2024, 1, 2), 457.24271, 458.70501, 455.62546, 457.71722, 123623700)
     assert bars.height == 124
@@ -101,12 +116,12 @@ def test_fetch_symbol_writes_parquet_manifest_and_archive(tmp_path):
 
 
 def test_second_fetch_changes_no_file(tmp_path):
-    fetch_symbol(fixture_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, ranges=FIXTURE_RANGES)
+    fetch_symbol(fixture_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_DAY)
     before = snapshot(tmp_path)
 
     later = datetime(2026, 10, 13, 10, 0, tzinfo=UTC)
     result = fetch_symbol(
-        fixture_client(), KEY, "SPY", tmp_path, later, None, no_sleep, ranges=FIXTURE_RANGES
+        fixture_client(), KEY, "SPY", tmp_path, later, None, no_sleep, FIXTURE_DAY
     )
 
     assert result.changed is False

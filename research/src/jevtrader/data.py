@@ -1,4 +1,4 @@
-"""Twelve Data daily bars: fetch, archive, validate, and snapshot to Parquet."""
+"""Twelve Data bars: fetch, archive, validate, and snapshot to Parquet."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from datetime import time as clock_time
@@ -54,7 +54,21 @@ RATE_LIMIT_WAIT = 60.0
 MINUTE_MARGIN = 2.0
 
 Adjust = Literal["all", "none"]
-Range = tuple[date, date | None]
+Window = tuple[date | None, date | None]
+
+
+@dataclass(frozen=True)
+class BarSize:
+    interval: Literal["1day"]  # the Twelve Data interval and the `jt fetch --bars` value
+    windows: tuple[Window, ...]
+    capped: (
+        bool  # True: a window is the last OUTPUTSIZE bars. False: a full response may be cut off.
+    )
+    folder: str  # under data/market/ and data/raw/
+
+
+DAY = BarSize("1day", RANGES, capped=False, folder="")
+BAR_SIZES = {b.interval: b for b in (DAY,)}
 
 BARS_SCHEMA = {
     "date": pl.Date,
@@ -74,7 +88,7 @@ class DataError(Exception):
 class Manifest:  # data/market/{symbol}.manifest.json
     symbol: str
     adjust: Adjust
-    ranges: list[tuple[str, str | None]]
+    ranges: list[tuple[str | None, str | None]]
     fetched_at: str
     rows: int
     first: str
@@ -182,22 +196,24 @@ def request(
     client: httpx.Client,
     key: str,
     symbol: str,
-    start: date,
+    start: date | None,
     end: date | None,
     adjust: Adjust,
     sleep: Callable[[float], None],
     clock: Callable[[], float] = time.time,
+    interval: str = "1day",
 ) -> tuple[dict, str]:
     """One time_series call. Returns (payload, key-stripped body). Waits when credits run out."""
     params = {
         "symbol": symbol,
-        "interval": "1day",
+        "interval": interval,
         "adjust": adjust,
         "order": "asc",
-        "start_date": start.isoformat(),
         "outputsize": OUTPUTSIZE,
         "apikey": key,
     }
+    if start is not None:
+        params["start_date"] = start.isoformat()
     if end is not None:
         params["end_date"] = end.isoformat()
 
@@ -234,14 +250,16 @@ def fetch_symbol(
     now: datetime,
     reference_dates: pl.Series | None,
     sleep: Callable[[float], None],
-    ranges: Sequence[Range] = RANGES,
+    size: BarSize = DAY,
 ) -> FetchResult:
-    """Fetch both ranges, archive raw, validate, write Parquet and manifest only on change."""
+    """Fetch every window, archive raw, validate, write Parquet and manifest only on change."""
     frames, bodies = [], []
-    for start, end in ranges:
-        payload, body = request(client, key, symbol, start, end, "all", sleep)
+    for start, end in size.windows:
+        payload, body = request(
+            client, key, symbol, start, end, "all", sleep, interval=size.interval
+        )
         frame = parse_response(payload)
-        if frame.height >= OUTPUTSIZE:
+        if not size.capped and frame.height >= OUTPUTSIZE:
             raise DataError(
                 f"{symbol}: {start}..{end} hit the {OUTPUTSIZE}-bar cap, may be cut off"
             )
@@ -257,7 +275,7 @@ def fetch_symbol(
     parquet = buffer.getvalue()
     digest = hashlib.sha256(parquet).hexdigest()
 
-    market = data_dir / "market"
+    market = data_dir / "market" / size.folder
     parquet_path = market / f"{symbol}.parquet"
     manifest_path = market / f"{symbol}.manifest.json"
     changed = not (
@@ -267,7 +285,7 @@ def fetch_symbol(
     )
 
     if changed:
-        raw_dir = data_dir / "raw" / symbol
+        raw_dir = data_dir / "raw" / size.folder / symbol
         raw_names = []
         for body in bodies:
             text = body.encode()
@@ -279,7 +297,7 @@ def fetch_symbol(
         manifest = Manifest(
             symbol=symbol,
             adjust="all",
-            ranges=[(s.isoformat(), e.isoformat() if e else None) for s, e in ranges],
+            ranges=[(_iso(s), _iso(e)) for s, e in size.windows],
             fetched_at=now.isoformat(),
             rows=bars.height,
             first=bars["date"][0].isoformat(),
@@ -298,6 +316,10 @@ def fetch_symbol(
         up_base_rate=up_base_rate(bars),
         changed=changed,
     )
+
+
+def _iso(day: date | None) -> str | None:
+    return day.isoformat() if day else None
 
 
 def _manifest_sha(path: Path) -> str | None:
