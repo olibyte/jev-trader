@@ -46,14 +46,27 @@ The default pair is the first two strategies in catalog order, never a pair chos
 
 Milestone 7 built four strategies: buy and hold, the golden cross, the MACD crossover, and the Bollinger bounce. Each one is in the market or in cash on each fund. It decides after the close and trades at the next open. Cash earns the short-term US Treasury bill return (BIL), and each move in or out costs 0.05%. The funds are SPY, QQQ, IWM, DIA, and nine sector funds, held in equal parts and rebalanced each day. The years run from 2008-01-02 to 2026-10-07. Every bar is one trading day.
 
+## Hourly bars come next
+
+The user approved this plan on 2026-10-14. Milestone 12 in the implementation plan builds it. Nothing here is built yet.
+
+- **A Daily or Hourly switch** sits beside Line or Candles. It changes the whole screen: the two amounts, the line, the candles, and the "More money is not the whole story" card. Daily is the default.
+- **Hourly runs the same strategies on hourly bars.** A rule is written in bars, so the golden cross reads the 50-hour and 200-hour averages. Each strategy decides at the close of an hour and trades at the next hour's open, inside regular hours, and can hold overnight. Each move in or out still costs 0.05%. The 13 funds return to equal parts every hour.
+- **Hourly history is shorter.** One request of 5,000 hourly bars per fund reaches back about 2.8 years, and the first 200 bars warm up the longest average. The setup sentence says "about 2.7 years of hourly prices" with the first and last month. Daily history still starts in 2008. These spans are arithmetic at 7 bars a day until the first hourly fetch measures them.
+- **Ranges.** Daily keeps 1W, 1M, 3M, 1Y, 5Y, and All. Hourly has 1D, 1W, 1M, 3M, 1Y, and All. 1Y is the default on both. The switch keeps the chosen range when the other bar size has it, and falls back to 1Y when it does not.
+- **The candles view shows at most 250 bars.** It shows the last 250 bars of the chosen range, or the whole range when it is shorter, with a note such as "Showing the last 250 hours of this range." The page loads every bar of the fund, so a later step back in time needs no new download. Scrolling stays off until that task.
+- **Hourly copy.** The card reads "Share of hours invested" and says a strategy sat in cash on a share "of hours", not "of days". Hourly bars show the time in New York, such as "Oct 9, 2026, 1:30 pm".
+- **No luck claim on hourly.** Hourly bars have no statistics yet, so `comparisons.json` has no hourly result. On hourly All, the answer to "Does that make it the better strategy?" is "We haven't tested hourly results for luck yet." The "could be luck" callout never appears on hourly. Shorter hourly ranges keep "too short to tell skill from luck".
+
 ## Deferred
 
 These items wait until the first screen works for people. The [deferred "Which one wins?" spec](which-wins-spec.md) holds the plan for most of them.
 
 - More strategies: a candlestick pattern, a learned model, Jev from its frozen policy table, and a coin flip.
-- Verdicts in words such as "A wins", and the statistics behind them.
+- Verdicts in words such as "A wins", and the statistics behind them, hourly bars included.
 - A live period scored after each close.
-- Hourly bars, volatile individual stocks, and the cost models and data sources they need.
+- Stepping back in time on the chart, which replaces "no chart zoom" in rule 4.
+- Volatile individual stocks, 1-minute bars, and the cost models and data sources they need.
 - Rules that visitors build, and the backend they need.
 
 ## The Jev study is finished
