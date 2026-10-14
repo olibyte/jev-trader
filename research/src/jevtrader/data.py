@@ -51,8 +51,9 @@ NEW_YORK = ZoneInfo("America/New_York")
 SETTLED = clock_time(20, 0)
 MAX_OVERNIGHT_MOVE = 0.40
 OPEN, CLOSE = clock_time(9, 30), clock_time(16, 0)
-# Provisional. The first real hourly fetch measures the gaps and sets this.
-GAP_TOLERANCE = 0.01
+# SPY's worst gap in its first hourly fetch was 1.05%, its 2025-04-09 close. Unadjusted prices
+# or a session shifted by a day still miss by more than 2%.
+GAP_TOLERANCE = 0.02
 RATE_LIMIT_WAIT = 60.0
 MINUTE_MARGIN = 2.0
 
@@ -165,13 +166,16 @@ def closed_bars(bars: pl.DataFrame, now: datetime) -> pl.DataFrame:
 
 
 def regular_hours(bars: pl.DataFrame) -> pl.DataFrame:
-    """Keep bars from 09:30 to 16:00, from the first 09:30 bar on.
+    """Keep each session's unbroken run of hourly bars from 09:30 to 16:00.
 
-    A capped window starts mid-session, so its first session is partial.
+    That drops the partial first session of a capped window and the flat 15:30 bar that some
+    half days carry after their 13:00 close.
     """
     clock = pl.col("time").dt.time()
+    minutes = pl.col("time").dt.hour().cast(pl.Int32) * 60 + pl.col("time").dt.minute()
+    slot = OPEN.hour * 60 + OPEN.minute + 60 * pl.int_range(pl.len()).over("date")
     inside = bars.filter((clock >= OPEN) & (clock < CLOSE))
-    return inside.filter((clock == OPEN).cum_sum() > 0)
+    return inside.filter(minutes == slot)
 
 
 def validate(

@@ -366,7 +366,7 @@ def test_hourly_fetch_rejects_a_session_far_from_the_daily_bar(tmp_path):
     with pytest.raises(DataError) as err:
         fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
     assert str(err.value) == (
-        "SPY 2024-01-04: hourly open or close is 2.50% from the daily bar, over 1%"
+        "SPY 2024-01-04: hourly open or close is 2.50% from the daily bar, over 2%"
     )
     raw_name = hashlib.sha256(HOURLY_BODY.encode()).hexdigest() + ".json.gz"
     assert sorted(snapshot(tmp_path)) == [
@@ -396,3 +396,12 @@ def test_hourly_fetch_rejects_an_unexpected_last_session(tmp_path):
     with pytest.raises(DataError) as err:
         fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, size)
     assert str(err.value) == "SPY: last session 2024-01-04, expected 2024-01-05"
+
+
+def test_regular_hours_stops_a_half_day_at_its_close():
+    times = [datetime(2024, 11, 29, h, 30) for h in (9, 10, 11, 12, 15)]
+    bars = pl.DataFrame({"time": times, "date": [date(2024, 11, 29)] * 5})
+
+    kept = regular_hours(bars)
+
+    assert kept["time"].dt.strftime("%H:%M").to_list() == ["09:30", "10:30", "11:30", "12:30"]
