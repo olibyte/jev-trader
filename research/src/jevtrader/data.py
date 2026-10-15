@@ -54,6 +54,9 @@ OPEN, CLOSE = clock_time(9, 30), clock_time(16, 0)
 # SPY's worst gap in its first hourly fetch was 1.05%, its 2025-04-09 close. Unadjusted prices
 # or a session shifted by a day still miss by more than 2%.
 GAP_TOLERANCE = 0.02
+# The worst hourly close outside its own high and low was 0.014%, about half a cent.
+WICK_TOLERANCE = 0.0005
+MAX_FILLED = 7  # one session of hourly bars
 RATE_LIMIT_WAIT = 60.0
 MINUTE_MARGIN = 2.0
 
@@ -125,6 +128,8 @@ class FetchResult:
     up_base_rate: float | None  # daily only: the horizon counts sessions
     changed: bool
     gap: float | None  # the largest session gap against the daily snapshot, intraday only
+    widened: int = 0  # bars whose high or low moved to cover the open and close
+    filled: int = 0  # flat bars added for SPY's times with no bar
 
 
 # Pure core
@@ -176,6 +181,51 @@ def regular_hours(bars: pl.DataFrame) -> pl.DataFrame:
     slot = OPEN.hour * 60 + OPEN.minute + 60 * pl.int_range(pl.len()).over("date")
     inside = bars.filter((clock >= OPEN) & (clock < CLOSE))
     return inside.filter(minutes == slot)
+
+
+def widen_wicks(bars: pl.DataFrame) -> tuple[pl.DataFrame, int]:
+    """Move a high up or a low down to the open or close when it misses by WICK_TOLERANCE or less.
+
+    A few hourly bars close a fraction of a cent outside their own range. A larger miss stays for
+    `validate` to reject.
+    """
+    o, h, lo, c = (pl.col(x) for x in ("open", "high", "low", "close"))
+    top, bottom = pl.max_horizontal(o, c), pl.min_horizontal(o, c)
+    up = (top > h) & (top <= h * (1 + WICK_TOLERANCE))
+    down = (bottom < lo) & (bottom >= lo * (1 - WICK_TOLERANCE))
+    widened = bars.select((up | down).sum()).item()
+    fixed = bars.with_columns(
+        pl.when(up).then(top).otherwise(h).alias("high"),
+        pl.when(down).then(bottom).otherwise(lo).alias("low"),
+    )
+    return fixed, widened
+
+
+def fill_quiet_hours(bars: pl.DataFrame, reference: pl.Series) -> tuple[pl.DataFrame, int]:
+    """Add a flat bar at the last close for each reference time inside the bars that has none.
+
+    BIL printed no hourly bar after 09:30 on 2024-10-02. More than MAX_FILLED missing times stay
+    for `validate` to report.
+    """
+    grid = pl.DataFrame({"time": reference}).filter(
+        pl.col("time").is_between(bars["time"].min(), bars["time"].max())
+    )
+    missing = grid.join(bars.select("time"), on="time", how="anti")
+    if missing.height == 0 or missing.height > MAX_FILLED:
+        return bars, 0
+    added = missing.with_columns(pl.col("time").dt.date().alias("date"))
+    close = pl.col("close").forward_fill()
+    filled = (
+        pl.concat([bars, added], how="diagonal")
+        .sort("time")
+        .with_columns(close)
+        .with_columns(
+            *(pl.col(x).fill_null(pl.col("close")) for x in ("open", "high", "low")),
+            pl.col("volume").fill_null(0),
+        )
+        .select(bars.columns)
+    )
+    return filled, missing.height
 
 
 def validate(
@@ -354,9 +404,11 @@ def fetch_symbol(
         frames.append(frame)
 
     bars = closed_bars(pl.concat(frames).unique().sort(size.key), now)
-    gap = None
+    gap, widened, filled = None, 0, 0
     if size.intraday:
-        bars = regular_hours(bars)
+        bars, widened = widen_wicks(regular_hours(bars))
+        if reference is not None:
+            bars, filled = fill_quiet_hours(bars, reference)
         if size.last is not None and bars.height and bars["date"][-1] != size.last:
             raise DataError(f"{symbol}: last session {bars['date'][-1]}, expected {size.last}")
     validate(symbol, bars, reference, size.key)
@@ -405,6 +457,8 @@ def fetch_symbol(
         up_base_rate=None if size.intraday else up_base_rate(bars),
         changed=changed,
         gap=gap,
+        widened=widened,
+        filled=filled,
     )
 
 

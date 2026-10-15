@@ -2,7 +2,7 @@ import gzip
 import hashlib
 import json
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -15,11 +15,13 @@ from jevtrader.data import (
     DataError,
     closed_bars,
     fetch_symbol,
+    fill_quiet_hours,
     parse_response,
     regular_hours,
     request,
     up_base_rate,
     validate,
+    widen_wicks,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -405,3 +407,67 @@ def test_regular_hours_stops_a_half_day_at_its_close():
     kept = regular_hours(bars)
 
     assert kept["time"].dt.strftime("%H:%M").to_list() == ["09:30", "10:30", "11:30", "12:30"]
+
+
+def test_widen_wicks_covers_a_close_a_fraction_of_a_cent_outside_the_range():
+    bars = pl.DataFrame(
+        {
+            "open": [42.12401, 100.0, 50.0],
+            "high": [42.18892, 101.0, 50.5],
+            "low": [42.089227, 99.0, 49.0],
+            "close": [42.19124, 102.0, 50.2],
+        }
+    )
+
+    fixed, widened = widen_wicks(bars)
+
+    assert widened == 1
+    assert fixed.rows() == [
+        (42.12401, 42.19124, 42.089227, 42.19124),
+        (100.0, 101.0, 99.0, 102.0),
+        (50.0, 50.5, 49.0, 50.2),
+    ], "a 1% miss stays for validate to reject"
+
+
+def test_fill_quiet_hours_adds_flat_bars_at_the_last_close():
+    times = [datetime(2024, 10, d, h, 30) for d in (2, 3) for h in (9, 10, 11)]
+    bars = pl.DataFrame(
+        {
+            "time": [times[0], times[3], times[4], times[5]],
+            "date": [date(2024, 10, 2)] + [date(2024, 10, 3)] * 3,
+            "open": [84.52, 84.53, 84.53, 84.54],
+            "high": [84.53, 84.53, 84.54, 84.54],
+            "low": [84.52, 84.52, 84.53, 84.53],
+            "close": [84.527, 84.53, 84.54, 84.54],
+            "volume": [35148, 100, 100, 100],
+        }
+    )
+
+    filled, count = fill_quiet_hours(bars, pl.Series("time", times))
+
+    assert count == 2
+    assert filled.filter(pl.col("date") == date(2024, 10, 2)).rows() == [
+        (times[0], date(2024, 10, 2), 84.52, 84.53, 84.52, 84.527, 35148),
+        (times[1], date(2024, 10, 2), 84.527, 84.527, 84.527, 84.527, 0),
+        (times[2], date(2024, 10, 2), 84.527, 84.527, 84.527, 84.527, 0),
+    ]
+    assert filled.height == 6
+
+
+def test_fill_quiet_hours_leaves_more_than_a_session_of_gaps_for_validate():
+    times = [datetime(2024, 10, 2, 9, 30) + timedelta(hours=h) for h in range(10)]
+    ends = pl.DataFrame(
+        {
+            "time": [times[0], times[-1]],
+            "date": [date(2024, 10, 2)] * 2,
+            "open": [1.0, 1.0],
+            "high": [1.0, 1.0],
+            "low": [1.0, 1.0],
+            "close": [1.0, 1.0],
+            "volume": [1, 1],
+        }
+    )
+
+    assert fill_quiet_hours(ends, pl.Series("time", times[1:8]))[0].height == 9, "7 missing fill"
+    unfilled, count = fill_quiet_hours(ends, pl.Series("time", times))
+    assert (unfilled.height, count) == (2, 0), "8 missing stay"

@@ -186,6 +186,10 @@ def fetch_all(client: httpx.Client, key: str, symbols: list[str], size: BarSize)
         status = "changed" if r.changed else "unchanged"
         if r.gap is not None:
             status += f", gap {r.gap:.2%}"
+        if r.widened:
+            status += f", widened {r.widened}"
+        if r.filled:
+            status += f", filled {r.filled}"
         print(ROW.format(symbol, r.rows, str(r.first), str(r.last), up_rate, status))
     return 1 if failed else 0
 
