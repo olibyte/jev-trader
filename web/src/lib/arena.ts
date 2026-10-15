@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 
-const ARENA_DIR = path.resolve(process.env.ARENA_DIR ?? path.join(process.cwd(), "..", "export", "arena", "v1"));
+const ARENA_DIR = path.resolve(process.env.ARENA_DIR ?? path.join(process.cwd(), "..", "export", "arena", "v2"));
 
 const KINDS = ["benchmark", "indicator", "candlestick", "ml", "jev", "control"] as const;
 const RANGES = ["1W", "1M", "3M", "1Y", "5Y", "All"] as const;
@@ -70,7 +70,10 @@ const fundSchema = z.object({
   trades: z.record(z.string(), z.object({ buy: z.array(z.iso.date()), sell: z.array(z.iso.date()) })),
 });
 
-const manifestSchema = z.object({ scopes: z.array(z.string()).min(1), settings: z.object({ costBps: z.number().min(0) }) });
+const manifestSchema = z.object({
+  markets: z.object({ daily: z.object({ scopes: z.array(z.string()).min(1) }) }),
+  settings: z.object({ costBps: z.number().min(0) }),
+});
 
 const FUND_NAMES: Record<string, string> = {
   SPY: "S&P 500",
@@ -126,35 +129,36 @@ function check(ok: boolean, file: string, message: string) {
 
 function readArena(): Arena {
   const catalog = read("catalog.json", catalogSchema);
-  const comparisons = read("comparisons.json", comparisonsSchema);
-  const { scopes, settings } = read("manifest.json", manifestSchema);
-  const { last, windows } = read("windows.json", windowsSchema);
-  const curve = read("curves/portfolio.json", curveSchema).periods.backtest;
+  const comparisons = read("daily/comparisons.json", comparisonsSchema);
+  const { markets, settings } = read("manifest.json", manifestSchema);
+  const { scopes } = markets.daily;
+  const { last, windows } = read("daily/windows.json", windowsSchema);
+  const curve = read("daily/curves/portfolio.json", curveSchema).periods.backtest;
   const strategies = catalog.strategies.map(({ id, title, plain, rule, kind }) => ({ id, title, plain, rule, kind }));
   const ids = strategies.map((s) => s.id);
 
-  check(curve.date.at(-1) === last, "windows.json", `last is ${last}, not the last curve date ${curve.date.at(-1)}`);
+  check(curve.date.at(-1) === last, "daily/windows.json", `last is ${last}, not the last curve date ${curve.date.at(-1)}`);
   check(
     windows.map((w) => w.range).join() === RANGES.join(),
-    "windows.json",
+    "daily/windows.json",
     `the ranges are ${windows.map((w) => w.range).join(", ")}, not ${RANGES.join(", ")}`,
   );
   const portfolioRows = comparisons.strategies.filter((r) => r.scope === "portfolio" && r.period === "backtest");
   for (const w of windows) {
-    check((w.base === null) === (w.range === "All"), "windows.json", `the ${w.range} window has base ${w.base}`);
-    check(w.base === null || curve.date.includes(w.base), "windows.json", `the ${w.range} base ${w.base} is not a curve date`);
-    for (const id of ids) check(id in w.strategies, "windows.json", `the ${w.range} window has no figures for "${id}"`);
+    check((w.base === null) === (w.range === "All"), "daily/windows.json", `the ${w.range} window has base ${w.base}`);
+    check(w.base === null || curve.date.includes(w.base), "daily/windows.json", `the ${w.range} base ${w.base} is not a curve date`);
+    for (const id of ids) check(id in w.strategies, "daily/windows.json", `the ${w.range} window has no figures for "${id}"`);
   }
   const all = windows[windows.length - 1].strategies;
   for (const id of ids) {
     const series = curve.equity[id];
-    check(series?.length === curve.date.length, "curves/portfolio.json", `the curve for "${id}" does not span the dates`);
+    check(series?.length === curve.date.length, "daily/curves/portfolio.json", `the curve for "${id}" does not span the dates`);
     const end = series[series.length - 1];
-    check(all[id].growth * 1000 === end * 1000, "windows.json", `All growth for "${id}" is ${all[id].growth}, not ${end}`);
+    check(all[id].growth * 1000 === end * 1000, "daily/windows.json", `All growth for "${id}" is ${all[id].growth}, not ${end}`);
     const row = portfolioRows.find((r) => r.id === id);
     check(
       row?.exposure === all[id].exposure && row.maxDrawdown === all[id].maxDrawdown,
-      "windows.json",
+      "daily/windows.json",
       `the All window for "${id}" does not match its portfolio row in comparisons.json`,
     );
   }
@@ -167,7 +171,7 @@ function readArena(): Arena {
   });
   const bars = Object.fromEntries(
     tickers.map((ticker) => {
-      const file = `funds/${ticker}.json`;
+      const file = `daily/funds/${ticker}.json`;
       const fund = read(file, fundSchema);
       check(fund.symbol === ticker, file, `symbol is ${fund.symbol}`);
       for (const column of ["open", "high", "low", "close"] as const) {
