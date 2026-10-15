@@ -21,6 +21,8 @@ import { MARKETS } from "@/lib/markets";
 import { CHART_COLORS, chartOptions } from "../chartTheme";
 
 const START = 1000;
+/** The candles view shows at most this many bars, the last of the range. */
+const CANDLES = 250;
 
 export type Side = { id: string; label: string; color: string };
 
@@ -166,7 +168,10 @@ export function CandleView(props: CandleProps) {
 function CandleChart({ bars, market, fund, base, sides, trades }: CandleProps & { bars: FundBars }) {
   const container = useRef<HTMLDivElement>(null);
   const [chart, hovered] = useChart(container);
-  const from = useMemo(() => (base === null ? 0 : bars.time.findIndex((d) => d > base)), [bars, base]);
+  const { start, from } = useMemo(() => {
+    const start = base === null ? 0 : bars.time.findIndex((key) => key > base);
+    return { start, from: Math.max(start, bars.time.length - CANDLES) };
+  }, [bars, base]);
 
   useEffect(() => {
     const api = chart.current;
@@ -206,7 +211,7 @@ function CandleChart({ bars, market, fund, base, sides, trades }: CandleProps & 
     };
   }, [chart, market, bars, from, sides, trades]);
 
-  const { formatTime, label } = MARKETS[market];
+  const { formatTime, label, unit } = MARKETS[market];
 
   const traded = sides.some(({ id }) => [...bars.trades[id].buy, ...bars.trades[id].sell].some((d) => d >= bars.time[from]));
   const i = from + at(hovered, bars.time.length - from);
@@ -225,6 +230,11 @@ function CandleChart({ bars, market, fund, base, sides, trades }: CandleProps & 
         aria-label={`${label} prices of ${fund.name}${trades ? ", marked where each strategy bought and sold" : ""}`}
         data-testid="candle-chart"
       />
+      {from > start ? (
+        <p className="muted" data-testid="candle-cap">
+          Showing the last {CANDLES} {unit}s of this range.
+        </p>
+      ) : null}
       {trades && !traded ? (
         <p className="muted" data-testid="no-trades">
           Neither strategy bought or sold {fund.name} in this range.

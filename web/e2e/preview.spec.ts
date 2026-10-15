@@ -89,6 +89,9 @@ test("the candles view shows one fund's prices and marks each strategy's trades"
   await expect(page.getByTestId("trade-legend")).toHaveText("Buy and holdGolden cross▲ bought ▼ sold");
   await expect(page.getByTestId("no-trades")).toHaveText("Neither strategy bought or sold S&P 500 in this range.");
   await page.getByRole("button", { name: "5Y" }).click();
+  await expect(page.getByTestId("candle-cap")).toHaveText("Showing the last 250 days of this range.");
+  await expect(page.getByTestId("no-trades")).toHaveText("Neither strategy bought or sold S&P 500 in this range.");
+  await fund.selectOption("XLF");
   await expect(page.getByTestId("no-trades")).toHaveCount(0);
 
   await fund.selectOption("QQQ");
