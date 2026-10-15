@@ -66,7 +66,10 @@ function useChart(container: RefObject<HTMLDivElement | null>): [RefObject<IChar
   const [hovered, setHovered] = useState<number | null>(null);
   useEffect(() => {
     if (!container.current) return;
-    const api = createChart(container.current, { ...chartOptions(), handleScroll: false, handleScale: false });
+    const options = chartOptions();
+    // The default 0.5px floor on bar spacing stops fitContent from fitting thousands of points, such as daily All on a phone.
+    const timeScale = { ...options.timeScale, minBarSpacing: 0.01 };
+    const api = createChart(container.current, { ...options, timeScale, handleScroll: false, handleScale: false });
     const onMove = (param: MouseEventParams<Time>) =>
       setHovered(param.logical === undefined || param.point === undefined ? null : Math.round(param.logical));
     // Zoom and scroll are off, so the whole range always shows. A resize soon after the first draw otherwise keeps the old bar spacing.

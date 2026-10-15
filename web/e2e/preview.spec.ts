@@ -14,13 +14,13 @@ const barSize = (page: Page, market: ArenaMarket) =>
 const rangeButton = (page: Page, range: string) =>
   page.getByRole("group", { name: "Time range" }).getByRole("button", { name: range, exact: true });
 
-async function hoverLeftEdge(page: Page, testId: string) {
+async function hoverLeftEdge(page: Page, testId: string, inset = 2) {
   const chart = page.getByTestId(testId);
   await chart.scrollIntoViewIfNeeded();
   const box = await chart.boundingBox();
   if (!box) throw new Error(`${testId} has no box`);
   await page.mouse.move(0, 0);
-  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.move(box.x + inset, box.y + box.height / 2);
 }
 
 test("pick two opens on one year with the first two strategies", async ({ page }) => {
@@ -247,4 +247,20 @@ test.describe("on a phone screen", () => {
     await page.mouse.move(box.x + 2, box.y + box.height / 2);
     await expect(page.getByTestId("readout")).toContainText(/^Oct \d+, 2025/);
   });
+
+  for (const [market, range, month] of [
+    ["daily", "All", /^Jan \d+, 2008A /],
+    ["hourly", "1Y", /^Oct \d+, 2025, .+A /],
+    ["hourly", "All", /^Jan \d+, 2024, .+A /],
+  ] as const) {
+    test(`the ${market} ${range} line starts in the range's first month`, async ({ page }) => {
+      await page.goto("/preview/");
+      await barSize(page, market).click();
+      await rangeButton(page, range).click();
+      await expect(page.getByTestId("line-chart")).toBeVisible();
+      // A pixel spans many points here, so the edge reads the first month, not the first point.
+      await hoverLeftEdge(page, "line-chart", 0.1);
+      await expect(page.getByTestId("readout")).toHaveText(month);
+    });
+  }
 });
