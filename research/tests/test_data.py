@@ -1,7 +1,8 @@
 import gzip
 import hashlib
 import json
-from datetime import UTC, date, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -9,19 +10,25 @@ import polars as pl
 import pytest
 
 from jevtrader.data import (
+    DAY,
+    HOUR,
     DataError,
     closed_bars,
     fetch_symbol,
+    fill_quiet_hours,
     parse_response,
+    regular_hours,
     request,
     up_base_rate,
     validate,
+    widen_wicks,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
 KEY = "test-key-123"
 NOW = datetime(2026, 10, 12, 10, 0, tzinfo=UTC)
 FIXTURE_RANGES = ((date(2024, 1, 1), date(2024, 3, 31)), (date(2024, 4, 1), date(2024, 6, 30)))
+FIXTURE_DAY = replace(DAY, windows=FIXTURE_RANGES)
 HEADERS = json.loads((FIXTURES / "spy_headers.json").read_text())
 
 
@@ -29,9 +36,11 @@ def fixture_body(start: str) -> str:
     return (FIXTURES / f"spy_{start}.json").read_text()
 
 
-def fixture_client() -> httpx.Client:
+def fixture_client(seen: list[dict] | None = None) -> httpx.Client:
     def handler(req: httpx.Request) -> httpx.Response:
         assert req.url.params["apikey"] == KEY, "key travels as a query param"
+        if seen is not None:
+            seen.append({k: v for k, v in req.url.params.items() if k != "apikey"})
         start = req.url.params["start_date"]
         return httpx.Response(200, text=fixture_body(start), headers=HEADERS[start])
 
@@ -56,9 +65,16 @@ def snapshot(root: Path) -> dict[str, tuple[bytes, int]]:
 
 
 def test_fetch_symbol_writes_parquet_manifest_and_archive(tmp_path):
+    seen = []
     result = fetch_symbol(
-        fixture_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, ranges=FIXTURE_RANGES
+        fixture_client(seen), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_DAY
     )
+
+    daily = {"symbol": "SPY", "interval": "1day", "adjust": "all", "order": "asc"}
+    assert seen == [
+        {**daily, "outputsize": "5000", "start_date": "2024-01-01", "end_date": "2024-03-31"},
+        {**daily, "outputsize": "5000", "start_date": "2024-04-01", "end_date": "2024-06-30"},
+    ]
 
     assert (result.rows, result.first, result.last, result.changed) == (
         124,
@@ -68,6 +84,9 @@ def test_fetch_symbol_writes_parquet_manifest_and_archive(tmp_path):
     )
 
     parquet = tmp_path / "market" / "SPY.parquet"
+    assert hashlib.sha256(parquet.read_bytes()).hexdigest() == (
+        "e56807e767ade2f95e146483fd5a238496d0745d231b90cc0807867836a609b7"
+    ), "daily Parquet bytes match the fetch before bar sizes existed"
     bars = pl.read_parquet(parquet)
     assert bars.row(0) == (date(2024, 1, 2), 457.24271, 458.70501, 455.62546, 457.71722, 123623700)
     assert bars.height == 124
@@ -101,12 +120,12 @@ def test_fetch_symbol_writes_parquet_manifest_and_archive(tmp_path):
 
 
 def test_second_fetch_changes_no_file(tmp_path):
-    fetch_symbol(fixture_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, ranges=FIXTURE_RANGES)
+    fetch_symbol(fixture_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_DAY)
     before = snapshot(tmp_path)
 
     later = datetime(2026, 10, 13, 10, 0, tzinfo=UTC)
     result = fetch_symbol(
-        fixture_client(), KEY, "SPY", tmp_path, later, None, no_sleep, ranges=FIXTURE_RANGES
+        fixture_client(), KEY, "SPY", tmp_path, later, None, no_sleep, FIXTURE_DAY
     )
 
     assert result.changed is False
@@ -219,3 +238,270 @@ def test_request_retries_once_after_rate_limit():
 
     assert payload["status"] == "ok"
     assert sleeps == [60.0]
+
+
+FIXTURE_HOUR = replace(HOUR, last=date(2024, 1, 4))
+HOURLY_BODY = (FIXTURES / "spy_1h.json").read_text()
+
+
+def hourly_client(seen: list[dict] | None = None) -> httpx.Client:
+    def handler(req: httpx.Request) -> httpx.Response:
+        if seen is not None:
+            seen.append({k: v for k, v in req.url.params.items() if k != "apikey"})
+        return httpx.Response(200, text=HOURLY_BODY, headers={"api-credits-left": "7"})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def write_daily(root: Path, opens: list[float], closes: list[float]) -> None:
+    days = [date(2024, 1, 3), date(2024, 1, 4)][: len(opens)]
+    market = root / "market"
+    market.mkdir(parents=True, exist_ok=True)
+    pl.DataFrame({"date": days, "open": opens, "close": closes}).write_parquet(
+        market / "SPY.parquet"
+    )
+
+
+def hourly_bars() -> pl.DataFrame:
+    return regular_hours(parse_response(json.loads(HOURLY_BODY), HOUR))
+
+
+def test_hourly_fetch_keeps_regular_hours_from_the_first_full_session(tmp_path):
+    write_daily(tmp_path, [100.0, 110.55], [107.0, 117.0])
+    seen = []
+
+    result = fetch_symbol(
+        hourly_client(seen), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR
+    )
+
+    assert seen == [
+        {
+            "symbol": "SPY",
+            "interval": "1h",
+            "adjust": "all",
+            "order": "asc",
+            "outputsize": "5000",
+            "end_date": "2026-10-10",
+        }
+    ]
+    assert (result.rows, result.first, result.last, result.changed) == (
+        14,
+        date(2024, 1, 3),
+        date(2024, 1, 4),
+        True,
+    )
+    assert result.gap == pytest.approx(0.55 / 110.55)
+
+    bars = pl.read_parquet(tmp_path / "market" / "1h" / "SPY.parquet")
+    assert bars.columns == ["time", "date", "open", "high", "low", "close", "volume"]
+    assert bars.row(0) == (
+        datetime(2024, 1, 3, 9, 30),
+        date(2024, 1, 3),
+        100.0,
+        101.5,
+        99.5,
+        101.0,
+        1000,
+    )
+    assert bars["time"].dt.strftime("%H:%M").unique(maintain_order=True).to_list() == [
+        "09:30",
+        "10:30",
+        "11:30",
+        "12:30",
+        "13:30",
+        "14:30",
+        "15:30",
+    ]
+
+    raw_name = hashlib.sha256(HOURLY_BODY.encode()).hexdigest() + ".json.gz"
+    manifest = json.loads((tmp_path / "market" / "1h" / "SPY.manifest.json").read_text())
+    assert manifest == {
+        "symbol": "SPY",
+        "adjust": "all",
+        "ranges": [[None, "2026-10-10"]],
+        "fetched_at": "2026-10-12T10:00:00+00:00",
+        "rows": 14,
+        "first": "2024-01-03T09:30:00",
+        "last": "2024-01-04T15:30:00",
+        "sha256": hashlib.sha256((tmp_path / "market/1h/SPY.parquet").read_bytes()).hexdigest(),
+        "raw": [raw_name],
+    }
+    assert sorted(snapshot(tmp_path)) == [
+        "market/1h/SPY.manifest.json",
+        "market/1h/SPY.parquet",
+        "market/SPY.parquet",
+        f"raw/1h/SPY/{raw_name}",
+    ]
+
+
+def test_second_hourly_fetch_changes_no_file(tmp_path):
+    write_daily(tmp_path, [100.0, 110.0], [107.0, 117.0])
+    fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    before = snapshot(tmp_path)
+
+    later = datetime(2026, 10, 13, 10, 0, tzinfo=UTC)
+    result = fetch_symbol(
+        hourly_client(), KEY, "SPY", tmp_path, later, None, no_sleep, FIXTURE_HOUR
+    )
+
+    assert result.changed is False
+    assert snapshot(tmp_path) == before, "bytes and mtimes of every file are unchanged"
+
+
+def test_validate_rejects_hourly_time_missing_against_reference():
+    bars = hourly_bars()
+    validate("QQQ", bars, bars["time"], "time")
+
+    gappy = bars.filter(pl.col("time") != datetime(2024, 1, 3, 12, 30))
+    with pytest.raises(DataError) as err:
+        validate("QQQ", gappy, bars["time"], "time")
+    assert str(err.value) == (
+        "QQQ 2024-01-03 12:30:00: times differ from SPY in "
+        "2024-01-03 09:30:00..2024-01-04 15:30:00 "
+        "(1 missing, e.g. 2024-01-03 12:30:00; 0 extra, e.g. none)"
+    )
+
+
+def test_hourly_fetch_rejects_a_session_far_from_the_daily_bar(tmp_path):
+    write_daily(tmp_path, [100.0, 110.0], [107.0, 120.0])
+
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    assert str(err.value) == (
+        "SPY 2024-01-04: hourly open or close is 2.50% from the daily bar, over 2%"
+    )
+    raw_name = hashlib.sha256(HOURLY_BODY.encode()).hexdigest() + ".json.gz"
+    assert sorted(snapshot(tmp_path)) == [
+        "market/SPY.parquet",
+        f"raw/1h/SPY/{raw_name}",
+    ], "the response is archived and no hourly snapshot is written"
+
+
+def test_hourly_fetch_rejects_a_session_missing_from_the_daily_bars(tmp_path):
+    write_daily(tmp_path, [100.0], [107.0])
+
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    assert str(err.value) == "SPY 2024-01-04: session missing from the daily snapshot (1 rows)"
+
+
+def test_hourly_fetch_needs_a_daily_snapshot(tmp_path):
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, FIXTURE_HOUR)
+    assert str(err.value) == "SPY: no daily snapshot to check hourly sessions against"
+
+
+def test_hourly_fetch_rejects_an_unexpected_last_session(tmp_path):
+    write_daily(tmp_path, [100.0, 110.0], [107.0, 117.0])
+    size = replace(HOUR, last=date(2024, 1, 5))
+
+    with pytest.raises(DataError) as err:
+        fetch_symbol(hourly_client(), KEY, "SPY", tmp_path, NOW, None, no_sleep, size)
+    assert str(err.value) == "SPY: last session 2024-01-04, expected 2024-01-05"
+
+
+def test_regular_hours_stops_a_half_day_at_its_close():
+    times = [datetime(2024, 11, 29, h, 30) for h in (9, 10, 11, 12, 15)]
+    bars = pl.DataFrame({"time": times, "date": [date(2024, 11, 29)] * 5})
+
+    kept = regular_hours(bars)
+
+    assert kept["time"].dt.strftime("%H:%M").to_list() == ["09:30", "10:30", "11:30", "12:30"]
+
+
+def test_widen_wicks_covers_a_close_a_fraction_of_a_cent_outside_the_range():
+    bars = pl.DataFrame(
+        {
+            "open": [42.12401, 100.0, 50.0],
+            "high": [42.18892, 101.0, 50.5],
+            "low": [42.089227, 99.0, 49.0],
+            "close": [42.19124, 102.0, 50.2],
+        }
+    )
+
+    fixed, widened = widen_wicks(bars)
+
+    assert widened == 1
+    assert fixed.rows() == [
+        (42.12401, 42.19124, 42.089227, 42.19124),
+        (100.0, 101.0, 99.0, 102.0),
+        (50.0, 50.5, 49.0, 50.2),
+    ], "a 1% miss stays for validate to reject"
+
+
+def test_fill_quiet_hours_adds_flat_bars_at_the_last_close():
+    times = [datetime(2024, 10, d, h, 30) for d in (2, 3) for h in (9, 10, 11)]
+    bars = pl.DataFrame(
+        {
+            "time": [times[0], times[3], times[4], times[5]],
+            "date": [date(2024, 10, 2)] + [date(2024, 10, 3)] * 3,
+            "open": [84.52, 84.53, 84.53, 84.54],
+            "high": [84.53, 84.53, 84.54, 84.54],
+            "low": [84.52, 84.52, 84.53, 84.53],
+            "close": [84.527, 84.53, 84.54, 84.54],
+            "volume": [35148, 100, 100, 100],
+        }
+    )
+
+    filled, count = fill_quiet_hours(bars, pl.Series("time", times))
+
+    assert count == 2
+    assert filled.filter(pl.col("date") == date(2024, 10, 2)).rows() == [
+        (times[0], date(2024, 10, 2), 84.52, 84.53, 84.52, 84.527, 35148),
+        (times[1], date(2024, 10, 2), 84.527, 84.527, 84.527, 84.527, 0),
+        (times[2], date(2024, 10, 2), 84.527, 84.527, 84.527, 84.527, 0),
+    ]
+    assert filled.height == 6
+
+
+def test_fill_quiet_hours_leaves_more_than_a_session_of_gaps_for_validate():
+    times = [datetime(2024, 10, 2, 9, 30) + timedelta(hours=h) for h in range(10)]
+    ends = pl.DataFrame(
+        {
+            "time": [times[0], times[-1]],
+            "date": [date(2024, 10, 2)] * 2,
+            "open": [1.0, 1.0],
+            "high": [1.0, 1.0],
+            "low": [1.0, 1.0],
+            "close": [1.0, 1.0],
+            "volume": [1, 1],
+        }
+    )
+
+    assert fill_quiet_hours(ends, pl.Series("time", times[1:8]))[0].height == 9, "7 missing fill"
+    unfilled, count = fill_quiet_hours(ends, pl.Series("time", times))
+    assert (unfilled.height, count) == (2, 0), "8 missing stay"
+
+
+def test_hourly_fetch_on_a_trimmed_real_spy_response(tmp_path):
+    body = (FIXTURES / "spy_1h_2024-11-27.json").read_text()
+    client = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, text=body)))
+    market = tmp_path / "market"
+    market.mkdir()
+    pl.DataFrame(
+        {
+            "date": [date(2024, 11, 27), date(2024, 11, 29), date(2024, 12, 2)],
+            "open": [586.9549, 586.17285, 589.4084],
+            "close": [585.36156, 588.99786, 590.05359],
+        }
+    ).write_parquet(market / "SPY.parquet")
+
+    size = replace(HOUR, last=date(2024, 12, 2))
+    result = fetch_symbol(client, KEY, "SPY", tmp_path, NOW, None, no_sleep, size)
+
+    bars = pl.read_parquet(market / "1h" / "SPY.parquet")
+    assert bars["time"].dt.strftime("%m-%d %H:%M").to_list() == [
+        "11-29 09:30",
+        "11-29 10:30",
+        "11-29 11:30",
+        "11-29 12:30",
+        "12-02 09:30",
+        "12-02 10:30",
+        "12-02 11:30",
+        "12-02 12:30",
+        "12-02 13:30",
+        "12-02 14:30",
+        "12-02 15:30",
+    ], "the partial 11-27 session and the flat 15:30 bar after the half-day close are gone"
+    assert result.gap == pytest.approx(1 - 588.90014 / 588.99786)
+    assert (result.widened, result.filled) == (0, 0)
