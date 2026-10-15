@@ -120,7 +120,9 @@ def main(argv: list[str] | None = None) -> int:
     once = commands.add_parser("holdout", help="run the pre-registered holdout once")
     once.add_argument("--verify", action="store_true", help="rerun from the manifest and compare")
     commands.add_parser("export", help="write export/v1/ for the site from the holdout inputs")
-    commands.add_parser("arena", help="compare the catalog strategies, write export/arena/v1/")
+    commands.add_parser(
+        "arena", help="run the catalog on the daily and hourly bars, write export/arena/v2/"
+    )
     jev = commands.add_parser("jev-table", help="ask Jev about every state, write data/policy/")
     jev.add_argument("--offline", action="store_true", help="build from the call log only")
     jev.add_argument("--limit", type=int, help="ask at most N pending (state, sample) pairs")
@@ -551,10 +553,9 @@ def arena(repo: Path, data_dir: Path) -> int:
     except FileNotFoundError as e:
         print(f"missing {e.filename}", file=sys.stderr)
         return 2
-    made = arena_decisions(inputs.market)
-    failures = reconcile(made, inputs.market, inputs.holdout) + refusals(
-        read_committed_catalog(repo), made
-    )
+    daily = inputs.markets["daily"]
+    made = arena_decisions(daily)
+    failures = reconcile(made, daily, inputs.holdout) + refusals(read_committed_catalog(repo), made)
     try:
         if not failures:
             files = render_arena(inputs)

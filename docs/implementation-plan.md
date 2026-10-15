@@ -13,10 +13,10 @@ Twelve Data ──▶ research/ (uv package `jevtrader`)
                   jev.py       prompt versions, OpenRouter call, append-only JSONL log, policy table
                   evaluate.py  policy join, arms, backtest, metrics, block bootstrap, holdout lock
                   catalog.py   arena strategies: CATALOG, positions, fingerprints, comparisons
-                  export.py    web export contracts: export/v1 (Jev study), export/arena/v1 (arena)
+                  export.py    web export contracts: export/v1 (Jev study), export/arena/v2 (arena)
                   cli.py       jt fetch | states | ceiling | jev-table | evaluate | holdout | export | arena
                       │
-                      ▼ export/v1/*.json, export/arena/v1/*.json
+                      ▼ export/v1/*.json, export/arena/v2/**/*.json
                 web/ (Next.js static export, zod-validated at build time)
 ```
 
@@ -47,9 +47,14 @@ class Strategy:  # catalog.py. CATALOG: dict[str, Strategy] is append-only.
 	rule: str  # the exact rule, shown in the technical section
 	citation: str  # where the textbook parameters come from
 	kind: Kind
-	positions: Callable[[pl.DataFrame], pl.Series]  # adjusted bars -> 0 or 1 per session, decided at the close of t
+	positions: Callable[[pl.DataFrame], pl.Series]  # adjusted bars -> 0 or 1 per bar, decided at the close of t
 
-class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
+class Market(NamedTuple):  # catalog.py. MARKETS: dict[str, Market] holds "daily" and "hourly".
+	size: BarSize  # data.DAY or data.HOUR: the snapshot folder, and size.key is "date" or "time"
+	ranges: dict[str, str | None]  # range button -> polars offset back from the last curve point, None for All
+	statistics: bool  # writes comparisons.json and a curve for every scope
+
+class CatalogEntry(TypedDict):  # export/arena/v2/catalog.json
 	id: str
 	version: int
 	title: str
@@ -59,7 +64,7 @@ class CatalogEntry(TypedDict):  # export/arena/v1/catalog.json
 	kind: Kind
 	fingerprint: str  # sha256 of positions on random_walk(0..2) bars from catalog.py
 
-class PairRecord(TypedDict):  # export/arena/v1/comparisons.json, one per pair, scope, and period
+class PairRecord(TypedDict):  # export/arena/v2/daily/comparisons.json, one per pair, scope, and period
 	a: str
 	b: str  # a precedes b in catalog order
 	scope: str  # "portfolio" or a symbol
@@ -71,7 +76,7 @@ class PairRecord(TypedDict):  # export/arena/v1/comparisons.json, one per pair, 
 	mde: float  # smallest difference this period can detect at 80% power, with the simultaneous critical value
 	verdict: Literal["a_ahead", "b_ahead", "no_difference", "too_early"] | None  # None off the portfolio scope
 
-class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json, one per strategy, scope, and period
+class StrategyRecord(TypedDict):  # export/arena/v2/daily/comparisons.json, one per strategy, scope, and period
 	id: str
 	scope: str
 	period: Period
@@ -82,12 +87,12 @@ class StrategyRecord(TypedDict):  # export/arena/v1/comparisons.json, one per st
 	switchesPerYear: float
 	exposure: float
 
-class WindowRecord(TypedDict):  # export/arena/v1/windows.json, one per range button, portfolio scope
-	range: Literal["1W", "1M", "3M", "1Y", "5Y", "All"]
-	base: str | None  # last curve date on or before `last` minus the range, None for All
-	strategies: dict[str, WindowStats]  # growth (equity at last / equity at base), exposure, maxDrawdown over the dates after base
+class WindowRecord(TypedDict):  # export/arena/v2/{market}/windows.json, one per range button, portfolio scope
+	range: str  # a key of the market's ranges
+	base: str | None  # last curve point on or before `last` minus the range, None for All
+	strategies: dict[str, WindowStats]  # growth (equity at last / equity at base), exposure, maxDrawdown over the curve points after base
 
-class Trades(TypedDict):  # export/arena/v1/funds/{symbol}.json, one per strategy
+class Trades(TypedDict):  # export/arena/v2/{market}/funds/{symbol}.json, one per strategy
 	buy: list[str]  # the bar after each decision that moved the strategy into the market
 	sell: list[str]  # the bar after each decision that moved it to cash
 
@@ -98,7 +103,7 @@ class LedgerRow(TypedDict):  # arena/ledger.jsonl on the `ledger` branch (planne
 	bars_sha256: str  # hash of the bars the decisions read
 ```
 
-The arena export lives in `export/arena/v1/` beside `export/v1/`, which does not change. It holds `manifest.json` (period bounds, the catalog version, input and output hashes), `catalog.json`, `comparisons.json`, `curves/{scope}.json` (growth of $1 for each strategy in each period), `windows.json` (each range button's figures on the portfolio), and `funds/{symbol}.json` (the daily bars from 2008-01-02 through `barsEnd` and each strategy's trades). A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The only windows are the fixed ranges in `windows.json`, each counted back from `last`. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision dates that earn a return, and every record and curve covers exactly those dates. `barsEnd` is the last bar the decisions read. For the backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2.
+The arena export lives in `export/arena/v2/` beside `export/v1/`, which does not change. It holds `manifest.json` (each market's period bounds, the catalog version, the settings, and the input and output hashes) and `catalog.json` at the top. Each `MARKETS` entry writes a folder. `daily/` holds `comparisons.json`, `curves/{scope}.json` (growth of $1 for each strategy in each period), `windows.json` (each range button's figures on the portfolio), and `funds/{symbol}.json` (the daily bars from 2008-01-02 through `barsEnd` and each strategy's trades). `hourly/` holds `curves/portfolio.json`, `windows.json`, and `funds/{symbol}.json` in the same shapes, and no `comparisons.json`. Its files carry a `time` array of New York clock times such as `2026-10-09T13:30` in place of `date`, and its funds hold the bars from the first scored session through `barsEnd`. A file has no `start`, `end`, or `symbols` field that could carry a chosen window. The only windows are the fixed ranges in `windows.json`, each counted back from `last`. The period bounds live only in the manifest. For each period, `first` and `last` are the first and last decision bars that earn a return, and every record and curve covers exactly those bars. `barsEnd` is the last bar the decisions read. For the daily backtest period of catalog version 1, `first` is 2008-01-02, `last` is 2026-10-07, and `barsEnd` is 2026-10-09, because a decision at the close of t earns the open of t+1 to the open of t+2. For the hourly backtest period, `first` is 2024-01-16T09:30, `last` is 2026-10-09T13:30, and `barsEnd` is 2026-10-09T15:30.
 
 ### Jev study (finished)
 
@@ -491,3 +496,4 @@ These risks are ranked by impact on the answer.
 - **2026-10-14.** The first `jt fetch --bars 1h` failed on SPY and wrote no snapshot, and the archived response measured the hourly bars. SPY's 5,000 bars run from 2023-11-30 12:30 to 2026-10-09 15:30 New York time. Bars start at 09:30, 10:30, and so on to 15:30, which is 7 bars a full session and 4 on a half day. Two half days, 2024-11-29 and 2024-12-24, also carry a flat 15:30 bar after the 13:00 close, so the fetch now keeps only each session's unbroken run of bars from 09:30. That leaves 4,994 bars in 716 sessions from 2023-12-01. `adjust=all` applies to hourly bars, because the first hourly open equals the daily open in the median session and the close gap shows no drift from year to year. The close gap has a median of 0.008%, a 99th percentile of 0.05%, and a maximum of 1.05% on 2025-04-09, the day of the tariff pause. The open gap peaks at 0.28%. The last hourly bar ends before the closing auction, which may explain the 2025-04-09 gap. That is a guess. The tolerance moves from 1% to 2%. It still fails on unadjusted prices and on a session shifted by a day. Both runs returned the same response bytes. The other 13 funds were not fetched, because SPY failed first.
 - **2026-10-15.** The second hourly fetch wrote SPY, QQQ, IWM, DIA, XLI, and XLK, and a rerun left them unchanged. Eight funds failed on two provider quirks, measured from their archived responses. In 11 bars, all from 2024-05-28 to 2024-06-17, the close or open sits 0.003% to 0.014% outside the bar's high and low, about half a cent. The fetch now moves the high or low to cover them when the miss is 0.05% or less, so the candles stay valid. A larger miss still fails. BIL printed no hourly bar after 09:30 on 2024-10-02, although its daily bar shows 7.4 million shares and closes at the 09:30 bar's close. The fetch now fills up to 7 missing hours with flat bars at the last close and zero volume. More missing hours still fail. `jt fetch` prints how many bars it widened and filled. Replaying the 14 archived responses gives 4,994 bars in 716 sessions for every fund. The largest session gap is 1.05% for SPY and 0.93% for XLE, and BIL's is 0.02%.
 - **2026-10-15.** The user's next two `jt fetch --bars 1h` runs wrote all 14 hourly snapshots, and the second run left every file unchanged. Each snapshot holds the same 4,994 times as SPY's, from 2023-12-01 09:30 to 2026-10-09 15:30. A trimmed copy of the real SPY response, from 2024-11-27 to 2024-12-02, is now a test fixture. PR 12a is done.
+- **2026-10-15.** PR 12b runs the arena on hourly bars. `jt arena` writes `export/arena/v2/` with `catalog.json` and `manifest.json` at the top and one folder for each `MARKETS` entry, and `export/arena/v1/` is deleted. Every v1 file except `manifest.json` is byte-identical to its counterpart under `v2/daily/` or `v2/`, so the site does not change. The manifest's `markets` field holds each market's bar size, period, scopes, ranges, and whether it has statistics. A market scores from the later of 2008-01-01 and the first session after the session that holds its 200th bar. Daily still scores from 2008-01-01. The 200th hourly bar falls in the 2024-01-12 session, and the next session is 2024-01-16, after the Martin Luther King Jr. Day holiday. Hourly `first` is 2024-01-16T09:30, `last` is 2026-10-09T13:30, and `barsEnd` is 2026-10-09T15:30. Each hourly fund file holds 4,791 bars in 687 sessions, and the hourly portfolio curve holds 4,789 points. The hourly market runs only the 5 bps cost and writes no `comparisons.json`, because statistics are deferred. `barsEnd` is now the last bar the decisions read, not the `BACKTEST_END` constant. The two agree on the real daily bars. An hourly frame drops its session `date` and renames `time` to `date` when it is read, so `evaluate.py` runs on the bar key unchanged.

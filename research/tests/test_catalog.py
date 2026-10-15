@@ -1,7 +1,7 @@
 import hashlib
 import json
 import shutil
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 import numpy as np
 import polars as pl
@@ -10,12 +10,15 @@ import pytest
 from jevtrader import cli
 from jevtrader.catalog import (
     CATALOG,
+    MARKETS,
     SCOPES,
     Strategy,
     critical_value,
     decisions,
     entry,
     fingerprint,
+    first_session,
+    keyed,
     random_walk,
     reconcile,
     refusals,
@@ -23,12 +26,15 @@ from jevtrader.catalog import (
     trades,
     windows,
 )
+from jevtrader.data import HOUR
 from jevtrader.evaluate import (
     ARMS,
     COSTS_BPS,
     HOLDOUT_PATH,
     backtest,
     holdout_result,
+    open_returns,
+    portfolio,
     render_json,
 )
 from jevtrader.export import ARENA_PATH
@@ -36,14 +42,20 @@ from jevtrader.states import ALL_STATES, CASH, STUDY, labels, state_key
 
 END = date(2019, 6, 30)
 DAYS = (date(2019, 7, 8) - date(2005, 1, 3)).days + 1
+HOURS = 7 * 360
+DAILY_FILES = [
+    "comparisons.json",
+    "windows.json",
+    *(f"curves/{s}.json" for s in SCOPES),
+    *(f"funds/{s}.json" for s in STUDY),
+]
+HOURLY_FILES = ["curves/portfolio.json", "windows.json", *(f"funds/{s}.json" for s in STUDY)]
 FILES = sorted(
     [
         "catalog.json",
-        "comparisons.json",
         "manifest.json",
-        "windows.json",
-        *(f"curves/{s}.json" for s in SCOPES),
-        *(f"funds/{s}.json" for s in STUDY),
+        *(f"daily/{f}" for f in DAILY_FILES),
+        *(f"hourly/{f}" for f in HOURLY_FILES),
     ]
 )
 
@@ -70,6 +82,76 @@ ORACLE = Strategy(
 @pytest.mark.parametrize("strategy", CATALOG.values(), ids=list(CATALOG))
 def test_positions_at_t_match_on_bars_truncated_at_t(strategy, seed):
     assert first_peek(strategy, random_walk(seed)) is None
+
+
+def hourly_walk(seed: int, n: int = 700) -> pl.DataFrame:
+    """random_walk's prices on 7 bars each weekday from 2023-12-01, 09:30 to 15:30."""
+    days = weekdays(date(2023, 12, 1), date(2023, 12, 1) + timedelta(days=n))
+    times = [datetime.combine(d, time(9 + h, 30)) for d in days for h in range(7)][:n]
+    return random_walk(seed, n).select(
+        pl.Series("time", times),
+        pl.Series("date", [t.date() for t in times]),
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+    )
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+@pytest.mark.parametrize("strategy", CATALOG.values(), ids=list(CATALOG))
+def test_positions_at_t_match_on_hourly_bars_truncated_at_t(strategy, seed):
+    assert first_peek(strategy, keyed(hourly_walk(seed), HOUR)) is None
+
+
+def test_scoring_starts_the_session_after_the_one_holding_bar_200():
+    # Bar 200 is index 199, the 29th session at 7 bars each: 2023-12-01 plus 28 weekdays.
+    assert first_session(keyed(hourly_walk(0), HOUR)) == date(2024, 1, 11)
+    assert first_session(random_walk(0)) == date(2008, 1, 1), "daily scores from BACKTEST_START"
+
+
+def test_hourly_sessions_compound_switch_costs_and_the_overnight_hold():
+    times = [
+        datetime.combine(d, time(9 + h, 30))
+        for d in weekdays(date(2024, 1, 2), date(2024, 1, 3))
+        for h in range(7)
+    ]
+    opens = [100, 101, 102, 100, 99, 100, 102, 104, 103, 103, 105, 104, 106, 107]
+    cash = [50.0] * 12 + [50.05] * 2
+
+    def bars(prices: list[float]) -> pl.DataFrame:
+        return keyed(
+            pl.DataFrame(
+                {"time": times, "date": [t.date() for t in times], "open": prices}
+            ).with_columns(pl.col("open").cast(pl.Float64)),
+            HOUR,
+        )
+
+    market = {"SPY": bars(opens), CASH: bars(cash)}
+    made = pl.DataFrame(
+        {
+            "arm": "rule",
+            "symbol": "SPY",
+            "date": times,
+            "position": pl.Series([0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1], dtype=pl.Int8),
+        }
+    )
+
+    days = portfolio(backtest(made, open_returns(market, date(2024, 1, 4)), 5))
+    sessions = days.group_by(pl.col("date").cast(pl.Date)).agg((1 + pl.col("ret")).product() - 1)
+
+    fee = 1 - 5e-4
+    assert dict(sessions.sort("date").iter_rows()) == {
+        # 10:30 and 14:30 buy and 12:30 sells. 14:30 earns the 15:30 open to the next 09:30.
+        date(2024, 1, 2): pytest.approx(
+            1 * fee * (100 / 102) * (99 / 100) * fee * 1 * 1 * fee * (104 / 102) * (103 / 104) - 1
+        ),
+        # 11:30 sells, 12:30 earns cash, 13:30 buys. The last two bars have no return to earn.
+        date(2024, 1, 3): pytest.approx(
+            (103 / 103) * (105 / 103) * fee * 1 * (50.05 / 50) * fee * (107 / 106) - 1
+        ),
+    }
 
 
 def test_the_oracle_fails_the_truncation_check():
@@ -238,7 +320,7 @@ def test_windows_grow_from_the_last_curve_date_on_or_before_each_cutoff():
         rows, schema=["arm", "symbol", "date", "position", "ret"], orient="row"
     ).with_columns(pl.lit(0.0).alias("r_cash"))
 
-    found = windows(sleeves)
+    found = windows(sleeves, MARKETS["daily"].ranges)
 
     assert [(w["range"], w["base"]) for w in found] == [
         ("1W", "2023-12-29"),
@@ -295,10 +377,11 @@ def template(tmp_path_factory):
     root = tmp_path_factory.mktemp("template")
     repo, data = root / "repo", root / "data"
     (repo / "research").mkdir(parents=True)
-    (data / "market").mkdir(parents=True)
+    (data / "market" / "1h").mkdir(parents=True)
     market = {s: random_walk(seed, DAYS) for seed, s in enumerate((*STUDY, CASH))}
-    for s, bars in market.items():
+    for seed, (s, bars) in enumerate(market.items()):
         bars.write_parquet(data / "market" / f"{s}.parquet")
+        hourly_walk(seed, HOURS).write_parquet(data / "market" / "1h" / f"{s}.parquet")
     policy = pl.DataFrame(
         {
             "state_key": [state_key(s) for s in ALL_STATES],
@@ -353,14 +436,14 @@ def test_a_second_arena_run_changes_no_files_and_records_cover_the_period(arena,
     assert cli.main(["arena"]) == 0
     first = capsys.readouterr().out.splitlines()
     assert [line.split()[:2] for line in first] == [
-        [f"export/arena/v1/{f}", "changed"] for f in FILES
+        [f"export/arena/v2/{f}", "changed"] for f in FILES
     ]
     before = snapshot(repo)
 
     assert cli.main(["arena"]) == 0
     second = capsys.readouterr().out.splitlines()
     assert [line.split()[:2] for line in second] == [
-        [f"export/arena/v1/{f}", "unchanged"] for f in FILES
+        [f"export/arena/v2/{f}", "unchanged"] for f in FILES
     ]
     assert snapshot(repo) == before
 
@@ -369,15 +452,39 @@ def test_a_second_arena_run_changes_no_files_and_records_cover_the_period(arena,
     assert manifest["inputs"] == {
         "research/holdout.json": sha256((repo / HOLDOUT_PATH).read_bytes()),
         **{
-            f"data/market/{s}.parquet": sha256((data / "market" / f"{s}.parquet").read_bytes())
+            f"data/market/{folder}{s}.parquet": sha256(
+                (data / "market" / folder / f"{s}.parquet").read_bytes()
+            )
+            for folder in ("", "1h/")
             for s in (*STUDY, CASH)
         },
     }
-    assert manifest["periods"] == {
-        "backtest": {"first": "2008-01-01", "last": "2019-07-06", "barsEnd": "2026-10-09"}
+    assert manifest["markets"] == {
+        "daily": {
+            "bars": "1day",
+            "periods": {
+                "backtest": {"first": "2008-01-01", "last": "2019-07-06", "barsEnd": "2019-07-08"}
+            },
+            "scopes": list(SCOPES),
+            "ranges": ["1W", "1M", "3M", "1Y", "5Y", "All"],
+            "statistics": True,
+        },
+        "hourly": {
+            "bars": "1h",
+            "periods": {
+                "backtest": {
+                    "first": "2024-01-11T09:30",
+                    "last": "2025-04-17T13:30",
+                    "barsEnd": "2025-04-17T15:30",
+                }
+            },
+            "scopes": ["portfolio"],
+            "ranges": ["1D", "1W", "1M", "3M", "1Y", "All"],
+            "statistics": False,
+        },
     }
 
-    comparisons = json.loads(before["comparisons.json"][0])
+    comparisons = json.loads(before["daily/comparisons.json"][0])
     pairs, strategies = comparisons["pairs"], comparisons["strategies"]
 
     assert [(p["scope"], p["a"], p["b"]) for p in pairs[:6]] == [
@@ -393,7 +500,7 @@ def test_a_second_arena_run_changes_no_files_and_records_cover_the_period(arena,
     assert {p["verdict"] for p in pairs[6:]} == {None}
     assert {p["family"] for p in pairs} == {6}
 
-    spy = json.loads(before["curves/SPY.json"][0])
+    spy = json.loads(before["daily/curves/SPY.json"][0])
     curve = spy["periods"]["backtest"]
     assert (curve["date"][0], curve["date"][-1]) == ("2008-01-01", "2019-07-06")
     bars = pl.read_parquet(data / "market" / "SPY.parquet")
@@ -433,7 +540,7 @@ def test_the_arena_windows_and_funds_agree_with_the_curves_and_comparisons(arena
     def read(path: str) -> dict:
         return json.loads((repo / ARENA_PATH / path).read_text())
 
-    windows_file, portfolio = read("windows.json"), read("curves/portfolio.json")
+    windows_file, portfolio = read("daily/windows.json"), read("daily/curves/portfolio.json")
     curve = portfolio["periods"]["backtest"]
 
     assert (windows_file["scope"], windows_file["last"]) == ("portfolio", "2019-07-06")
@@ -446,7 +553,7 @@ def test_the_arena_windows_and_funds_agree_with_the_curves_and_comparisons(arena
         ("All", None),
     ]
     whole = windows_file["windows"][-1]["strategies"]
-    rows = read("comparisons.json")["strategies"]
+    rows = read("daily/comparisons.json")["strategies"]
     for i in CATALOG:
         (row,) = (r for r in rows if r["id"] == i and r["scope"] == "portfolio")
         assert whole[i] == {
@@ -458,7 +565,7 @@ def test_the_arena_windows_and_funds_agree_with_the_curves_and_comparisons(arena
     at = curve["date"].index("2018-07-06")
     assert year == pytest.approx(curve["equity"]["buy_hold"][-1] / curve["equity"]["buy_hold"][at])
 
-    spy = read("funds/SPY.json")
+    spy = read("daily/funds/SPY.json")
     bars = pl.read_parquet(data / "market" / "SPY.parquet").filter(
         pl.col("date") >= date(2008, 1, 1)
     )
@@ -471,10 +578,66 @@ def test_the_arena_windows_and_funds_agree_with_the_curves_and_comparisons(arena
     assert spy["close"][0] == round(bars["close"][0], 4)
     assert spy["trades"]["buy_hold"] == {"buy": ["2008-01-02"], "sell": []}
     for symbol in STUDY:
-        fund = read(f"funds/{symbol}.json")
+        fund = read(f"daily/funds/{symbol}.json")
         assert list(fund["trades"]) == list(CATALOG)
         for i, side in fund["trades"].items():
             assert set(side["buy"] + side["sell"]) <= set(fund["date"]), (symbol, i)
             marked = sorted([(d, "buy") for d in side["buy"]] + [(d, "sell") for d in side["sell"]])
             sides = [s for _, s in marked]
             assert sides == [("buy", "sell")[k % 2] for k in range(len(sides))], (symbol, i)
+
+
+def test_the_hourly_market_writes_times_and_scores_after_the_warmup(arena):
+    repo, data = arena / "repo", arena / "data"
+    assert cli.main(["arena"]) == 0
+
+    def read(path: str) -> dict:
+        return json.loads((repo / ARENA_PATH / "hourly" / path).read_text())
+
+    windows_file, portfolio = read("windows.json"), read("curves/portfolio.json")
+    curve = portfolio["periods"]["backtest"]
+
+    assert (portfolio["scope"], portfolio["costBps"], list(curve)) == (
+        "portfolio",
+        5,
+        ["time", "equity"],
+    )
+    assert (curve["time"][0], curve["time"][-1]) == ("2024-01-11T09:30", "2025-04-17T13:30")
+    assert (windows_file["scope"], windows_file["last"]) == ("portfolio", "2025-04-17T13:30")
+    assert [(w["range"], w["base"]) for w in windows_file["windows"]] == [
+        ("1D", "2025-04-16T13:30"),
+        ("1W", "2025-04-10T13:30"),
+        ("1M", "2025-03-17T13:30"),
+        ("3M", "2025-01-17T13:30"),
+        ("1Y", "2024-04-17T13:30"),
+        ("All", None),
+    ]
+    assert {w["base"] for w in windows_file["windows"]} - {None} <= set(curve["time"])
+    whole = windows_file["windows"][-1]["strategies"]
+    assert {i: s["growth"] for i, s in whole.items()} == {
+        i: curve["equity"][i][-1] for i in CATALOG
+    }
+
+    # The 09:30 decision buys at the 10:30 open and earns the 10:30 to 11:30 open, net of 5 bps.
+    opens = {
+        s: pl.read_parquet(data / "market" / "1h" / f"{s}.parquet")
+        .filter(pl.col("time") >= datetime(2024, 1, 11, 10, 30))["open"]
+        .head(2)
+        .to_list()
+        for s in STUDY
+    }
+    r = sum(o[1] / o[0] - 1 for o in opens.values()) / len(STUDY)
+    assert curve["equity"]["buy_hold"][0] == round((1 - 5 / 1e4) * (1 + r), 6)
+
+    spy = read("funds/SPY.json")
+    assert (spy["time"][0], spy["time"][-1], len(spy["time"])) == (
+        "2024-01-11T09:30",
+        "2025-04-17T15:30",
+        HOURS - 29 * 7,
+    )
+    assert spy["trades"]["buy_hold"] == {"buy": ["2024-01-11T10:30"], "sell": []}
+    for symbol in STUDY:
+        fund = read(f"funds/{symbol}.json")
+        assert list(fund["trades"]) == list(CATALOG)
+        for i, side in fund["trades"].items():
+            assert set(side["buy"] + side["sell"]) <= set(fund["time"]), (symbol, i)

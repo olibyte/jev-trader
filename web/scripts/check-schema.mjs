@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const web = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = path.resolve(web, process.env.EXPORT_DIR ?? "../export/v1");
-const arenaSource = path.resolve(web, process.env.ARENA_DIR ?? "../export/arena/v1");
+const arenaSource = path.resolve(web, process.env.ARENA_DIR ?? "../export/arena/v2");
 const next = path.join(web, "node_modules", ".bin", "next");
 
 const readJson = (dir, file) => JSON.parse(readFileSync(path.join(dir, file), "utf8"));
@@ -102,31 +102,31 @@ const ARENA_MUTATIONS = [
   },
   {
     name: "windows.json drops the 1Y range",
-    apply: editArena("windows.json", (w) => {
+    apply: editArena("daily/windows.json", (w) => {
       w.windows.splice(3, 1);
     }),
-    expect: ["windows.json", "the ranges are 1W, 1M, 3M, 5Y, All"],
+    expect: ["daily/windows.json", "the ranges are 1W, 1M, 3M, 5Y, All"],
   },
   {
     name: "the All window's exposure differs from comparisons.json",
-    apply: editArena("windows.json", (w) => {
+    apply: editArena("daily/windows.json", (w) => {
       w.windows.at(-1).strategies.golden_cross.exposure = 0.5;
     }),
-    expect: ["windows.json", 'the All window for "golden_cross" does not match its portfolio row'],
+    expect: ["daily/windows.json", 'the All window for "golden_cross" does not match its portfolio row'],
   },
   {
     name: "the All window's growth differs from the last curve value",
-    apply: editArena("windows.json", (w) => {
+    apply: editArena("daily/windows.json", (w) => {
       w.windows.at(-1).strategies.buy_hold.growth = 8.24825;
     }),
-    expect: ["windows.json", 'All growth for "buy_hold" is 8.24825'],
+    expect: ["daily/windows.json", 'All growth for "buy_hold" is 8.24825'],
   },
   {
     name: "a trade falls on a date with no bar",
-    apply: editArena("funds/SPY.json", (f) => {
+    apply: editArena("daily/funds/SPY.json", (f) => {
       f.trades.macd_cross.buy[0] = "2008-01-05";
     }),
-    expect: ["funds/SPY.json", 'trade date 2008-01-05 for "macd_cross" is not a bar date'],
+    expect: ["daily/funds/SPY.json", 'trade date 2008-01-05 for "macd_cross" is not a bar date'],
   },
 ];
 

@@ -1,4 +1,4 @@
-"""The files the site reads: export/v1 from the holdout run's inputs, and export/arena/v1."""
+"""The files the site reads: export/v1 from the holdout run's inputs, and export/arena/v2."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import tomllib
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import date, timedelta
 from pathlib import Path
@@ -15,19 +16,24 @@ import polars as pl
 
 from jevtrader.catalog import (
     BACKTEST_END,
-    BACKTEST_START,
     CATALOG,
     CATALOG_VERSION,
     HOLDOUT_ARMS,
+    MARKETS,
     SCOPES,
     CatalogEntry,
+    Market,
     entry,
+    equity_curve,
+    first_session,
+    keyed,
     scope_records,
+    stamp,
     trades,
     windows,
 )
 from jevtrader.catalog import decisions as arena_decisions
-from jevtrader.data import REPO_ROOT, atomic_write, forward_return
+from jevtrader.data import DAY, REPO_ROOT, BarSize, atomic_write, forward_return
 from jevtrader.evaluate import (
     ARMS,
     BASELINE,
@@ -47,6 +53,7 @@ from jevtrader.evaluate import (
     empirical_table,
     n_blocks,
     open_returns,
+    portfolio,
     prereg_diff,
 )
 from jevtrader.jev import (
@@ -76,7 +83,7 @@ from jevtrader.states import (
 
 # Relative to the repository root.
 EXPORT_PATH = Path("export") / "v1"
-ARENA_PATH = Path("export") / "arena" / "v1"
+ARENA_PATH = Path("export") / "arena" / "v2"
 CALL_LOG_PATH = CALLS_PATH.relative_to(REPO_ROOT)
 EQUITY_ARMS = (CANDIDATE, BASELINE, "buy_hold")
 DEVELOPMENT = ("fit", "validate")
@@ -110,8 +117,8 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _market_path(symbol: str) -> str:
-    return f"data/market/{symbol}.parquet"
+def _market_path(symbol: str, size: BarSize = DAY) -> str:
+    return (Path("data") / "market" / size.folder / f"{symbol}.parquet").as_posix()
 
 
 def read_inputs(repo: Path, data_dir: Path) -> Inputs:
@@ -488,7 +495,7 @@ def write_export(directory: Path, files: dict[str, bytes]) -> list[Written]:
 
 class ArenaInputs(NamedTuple):
     holdout: dict
-    market: dict[str, pl.DataFrame]
+    markets: dict[str, dict[str, pl.DataFrame]]  # MARKETS name -> STUDY then CASH, keyed
     sha256: dict[str, str]
 
 
@@ -497,12 +504,22 @@ def read_arena_inputs(repo: Path, data_dir: Path) -> ArenaInputs:
     symbols = (*STUDY, CASH)
     paths = {
         str(HOLDOUT_PATH): repo / HOLDOUT_PATH,
-        **{_market_path(s): data_dir / "market" / f"{s}.parquet" for s in symbols},
+        **{
+            _market_path(s, m.size): data_dir / "market" / m.size.folder / f"{s}.parquet"
+            for m in MARKETS.values()
+            for s in symbols
+        },
     }
     raw = {label: path.read_bytes() for label, path in paths.items()}
     return ArenaInputs(
         holdout=json.loads(raw[str(HOLDOUT_PATH)]),
-        market={s: pl.read_parquet(io.BytesIO(raw[_market_path(s)])) for s in symbols},
+        markets={
+            name: {
+                s: keyed(pl.read_parquet(io.BytesIO(raw[_market_path(s, m.size)])), m.size)
+                for s in symbols
+            }
+            for name, m in MARKETS.items()
+        },
         sha256={label: sha256(data) for label, data in raw.items()},
     )
 
@@ -514,20 +531,11 @@ def read_committed_catalog(repo: Path) -> list[CatalogEntry] | None:
 
 
 def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
-    """Every export/arena/v1 file's bytes, keyed by its path in the export directory.
+    """Every export/arena/v2 file's bytes, keyed by its path in the export directory.
 
-    Raises ExportError if a scope's curve does not span the portfolio's dates.
+    Each MARKETS entry writes a folder of its own. Raises ExportError if a scope's curve does not
+    span the portfolio's bar keys.
     """
-    made = arena_decisions(inputs.market)
-    returns = open_returns(inputs.market, BACKTEST_END + timedelta(days=1))
-    sleeves = {bps: backtest(made, returns, bps) for bps in COSTS_BPS}
-    scopes = {scope: scope_records(sleeves, scope) for scope in SCOPES}
-    dates = scopes["portfolio"].equity["date"]
-    span = (dates.min(), dates.max())
-    for scope, result in scopes.items():
-        if (result.equity["date"].min(), result.equity["date"].max()) != span:
-            raise ExportError(f"the {scope} curve does not span {span[0]} to {span[1]}")
-
     files = {
         "catalog.json": _indented(
             {
@@ -535,12 +543,50 @@ def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
                 "strategies": [entry(s) for s in CATALOG.values()],
             }
         ),
-        "comparisons.json": _indented(
+    }
+    markets = {}
+    for name, market in MARKETS.items():
+        rendered, markets[name] = render_market(market, inputs.markets[name])
+        files |= {f"{name}/{path}": data for path, data in rendered.items()}
+    files["manifest.json"] = _indented(arena_manifest(inputs, markets, files))
+    return files
+
+
+def render_market(
+    market: Market, bars: Mapping[str, pl.DataFrame]
+) -> tuple[dict[str, bytes], dict]:
+    """One market folder's files, and the market's entry in manifest.json.
+
+    A market with statistics runs every cost in COSTS_BPS and writes comparisons.json and a curve
+    for every scope. One without runs COST_BPS and writes the portfolio curve.
+    """
+    start = max(first_session(bars[s]) for s in STUDY)
+    made = arena_decisions(bars, start)
+    returns = open_returns(bars, BACKTEST_END + timedelta(days=1))
+    costs = COSTS_BPS if market.statistics else (COST_BPS,)
+    sleeves = {bps: backtest(made, returns, bps) for bps in costs}
+    files = {}
+    if market.statistics:
+        scopes = {scope: scope_records(sleeves, scope) for scope in SCOPES}
+        curves = {scope: result.equity for scope, result in scopes.items()}
+        files["comparisons.json"] = _indented(
             {
                 "pairs": [p for result in scopes.values() for p in result.pairs],
                 "strategies": [s for result in scopes.values() for s in result.strategies],
             }
-        ),
+        )
+    else:
+        curves = {"portfolio": equity_curve(portfolio(sleeves[COST_BPS]))}
+    keys = curves["portfolio"]["date"]
+    span = (keys.min(), keys.max())
+    for scope, curve in curves.items():
+        if (curve["date"].min(), curve["date"].max()) != span:
+            raise ExportError(
+                f"the {scope} curve does not span {stamp(span[0])} to {stamp(span[1])}"
+            )
+
+    key = market.size.key
+    files |= {
         **{
             f"curves/{scope}.json": _compact(
                 {
@@ -548,54 +594,58 @@ def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
                     "costBps": COST_BPS,
                     "periods": {
                         "backtest": {
-                            "date": _dates(result.equity["date"]),
-                            "equity": {i: _rounded(result.equity[i], 6) for i in CATALOG},
+                            key: _stamps(curve["date"]),
+                            "equity": {i: _rounded(curve[i], 6) for i in CATALOG},
                         }
                     },
                 }
             )
-            for scope, result in scopes.items()
+            for scope, curve in curves.items()
         },
         "windows.json": _indented(
             {
                 "scope": "portfolio",
-                "last": span[1].isoformat(),
-                "windows": windows(sleeves[COST_BPS]),
+                "last": stamp(span[1]),
+                "windows": windows(sleeves[COST_BPS], market.ranges),
             }
         ),
         **{
-            f"funds/{s}.json": _compact(fund(s, inputs.market[s], sleeves[COST_BPS])) for s in STUDY
+            f"funds/{s}.json": _compact(fund(s, bars[s], sleeves[COST_BPS], start, key))
+            for s in STUDY
         },
     }
-    files["manifest.json"] = _indented(arena_manifest(inputs, span, files))
-    return files
+    period = {"first": stamp(span[0]), "last": stamp(span[1]), "barsEnd": stamp(made["date"].max())}
+    return files, {
+        "bars": market.size.interval,
+        "periods": {"backtest": period},
+        "scopes": list(curves),
+        "ranges": list(market.ranges),
+        "statistics": market.statistics,
+    }
 
 
-def fund(name: str, bars: pl.DataFrame, sleeves: pl.DataFrame) -> dict:
-    """funds/{name}.json: the bars from BACKTEST_START through BACKTEST_END and each strategy's
-    trades on them."""
-    bars = bars.filter(pl.col("date").is_between(BACKTEST_START, BACKTEST_END))
+def fund(name: str, bars: pl.DataFrame, sleeves: pl.DataFrame, start: date, key: str) -> dict:
+    """funds/{name}.json: the bars from session `start` through BACKTEST_END, under `key`, and
+    each strategy's trades on them."""
+    bars = bars.filter(pl.col("date").cast(pl.Date).is_between(start, BACKTEST_END))
     return {
         "symbol": name,
-        "date": _dates(bars["date"]),
+        key: _stamps(bars["date"]),
         **{c: _rounded(bars[c], 4) for c in ("open", "high", "low", "close")},
         "trades": trades(sleeves.filter(pl.col("symbol") == name), bars),
     }
 
 
-def arena_manifest(inputs: ArenaInputs, span: tuple[date, date], files: dict[str, bytes]) -> dict:
+def _stamps(keys: pl.Series) -> list[str]:
+    return [stamp(k) for k in keys.to_list()]
+
+
+def arena_manifest(inputs: ArenaInputs, markets: dict[str, dict], files: dict[str, bytes]) -> dict:
     holdout = inputs.holdout
     return {
         "version": ARENA_PATH.relative_to("export").as_posix(),
         "catalogVersion": CATALOG_VERSION,
-        "periods": {
-            "backtest": {
-                "first": span[0].isoformat(),
-                "last": span[1].isoformat(),
-                "barsEnd": BACKTEST_END.isoformat(),
-            }
-        },
-        "scopes": list(SCOPES),
+        "markets": markets,
         "cash": CASH,
         "settings": {
             "costBps": COST_BPS,

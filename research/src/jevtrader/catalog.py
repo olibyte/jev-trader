@@ -8,13 +8,14 @@ import math
 import random
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from statistics import NormalDist
 from typing import Literal, NamedTuple, TypedDict
 
 import numpy as np
 import polars as pl
 
+from jevtrader.data import DAY, HOUR, BarSize
 from jevtrader.evaluate import (
     COST_BPS,
     COSTS_BPS,
@@ -135,15 +136,26 @@ CATALOG: dict[str, Strategy] = {
 }
 HOLDOUT_ARMS = {"buy_hold": "buy_hold", "golden_cross": "sma_filter"}
 SCOPES = ("portfolio", *STUDY)
-# Each range button's calendar offset back from the last curve date, as a polars duration.
-RANGES: dict[str, str | None] = {
-    "1W": "-1w",
-    "1M": "-1mo",
-    "3M": "-3mo",
-    "1Y": "-1y",
-    "5Y": "-5y",
-    "All": None,
+
+
+class Market(NamedTuple):
+    size: BarSize  # the snapshot folder, and size.key names the key array in the export
+    # Each range button's calendar offset back from the last curve point, None for All.
+    ranges: dict[str, str | None]
+    statistics: bool  # writes comparisons.json and a curve for every scope
+
+
+MARKETS: dict[str, Market] = {
+    "daily": Market(
+        DAY, {"1W": "-1w", "1M": "-1mo", "3M": "-3mo", "1Y": "-1y", "5Y": "-5y", "All": None}, True
+    ),
+    "hourly": Market(
+        HOUR,
+        {"1D": "-1d", "1W": "-1w", "1M": "-1mo", "3M": "-3mo", "1Y": "-1y", "All": None},
+        False,
+    ),
 }
+WARMUP = 200  # bars, the golden cross's longest average
 
 
 class CatalogEntry(TypedDict):
@@ -188,13 +200,13 @@ class WindowStats(TypedDict):
     maxDrawdown: float
 
 
-class WindowRecord(TypedDict):  # export/arena/v1/windows.json, one per RANGES entry
+class WindowRecord(TypedDict):  # export/arena/v2/{market}/windows.json, one per range
     range: str
-    base: str | None  # the curve date the window grows from, None for All
+    base: str | None  # the curve point the window grows from, None for All
     strategies: dict[str, WindowStats]
 
 
-class Trades(TypedDict):  # export/arena/v1/funds/{symbol}.json, one per strategy
+class Trades(TypedDict):  # export/arena/v2/{market}/funds/{symbol}.json, one per strategy
     buy: list[str]
     sell: list[str]
 
@@ -221,6 +233,26 @@ def random_walk(seed: int, n: int = 700) -> pl.DataFrame:
     )
 
 
+def keyed(bars: pl.DataFrame, size: BarSize) -> pl.DataFrame:
+    """Bars whose `date` holds the bar key, because evaluate.py reads `date` as the key."""
+    return bars.select(pl.col(size.key).alias("date"), pl.exclude("date", "time"))
+
+
+def stamp(key: date) -> str:
+    """A bar key as the export writes it: a session date, or a New York time to the minute."""
+    return key.strftime("%Y-%m-%dT%H:%M") if isinstance(key, datetime) else key.isoformat()
+
+
+def first_session(bars: pl.DataFrame) -> date:
+    """The later of BACKTEST_START and the first session after the one holding bar WARMUP.
+
+    Before that bar the golden cross's longest average has no value.
+    """
+    sessions = bars["date"].cast(pl.Date)
+    warm = sessions[WARMUP - 1]
+    return max(BACKTEST_START, sessions.filter(sessions > warm)[0])
+
+
 def fingerprint(strategy: Strategy) -> str:
     """sha256 of the positions on random_walk(0), (1), and (2), one line of 0s and 1s each."""
     lines = ("".join(map(str, strategy.positions(random_walk(seed)))) for seed in range(3))
@@ -245,19 +277,21 @@ def decisions(
 ) -> pl.DataFrame:
     """symbol, date, arm, position for every CATALOG strategy on every STUDY symbol.
 
-    Bars after `end` are dropped before any position is decided, so no position reads them. The
-    column is `arm` because evaluate.backtest groups by it.
+    `start` and `end` are sessions, so an intraday `end` keeps its whole session. Bars after `end`
+    are dropped before any position is decided, so no position reads them. The column is `arm`
+    because evaluate.backtest groups by it.
     """
+    session = pl.col("date").cast(pl.Date)
     frames = []
     for symbol in STUDY:
-        bars = market[symbol].filter(pl.col("date") <= end)
+        bars = market[symbol].filter(session <= end)
         for strategy in CATALOG.values():
             frames.append(
                 bars.select(
                     pl.lit(symbol).alias("symbol"), "date", pl.lit(strategy.id).alias("arm")
                 ).with_columns(strategy.positions(bars))
             )
-    return pl.concat(frames).filter(pl.col("date") >= start)
+    return pl.concat(frames).filter(session >= start)
 
 
 def _excess(days: pl.DataFrame) -> np.ndarray:
@@ -398,10 +432,10 @@ def scope_records(
             }
         )
 
-    return ScopeResult(strategies, records, _equity(days[COST_BPS]))
+    return ScopeResult(strategies, records, equity_curve(days[COST_BPS]))
 
 
-def _equity(days: pl.DataFrame) -> pl.DataFrame:
+def equity_curve(days: pl.DataFrame) -> pl.DataFrame:
     """date, then each CATALOG strategy's growth of 1 over evaluate.portfolio rows."""
     return (
         days.with_columns((1 + pl.col("ret")).cum_prod().over("arm").alias("equity"))
@@ -410,19 +444,19 @@ def _equity(days: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def windows(sleeves: pl.DataFrame) -> list[WindowRecord]:
-    """Each RANGES window's growth, exposure, and max drawdown on the portfolio scope.
+def windows(sleeves: pl.DataFrame, ranges: Mapping[str, str | None]) -> list[WindowRecord]:
+    """Each range's growth, exposure, and max drawdown on the portfolio scope.
 
     sleeves holds the COST_BPS evaluate.backtest rows of every CATALOG strategy on every symbol.
-    A window holds the curve dates after its base through the last date, and `base` is the last
-    curve date on or before the offset cutoff.
+    ranges is a Market's. A window holds the curve points after its base through the last point,
+    and `base` is the last curve point on or before the offset cutoff.
     """
     days = portfolio(sleeves)
-    equity = _equity(days)
+    equity = equity_curve(days)
     dates = equity["date"]
     last = dates[-1]
     records: list[WindowRecord] = []
-    for label, offset in RANGES.items():
+    for label, offset in ranges.items():
         if offset is None:
             base, kept, start = None, pl.lit(True), dict.fromkeys(CATALOG, 1.0)
         else:
@@ -442,7 +476,7 @@ def windows(sleeves: pl.DataFrame) -> list[WindowRecord]:
         records.append(
             {
                 "range": label,
-                "base": None if base is None else base.isoformat(),
+                "base": None if base is None else stamp(base),
                 "strategies": strategies,
             }
         )
@@ -450,7 +484,7 @@ def windows(sleeves: pl.DataFrame) -> list[WindowRecord]:
 
 
 def trades(sleeves: pl.DataFrame, bars: pl.DataFrame) -> dict[str, Trades]:
-    """Each CATALOG strategy's buy and sell dates on one symbol.
+    """Each CATALOG strategy's buy and sell bars on one symbol.
 
     sleeves holds that symbol's evaluate.backtest rows. A switch decided at the close of t
     trades at the next open, so its date is the bar after t in `bars`.
@@ -460,6 +494,6 @@ def trades(sleeves: pl.DataFrame, bars: pl.DataFrame) -> dict[str, Trades]:
 
     def on(i: str, position: int) -> list[str]:
         mine = switched.filter(pl.col("arm") == i, pl.col("position") == position)
-        return [d.isoformat() for d in mine["trade"]]
+        return [stamp(k) for k in mine["trade"]]
 
     return {i: {"buy": on(i, 1), "sell": on(i, 0)} for i in CATALOG}

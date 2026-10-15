@@ -1,0 +1,166 @@
+{
+  "version": "arena/v2",
+  "catalogVersion": 1,
+  "markets": {
+    "daily": {
+      "bars": "1day",
+      "periods": {
+        "backtest": {
+          "first": "2008-01-02",
+          "last": "2026-10-07",
+          "barsEnd": "2026-10-09"
+        }
+      },
+      "scopes": [
+        "portfolio",
+        "SPY",
+        "QQQ",
+        "IWM",
+        "DIA",
+        "XLB",
+        "XLE",
+        "XLF",
+        "XLI",
+        "XLK",
+        "XLP",
+        "XLU",
+        "XLV",
+        "XLY"
+      ],
+      "ranges": [
+        "1W",
+        "1M",
+        "3M",
+        "1Y",
+        "5Y",
+        "All"
+      ],
+      "statistics": true
+    },
+    "hourly": {
+      "bars": "1h",
+      "periods": {
+        "backtest": {
+          "first": "2024-01-16T09:30",
+          "last": "2026-10-09T13:30",
+          "barsEnd": "2026-10-09T15:30"
+        }
+      },
+      "scopes": [
+        "portfolio"
+      ],
+      "ranges": [
+        "1D",
+        "1W",
+        "1M",
+        "3M",
+        "1Y",
+        "All"
+      ],
+      "statistics": false
+    }
+  },
+  "cash": "BIL",
+  "settings": {
+    "costBps": 5,
+    "costsBps": [
+      0,
+      5,
+      10,
+      20
+    ],
+    "block": 20,
+    "reps": 2000,
+    "seed": 0,
+    "level": 0.95,
+    "power": 0.8
+  },
+  "reconciliation": {
+    "holdout": "research/holdout.json",
+    "sha256": "478ce2e6667fa833a949a292b81f01d089a8dbe90a92b7d10d3b2b2564b6c3e4",
+    "first": "2019-01-02",
+    "last": "2026-10-09",
+    "strategies": {
+      "buy_hold": "buy_hold",
+      "golden_cross": "sma_filter"
+    }
+  },
+  "inputs": {
+    "research/holdout.json": "478ce2e6667fa833a949a292b81f01d089a8dbe90a92b7d10d3b2b2564b6c3e4",
+    "data/market/SPY.parquet": "e644fcefca36922d9b6f580e81c9acd40bec9e77309a1d1bd572924961f7a936",
+    "data/market/QQQ.parquet": "0336fb08c4ef1b1a2c46bc59101a56b8ed705a6c7f664f2a187f86af5e870257",
+    "data/market/IWM.parquet": "88cbb1874fd86be36b14e2e672f5abc997cfbef433fe35f3c990604e4679d8f9",
+    "data/market/DIA.parquet": "537bcf37fafced8c8de5ec242e49af6b0b6702ac4f6279f348dd0be85025209f",
+    "data/market/XLB.parquet": "c3531f549b5172a891612543097f67ab015b772d25a0649fd9de340d2541876f",
+    "data/market/XLE.parquet": "3227017cd4e7dfb3edad6c145bc12869f2d161a19961d59fc7050f64af1b5845",
+    "data/market/XLF.parquet": "1d8d565499df211635b25a775d637ca2ea19454dbb555a366bab98125849023a",
+    "data/market/XLI.parquet": "0705521eb379b95fff461ce01495b5a6f34b461a7572155f000beb910bff9fb5",
+    "data/market/XLK.parquet": "1fc04e32a09f2ec4340e3965f1ece74cde219b8244d764e6991a24db738f0ca9",
+    "data/market/XLP.parquet": "a74a806c41db729ac13e1652c215a5edecd948b65135a47d1d96ef35dc32439a",
+    "data/market/XLU.parquet": "e85c13017ee85fb1ce311461a992b602777284934697731eb39000f508a989ea",
+    "data/market/XLV.parquet": "09c06009beeaaf1cd2b50c5a9c74ea9d0f796c7bfd6455cb8b0181476204c6c5",
+    "data/market/XLY.parquet": "825af87d5fe5e9de72c6f1e937217c7310ed4814c94371b1238be4f835ef2ba6",
+    "data/market/BIL.parquet": "23b614e53ff4561e2457d28bb152ae5dc44fd5f27d5decc86cc6dc1dc95c830c",
+    "data/market/1h/SPY.parquet": "7023225acf32f76b6ee6b156e90c9e2a6b8be27161511652ce6335c3e7517522",
+    "data/market/1h/QQQ.parquet": "135e08d3d840bc22cf80d90ccc5ebfa70737c1b9bb1245c5ce04e8e177c9c50d",
+    "data/market/1h/IWM.parquet": "2d76a740cdff82984ee60eac9c0f83b5fb25781f954c5641b5932e2788533111",
+    "data/market/1h/DIA.parquet": "0bba382ee84c907052082e4b6b5942524cc4d715d9c010a56d809b69fdbba879",
+    "data/market/1h/XLB.parquet": "38ea6c1e2a86cea93061a80f2d7a4481f350009892642049acc8cbd7ca1042d4",
+    "data/market/1h/XLE.parquet": "b5c07e7d6311af8b5906517a6168f0f24062b672c1d92635f6faae19a429f627",
+    "data/market/1h/XLF.parquet": "e39b338d3cdd3426e59c4ee422f2d14c2052f909c68eed1837303efe14b61fe5",
+    "data/market/1h/XLI.parquet": "1ac0c2f620b7c18551c0643329e55ba6aec6ac62b3a30dfc200f579d78a947f9",
+    "data/market/1h/XLK.parquet": "51970fb3b2d452630c3c3d43da9c515c278fc7f8b7db7988da7b31e840120176",
+    "data/market/1h/XLP.parquet": "790c550fbeb8350bf9bf2e3aa65fbe6da362a650b6fd1238a46a9a5187f03974",
+    "data/market/1h/XLU.parquet": "a41e516f46ca07dcac6c7e29800e812b78338ef27f3816f3b4f1148c4a0f20b6",
+    "data/market/1h/XLV.parquet": "657571e90b1921a1c7e68805cada2429abf10f168886358f59798810f18a8c9a",
+    "data/market/1h/XLY.parquet": "a385fcc8349e69e30947a50e6a216682f6a33620cf87c66720af4fdeea994c8d",
+    "data/market/1h/BIL.parquet": "495ff56d1e12faa1df9e6115c2aa02438c782915768b12b3004579332315024d"
+  },
+  "files": {
+    "catalog.json": "9a2c9aca95201536c2c04ba1c531534527a2eea9e9453eac262a9c76878fb3fd",
+    "daily/comparisons.json": "afa6043df167f996f44a9890fc0cb53529c093bb8164db01be05fc840c782f76",
+    "daily/curves/DIA.json": "32ee50900770c9a429f55a2c0020930c9eaab80b1764980e46d8fecc8fc8bb5b",
+    "daily/curves/IWM.json": "87a8e0740f8abd7abf25ec9f2634f1b4647d57346f32087b39a04350154dc8b4",
+    "daily/curves/QQQ.json": "95b05fddecee858186d33ae985705587dbb3aef6db84631b9d4acf8e394e6f7d",
+    "daily/curves/SPY.json": "188fc929f5f47ebb1e51e19d6924d9693087f1e8e26cf23b2751d343eb030b63",
+    "daily/curves/XLB.json": "05ac0319f5019f64bd084674b577c55427fda55d1b2f2a9754aa587de76735d3",
+    "daily/curves/XLE.json": "fcb3120d0223c58a4d163b4405a17e74688e5381714f8433bada471f20bf7f81",
+    "daily/curves/XLF.json": "709b472760aedde205fdb063872101b7ea722e30e3636ae38f67bef81a6dd058",
+    "daily/curves/XLI.json": "157096b311d55509bb4fb9cd55a2d69a35da7da2bcfb9e671001797e99c1f6c4",
+    "daily/curves/XLK.json": "1b7d680a300a83d2e67c878c278fc23c128db45f60d8df1c04527290b9798d4c",
+    "daily/curves/XLP.json": "a79bc99cb05fc77c6782d720bbc3043513dac7736a8af16c9b81bfd2d7238c48",
+    "daily/curves/XLU.json": "01134234bc3f63112f2c4cf9c12b1c84a10bcc99148c494719b73d7ec577c90b",
+    "daily/curves/XLV.json": "911e2626eaf439a92c46379d338431b752e89d6a8afd6a52cc52067be4bb5a0e",
+    "daily/curves/XLY.json": "f744daaecfa9a4eecec571786f2a4cbffa6f89b3b24fb0aed977b402d2618cf6",
+    "daily/curves/portfolio.json": "d4a98b4c6b2ec42aa3eb23b1126d0c1dda30c17c3e9161142c7df91f9013a625",
+    "daily/funds/DIA.json": "4028a7d0c622fde8c163bd4d195f23076c00ecff1e3a635e24ff865c4c463165",
+    "daily/funds/IWM.json": "4a42b0909769bf946aed102a2e658d60b1f8b78f106a4d3732f967a6309b296c",
+    "daily/funds/QQQ.json": "ef924dc52d95e42eb4236779888710b01fc5b5643e3fb2874f6671fb1e8dae1b",
+    "daily/funds/SPY.json": "64c5197a1e0fbcef1f438b7ab39ea9f6bd3bd206914895964b5a3c8a09a565e9",
+    "daily/funds/XLB.json": "c030089dfa56a8a04e070c8866452fe25ffc500d0d6e8aa480adee82504729fa",
+    "daily/funds/XLE.json": "41f9d83e6c7d7b09ab029bfd9c86a81b1bef8531d3e04ad49abf6abc91d5df55",
+    "daily/funds/XLF.json": "0de7dfc44c05d73cd73b10376123211ef63a494db51c3b4bf18497ebe2133c8e",
+    "daily/funds/XLI.json": "93142c8e6e52b199bd166940d60d64a41cd9efb4457289ca06536ac4218821b6",
+    "daily/funds/XLK.json": "415f80d529829f7107579a029eb6926ef99b4a56573064e15e29b42b042ea073",
+    "daily/funds/XLP.json": "8bc04f937c07c8e00d9ce6e16322ad793a6dd6691e5c60546382c5186faa0e7d",
+    "daily/funds/XLU.json": "ea1714f78e4c5208f62ba826eb2097e149a529dbfc5c533cd20a8b67fbdf6272",
+    "daily/funds/XLV.json": "6fa1f0c32154e77c7adf31623c3719a7aef056de56801c3cd72f814aa64adc8f",
+    "daily/funds/XLY.json": "80d2d5360d30c1d373a3184d796d47609be9c02a195ba68907ceb3fd445000b7",
+    "daily/windows.json": "11ff95a6fdfcf94592f35e6f2a3aa59159d6991f8b4b2f96257c69e75f019886",
+    "hourly/curves/portfolio.json": "f12be8907d5e2a9e0217db44ca08a260c12055b660c453b30f7f01885b0abcd1",
+    "hourly/funds/DIA.json": "85584d4685db9d1ee3dc01f196ad0da27cd02dca498712f87f97d6dbf45604dd",
+    "hourly/funds/IWM.json": "f27f2b4b16cfb29922c468107da4e6b3c5a7724f2d644b24e6c9416af76a6630",
+    "hourly/funds/QQQ.json": "20c21aa03922786544d1a32bcc43b1c34139fe1f278fbc399035777f511fac05",
+    "hourly/funds/SPY.json": "0df5c58040961bacb5e35aa7c2f91fe0d8a79bb7f3ce21b530f42c1117671572",
+    "hourly/funds/XLB.json": "e38f49f58480ccce00990d943ec7bbe84b5cfab83e6d412751aba97d5d68efc9",
+    "hourly/funds/XLE.json": "2546f084253b128b7b8082101bab2a4c9bb748bf4f03aa8b3bd7b5ffcd5e18af",
+    "hourly/funds/XLF.json": "2aa98870d992a5ec75e923829567e2d1801923b23fbb60320387310319f5cf1c",
+    "hourly/funds/XLI.json": "7f22e833ea60c75bff65a9f94c247e0a38ac7c97b4f4abddf642b6e3918011c6",
+    "hourly/funds/XLK.json": "12194827e3c510a1b3b6574adb847fbfa9ea5e6c4c175644c959f4f2f6826dc1",
+    "hourly/funds/XLP.json": "175ac55088115a3503fe46031931fb664c92b33239a1598726bf0c76a24757fc",
+    "hourly/funds/XLU.json": "fd3df84eea5b11401a53837c2cd238b3aa8f05cc8a85988c53d9b60557848fa0",
+    "hourly/funds/XLV.json": "459a454c887d669c38c1b5e222d0959891e4b1932e70952c467ddbef09d8f7f0",
+    "hourly/funds/XLY.json": "4bce9eb4d94813bd4d3ff1d4374e7f42b31b0c70a2235de9c716fd5fc6017fa2",
+    "hourly/windows.json": "85c15d7e1f21a0e049b292b3e22e53de4e8f5c2e7f6cd1b70a8db8dc9d9a879f"
+  }
+}
