@@ -253,7 +253,7 @@ export function PickTwo({ strategies, funds, markets, costBps }: Props) {
           got there.
         </p>
         <h3>Share of {unit}s invested</h3>
-        <Bars sides={sides} values={[stats(a).exposure, stats(b).exposure]} titles={[a.title, b.title]} />
+        <Bars name="exposure" sides={sides} values={[stats(a).exposure, stats(b).exposure]} titles={[a.title, b.title]} />
         <p className="muted">
           {[a, b]
             .filter((s) => stats(s).exposure < 1)
@@ -261,7 +261,7 @@ export function PickTwo({ strategies, funds, markets, costBps }: Props) {
           Cash earns a little interest. It can&apos;t grow with the market, and it can&apos;t fall with it either.
         </p>
         <h3>Biggest fall from a high point</h3>
-        <Bars sides={sides} values={[stats(a).maxDrawdown, stats(b).maxDrawdown]} titles={[a.title, b.title]} />
+        <Bars name="drawdown" sides={sides} values={[stats(a).maxDrawdown, stats(b).maxDrawdown]} titles={[a.title, b.title]} />
         <p className="muted">The share of its value each one lost at its worst moment before recovering.</p>
         {range === "All" && close ? (
           <div className="callout" data-testid="too-close">
@@ -279,7 +279,7 @@ export function PickTwo({ strategies, funds, markets, costBps }: Props) {
   );
 }
 
-function Bars({ sides, values, titles }: { sides: Side[]; values: number[]; titles: string[] }) {
+function Bars({ name, sides, values, titles }: { name: string; sides: Side[]; values: number[]; titles: string[] }) {
   return (
     <div className="bars">
       {sides.map((side, k) => (
@@ -288,7 +288,9 @@ function Bars({ sides, values, titles }: { sides: Side[]; values: number[]; titl
           <span className="track">
             <span className="fill" style={{ display: "block", width: `${values[k] * 100}%` }} />
           </span>
-          <span className="value">{formatShare(values[k])}</span>
+          <span className="value" data-testid={`${name}-${side.label}`}>
+            {formatShare(values[k])}
+          </span>
         </div>
       ))}
     </div>
