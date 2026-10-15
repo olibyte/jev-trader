@@ -1,7 +1,7 @@
 import hashlib
 import json
 import shutil
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 import numpy as np
 import polars as pl
@@ -10,12 +10,15 @@ import pytest
 from jevtrader import cli
 from jevtrader.catalog import (
     CATALOG,
+    MARKETS,
     SCOPES,
     Strategy,
     critical_value,
     decisions,
     entry,
     fingerprint,
+    first_session,
+    keyed,
     random_walk,
     reconcile,
     refusals,
@@ -23,12 +26,15 @@ from jevtrader.catalog import (
     trades,
     windows,
 )
+from jevtrader.data import HOUR
 from jevtrader.evaluate import (
     ARMS,
     COSTS_BPS,
     HOLDOUT_PATH,
     backtest,
     holdout_result,
+    open_returns,
+    portfolio,
     render_json,
 )
 from jevtrader.export import ARENA_PATH
@@ -70,6 +76,76 @@ ORACLE = Strategy(
 @pytest.mark.parametrize("strategy", CATALOG.values(), ids=list(CATALOG))
 def test_positions_at_t_match_on_bars_truncated_at_t(strategy, seed):
     assert first_peek(strategy, random_walk(seed)) is None
+
+
+def hourly_walk(seed: int, n: int = 700) -> pl.DataFrame:
+    """random_walk's prices on 7 bars each weekday from 2023-12-01, 09:30 to 15:30."""
+    days = weekdays(date(2023, 12, 1), date(2023, 12, 1) + timedelta(days=n))
+    times = [datetime.combine(d, time(9 + h, 30)) for d in days for h in range(7)][:n]
+    return random_walk(seed, n).select(
+        pl.Series("time", times),
+        pl.Series("date", [t.date() for t in times]),
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+    )
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+@pytest.mark.parametrize("strategy", CATALOG.values(), ids=list(CATALOG))
+def test_positions_at_t_match_on_hourly_bars_truncated_at_t(strategy, seed):
+    assert first_peek(strategy, keyed(hourly_walk(seed), HOUR)) is None
+
+
+def test_scoring_starts_the_session_after_the_one_holding_bar_200():
+    # Bar 200 is index 199, the 29th session at 7 bars each: 2023-12-01 plus 28 weekdays.
+    assert first_session(keyed(hourly_walk(0), HOUR)) == date(2024, 1, 11)
+    assert first_session(random_walk(0)) == date(2008, 1, 1), "daily scores from BACKTEST_START"
+
+
+def test_hourly_sessions_compound_switch_costs_and_the_overnight_hold():
+    times = [
+        datetime.combine(d, time(9 + h, 30))
+        for d in weekdays(date(2024, 1, 2), date(2024, 1, 3))
+        for h in range(7)
+    ]
+    opens = [100, 101, 102, 100, 99, 100, 102, 104, 103, 103, 105, 104, 106, 107]
+    cash = [50.0] * 12 + [50.05] * 2
+
+    def bars(prices: list[float]) -> pl.DataFrame:
+        return keyed(
+            pl.DataFrame(
+                {"time": times, "date": [t.date() for t in times], "open": prices}
+            ).with_columns(pl.col("open").cast(pl.Float64)),
+            HOUR,
+        )
+
+    market = {"SPY": bars(opens), CASH: bars(cash)}
+    made = pl.DataFrame(
+        {
+            "arm": "rule",
+            "symbol": "SPY",
+            "date": times,
+            "position": pl.Series([0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1], dtype=pl.Int8),
+        }
+    )
+
+    days = portfolio(backtest(made, open_returns(market, date(2024, 1, 4)), 5))
+    sessions = days.group_by(pl.col("date").cast(pl.Date)).agg((1 + pl.col("ret")).product() - 1)
+
+    fee = 1 - 5e-4
+    assert dict(sessions.sort("date").iter_rows()) == {
+        # 10:30 and 14:30 buy and 12:30 sells. 14:30 earns the 15:30 open to the next 09:30.
+        date(2024, 1, 2): pytest.approx(
+            1 * fee * (100 / 102) * (99 / 100) * fee * 1 * 1 * fee * (104 / 102) * (103 / 104) - 1
+        ),
+        # 11:30 sells, 12:30 earns cash, 13:30 buys. The last two bars have no return to earn.
+        date(2024, 1, 3): pytest.approx(
+            (103 / 103) * (105 / 103) * fee * 1 * (50.05 / 50) * fee * (107 / 106) - 1
+        ),
+    }
 
 
 def test_the_oracle_fails_the_truncation_check():
@@ -238,7 +314,7 @@ def test_windows_grow_from_the_last_curve_date_on_or_before_each_cutoff():
         rows, schema=["arm", "symbol", "date", "position", "ret"], orient="row"
     ).with_columns(pl.lit(0.0).alias("r_cash"))
 
-    found = windows(sleeves)
+    found = windows(sleeves, MARKETS["daily"].ranges)
 
     assert [(w["range"], w["base"]) for w in found] == [
         ("1W", "2023-12-29"),

@@ -19,6 +19,7 @@ from jevtrader.catalog import (
     CATALOG,
     CATALOG_VERSION,
     HOLDOUT_ARMS,
+    MARKETS,
     SCOPES,
     CatalogEntry,
     entry,
@@ -560,7 +561,7 @@ def render_arena(inputs: ArenaInputs) -> dict[str, bytes]:
             {
                 "scope": "portfolio",
                 "last": span[1].isoformat(),
-                "windows": windows(sleeves[COST_BPS]),
+                "windows": windows(sleeves[COST_BPS], MARKETS["daily"].ranges),
             }
         ),
         **{
