@@ -471,3 +471,37 @@ def test_fill_quiet_hours_leaves_more_than_a_session_of_gaps_for_validate():
     assert fill_quiet_hours(ends, pl.Series("time", times[1:8]))[0].height == 9, "7 missing fill"
     unfilled, count = fill_quiet_hours(ends, pl.Series("time", times))
     assert (unfilled.height, count) == (2, 0), "8 missing stay"
+
+
+def test_hourly_fetch_on_a_trimmed_real_spy_response(tmp_path):
+    body = (FIXTURES / "spy_1h_2024-11-27.json").read_text()
+    client = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, text=body)))
+    market = tmp_path / "market"
+    market.mkdir()
+    pl.DataFrame(
+        {
+            "date": [date(2024, 11, 27), date(2024, 11, 29), date(2024, 12, 2)],
+            "open": [586.9549, 586.17285, 589.4084],
+            "close": [585.36156, 588.99786, 590.05359],
+        }
+    ).write_parquet(market / "SPY.parquet")
+
+    size = replace(HOUR, last=date(2024, 12, 2))
+    result = fetch_symbol(client, KEY, "SPY", tmp_path, NOW, None, no_sleep, size)
+
+    bars = pl.read_parquet(market / "1h" / "SPY.parquet")
+    assert bars["time"].dt.strftime("%m-%d %H:%M").to_list() == [
+        "11-29 09:30",
+        "11-29 10:30",
+        "11-29 11:30",
+        "11-29 12:30",
+        "12-02 09:30",
+        "12-02 10:30",
+        "12-02 11:30",
+        "12-02 12:30",
+        "12-02 13:30",
+        "12-02 14:30",
+        "12-02 15:30",
+    ], "the partial 11-27 session and the flat 15:30 bar after the half-day close are gone"
+    assert result.gap == pytest.approx(1 - 588.90014 / 588.99786)
+    assert (result.widened, result.filled) == (0, 0)
