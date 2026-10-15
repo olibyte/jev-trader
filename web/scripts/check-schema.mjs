@@ -128,6 +128,41 @@ const ARENA_MUTATIONS = [
     }),
     expect: ["daily/funds/SPY.json", 'trade date 2008-01-05 for "macd_cross" is not a bar date'],
   },
+  {
+    name: "hourly windows.json drops the 1D range",
+    apply: editArena("hourly/windows.json", (w) => {
+      w.windows.splice(0, 1);
+    }),
+    expect: ["hourly/windows.json", "the ranges are 1W, 1M, 3M, 1Y, All, not 1D, 1W, 1M, 3M, 1Y, All"],
+  },
+  {
+    name: "the hourly All window's growth differs from the last curve value",
+    apply: editArena("hourly/windows.json", (w) => {
+      w.windows.at(-1).strategies.buy_hold.growth = 1.570215;
+    }),
+    expect: ["hourly/windows.json", 'All growth for "buy_hold" is 1.570215'],
+  },
+  {
+    name: "an hourly trade falls at a time with no bar",
+    apply: editArena("hourly/funds/SPY.json", (f) => {
+      f.trades.macd_cross.buy[0] = "2024-01-16T09:45";
+    }),
+    expect: ["hourly/funds/SPY.json", 'trade time 2024-01-16T09:45 for "macd_cross" is not a bar time'],
+  },
+  {
+    name: "an hourly window base is a date, not a time",
+    apply: editArena("hourly/windows.json", (w) => {
+      w.windows[0].base = "2026-10-08";
+    }),
+    expect: ["hourly/windows.json", '"windows",\n      0,\n      "base"'],
+  },
+  {
+    name: "an hourly fund's close is one value short",
+    apply: editArena("hourly/funds/QQQ.json", (f) => {
+      f.close.pop();
+    }),
+    expect: ["hourly/funds/QQQ.json", "close has 4790 values for 4791 times"],
+  },
 ];
 
 function build(exportDir, arenaDir = arenaSource) {
