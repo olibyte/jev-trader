@@ -14,7 +14,7 @@ import {
   type Time,
 } from "lightweight-charts";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
-import type { Curve, Fund, FundBars } from "@/lib/arena";
+import type { Curve, Fund, FundBars, Market } from "@/lib/arena";
 import { formatDay, formatDollars, formatPrice } from "@/lib/format";
 import { CHART_COLORS, chartOptions } from "../chartTheme";
 
@@ -86,8 +86,8 @@ function Waiting({ failed }: { failed: boolean }) {
   );
 }
 
-export function LineView({ base, sides }: { base: string | null; sides: Side[] }) {
-  const { data, failed } = useData<Curve>("/preview/data/portfolio.json");
+export function LineView({ market, base, sides }: { market: Market; base: string | null; sides: Side[] }) {
+  const { data, failed } = useData<Curve>(`/preview/data/${market}/portfolio.json`);
   return data ? <LineChart curve={data} base={base} sides={sides} /> : <Waiting failed={failed} />;
 }
 
@@ -95,9 +95,9 @@ function LineChart({ curve, base, sides }: { curve: Curve; base: string | null; 
   const container = useRef<HTMLDivElement>(null);
   const [chart, hovered] = useChart(container);
   const { dates, values } = useMemo(() => {
-    const from = base === null ? 0 : curve.date.indexOf(base);
+    const from = base === null ? 0 : curve.time.indexOf(base);
     return {
-      dates: curve.date.slice(from),
+      dates: curve.time.slice(from),
       values: sides.map(({ id }) => {
         const series = curve.equity[id].slice(from);
         const start = base === null ? 1 : series[0];
@@ -145,17 +145,17 @@ function LineChart({ curve, base, sides }: { curve: Curve; base: string | null; 
   );
 }
 
-type CandleProps = { fund: Fund; base: string | null; sides: Side[]; trades: boolean };
+type CandleProps = { market: Market; fund: Fund; base: string | null; sides: Side[]; trades: boolean };
 
 export function CandleView(props: CandleProps) {
-  const { data, failed } = useData<FundBars>(`/preview/data/funds/${props.fund.ticker}.json`);
+  const { data, failed } = useData<FundBars>(`/preview/data/${props.market}/funds/${props.fund.ticker}.json`);
   return data ? <CandleChart bars={data} {...props} /> : <Waiting failed={failed} />;
 }
 
 function CandleChart({ bars, fund, base, sides, trades }: CandleProps & { bars: FundBars }) {
   const container = useRef<HTMLDivElement>(null);
   const [chart, hovered] = useChart(container);
-  const from = useMemo(() => (base === null ? 0 : bars.date.findIndex((d) => d > base)), [bars, base]);
+  const from = useMemo(() => (base === null ? 0 : bars.time.findIndex((d) => d > base)), [bars, base]);
 
   useEffect(() => {
     const api = chart.current;
@@ -170,7 +170,7 @@ function CandleChart({ bars, fund, base, sides, trades }: CandleProps & { bars: 
       priceLineVisible: false,
       lastValueVisible: false,
     });
-    const dates = bars.date.slice(from);
+    const dates = bars.time.slice(from);
     candles.setData(
       dates.map((time, k): CandlestickData<Time> => {
         const i = from + k;
@@ -193,12 +193,12 @@ function CandleChart({ bars, fund, base, sides, trades }: CandleProps & { bars: 
     };
   }, [chart, bars, from, sides, trades]);
 
-  const traded = sides.some(({ id }) => [...bars.trades[id].buy, ...bars.trades[id].sell].some((d) => d >= bars.date[from]));
-  const i = from + at(hovered, bars.date.length - from);
+  const traded = sides.some(({ id }) => [...bars.trades[id].buy, ...bars.trades[id].sell].some((d) => d >= bars.time[from]));
+  const i = from + at(hovered, bars.time.length - from);
   return (
     <>
       <p className="readout" aria-live="polite" data-testid="readout">
-        <strong>{formatDay(bars.date[i])}</strong>
+        <strong>{formatDay(bars.time[i])}</strong>
         <span>
           O {formatPrice(bars.open[i])} H {formatPrice(bars.high[i])} L {formatPrice(bars.low[i])} C {formatPrice(bars.close[i])}
         </span>

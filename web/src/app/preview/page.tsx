@@ -6,7 +6,8 @@ import { formatMonth, formatTurnover } from "@/lib/format";
 export const metadata: Metadata = { title: "Pick two" };
 
 export default function PickTwoPage() {
-  const { strategies, windows, funds, tooClose, first, last, costBps } = loadArena();
+  const { strategies, funds, costBps, markets } = loadArena();
+  const { windows, first, last, tooClose } = markets.daily;
   return (
     <>
       <div>

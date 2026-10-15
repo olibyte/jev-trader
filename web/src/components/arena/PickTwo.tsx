@@ -14,6 +14,7 @@ const SLOTS = [
 type Slot = 0 | 1;
 
 const SPAN: Record<Exclude<Range, "All">, string> = {
+  "1D": "One day",
   "1W": "One week",
   "1M": "One month",
   "3M": "Three months",
@@ -28,7 +29,7 @@ type Props = {
   strategies: Strategy[];
   windows: Window[];
   funds: Fund[];
-  tooClose: Record<string, boolean>;
+  tooClose: Record<string, boolean> | null;
   first: string;
   last: string;
 };
@@ -59,7 +60,7 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
   const end = (s: Strategy) => START * stats(s).growth;
   const gap = Math.round(end(a)) - Math.round(end(b));
   const ahead = gap >= 0 ? a : b;
-  const close = tooClose[`${a.id}:${b.id}`];
+  const close = tooClose?.[`${a.id}:${b.id}`] ?? false;
   const startText = shown.base === null ? `in ${formatMonth(first.slice(0, 7))}` : `on ${formatDay(shown.base)}`;
 
   function pick(id: string) {
@@ -204,12 +205,12 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
         </div>
         {view.kind === "line" ? (
           <>
-            <LineView base={shown.base} sides={sides} />
+            <LineView market="daily" base={shown.base} sides={sides} />
             <p className="muted">Move across the chart to read any day. The dashed line is the $1,000 you started with.</p>
           </>
         ) : (
           <>
-            <CandleView fund={view.fund} base={shown.base} sides={sides} trades={view.trades} />
+            <CandleView market="daily" fund={view.fund} base={shown.base} sides={sides} trades={view.trades} />
             {view.trades ? (
               <p className="legend" data-testid="trade-legend">
                 {sides.map((side, k) => (
