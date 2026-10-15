@@ -432,10 +432,10 @@ def scope_records(
             }
         )
 
-    return ScopeResult(strategies, records, _equity(days[COST_BPS]))
+    return ScopeResult(strategies, records, equity_curve(days[COST_BPS]))
 
 
-def _equity(days: pl.DataFrame) -> pl.DataFrame:
+def equity_curve(days: pl.DataFrame) -> pl.DataFrame:
     """date, then each CATALOG strategy's growth of 1 over evaluate.portfolio rows."""
     return (
         days.with_columns((1 + pl.col("ret")).cum_prod().over("arm").alias("equity"))
@@ -452,7 +452,7 @@ def windows(sleeves: pl.DataFrame, ranges: Mapping[str, str | None]) -> list[Win
     and `base` is the last curve point on or before the offset cutoff.
     """
     days = portfolio(sleeves)
-    equity = _equity(days)
+    equity = equity_curve(days)
     dates = equity["date"]
     last = dates[-1]
     records: list[WindowRecord] = []
