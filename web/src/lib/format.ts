@@ -48,3 +48,8 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 export const formatMonth = (month: string) => `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
 /** "2025-10-07" reads "Oct 7, 2025". */
 export const formatDay = (day: string) => `${MONTHS[Number(day.slice(5, 7)) - 1]} ${Number(day.slice(8, 10))}, ${day.slice(0, 4)}`;
+/** "2026-10-09T13:30" reads "Oct 9, 2026, 1:30 pm". The key is already New York clock time, so no zone math. */
+export const formatHour = (time: string) => {
+  const hour = Number(time.slice(11, 13));
+  return `${formatDay(time)}, ${hour % 12 || 12}:${time.slice(14, 16)} ${hour < 12 ? "am" : "pm"}`;
+};

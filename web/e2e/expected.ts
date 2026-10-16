@@ -97,3 +97,28 @@ export const manifest = read("manifest.json") as Manifest;
 export const summary = read("summary.json") as Summary;
 export const policy = read("policy.json") as Policy;
 export const symbolData = (s: string) => read(`symbols/${s}.json`) as SymbolData;
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const day = (d: string) => `${MONTHS[Number(d.slice(5, 7)) - 1]} ${Number(d.slice(8, 10))}, ${d.slice(0, 4)}`;
+export const hour = (t: string) => {
+  const h = Number(t.slice(11, 13));
+  return `${day(t)}, ${h % 12 || 12}:${t.slice(14, 16)} ${h < 12 ? "am" : "pm"}`;
+};
+export const dollars = nf({ style: "currency", currency: "USD", maximumFractionDigits: 0 });
+export const share = nf({ style: "percent", maximumFractionDigits: 0 });
+
+export type ArenaMarket = "daily" | "hourly";
+type ArenaWindows = {
+  last: string;
+  windows: { range: string; base: string | null; strategies: Record<string, { growth: number; exposure: number; maxDrawdown: number }> }[];
+};
+const arenaDir = path.resolve(import.meta.dirname, "..", process.env.ARENA_DIR ?? "../export/arena/v2");
+const readArena = (file: string): unknown => JSON.parse(readFileSync(path.join(arenaDir, file), "utf8"));
+export const arenaWindows = (market: ArenaMarket) => readArena(`${market}/windows.json`) as ArenaWindows;
+/** A fund's bar keys: `date` in daily files, `time` in hourly ones. */
+export const arenaBarKeys = (market: ArenaMarket, symbol: string) => {
+  const fund = readArena(`${market}/funds/${symbol}.json`) as { date?: string[]; time?: string[] };
+  const keys = fund.date ?? fund.time;
+  if (!keys) throw new Error(`${market}/funds/${symbol}.json has no bar keys`);
+  return keys;
+};

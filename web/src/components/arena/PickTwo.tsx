@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Fund, Range, Strategy, Window } from "@/lib/arena";
-import { formatDay, formatDollars, formatMonth, formatShare } from "@/lib/format";
+import type { Fund, MarketView, Strategy } from "@/lib/arena";
+import { formatDollars, formatMonth, formatShare } from "@/lib/format";
+import { MARKET_IDS, MARKETS, type Market, type Range } from "@/lib/markets";
 import { CandleView, LineView, type Side } from "./ArenaChart";
 import { StrategyPicker } from "./StrategyPicker";
 
@@ -14,6 +15,7 @@ const SLOTS = [
 type Slot = 0 | 1;
 
 const SPAN: Record<Exclude<Range, "All">, string> = {
+  "1D": "One day",
   "1W": "One week",
   "1M": "One month",
   "3M": "Three months",
@@ -22,25 +24,21 @@ const SPAN: Record<Exclude<Range, "All">, string> = {
 };
 
 type View = { kind: "line" } | { kind: "candles"; fund: Fund; trades: boolean };
-type Screen = { picks: [string, string]; range: Range; view: View };
+type Screen = { picks: [string, string]; market: Market; range: Range; view: View };
 
-type Props = {
-  strategies: Strategy[];
-  windows: Window[];
-  funds: Fund[];
-  tooClose: Record<string, boolean>;
-  first: string;
-  last: string;
-};
+type Props = { strategies: Strategy[]; funds: Fund[]; markets: Record<Market, MarketView>; costBps: number };
 
-export function PickTwo({ strategies, windows, funds, tooClose, first, last }: Props) {
+export function PickTwo({ strategies, funds, markets, costBps }: Props) {
   const [screen, setScreen] = useState<Screen>({
     picks: [strategies[0].id, strategies[1].id],
+    market: "daily",
     range: "1Y",
     view: { kind: "line" },
   });
   const [picking, setPicking] = useState<Slot | null>(null);
-  const { picks, range, view } = screen;
+  const { picks, market, range, view } = screen;
+  const { label, unit, formatTime, prices } = MARKETS[market];
+  const { windows, first, last, tooClose } = markets[market];
 
   const sides = useMemo(
     (): Side[] => picks.map((id, k) => ({ id, label: SLOTS[k].label, color: SLOTS[k].color })),
@@ -59,8 +57,8 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
   const end = (s: Strategy) => START * stats(s).growth;
   const gap = Math.round(end(a)) - Math.round(end(b));
   const ahead = gap >= 0 ? a : b;
-  const close = tooClose[`${a.id}:${b.id}`];
-  const startText = shown.base === null ? `in ${formatMonth(first.slice(0, 7))}` : `on ${formatDay(shown.base)}`;
+  const close = tooClose?.[`${a.id}:${b.id}`] ?? false;
+  const startText = shown.base === null ? `in ${formatMonth(first.slice(0, 7))}` : `on ${formatTime(shown.base)}`;
 
   function pick(id: string) {
     setScreen((s) => ({ ...s, picks: picking === 0 ? [id, s.picks[1]] : [s.picks[0], id] }));
@@ -71,8 +69,19 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
     setScreen((s) => ({ ...s, view: next }));
   }
 
+  function setMarket(next: Market) {
+    setScreen((s) => ({ ...s, market: next, range: (MARKETS[next].ranges as readonly Range[]).includes(s.range) ? s.range : "1Y" }));
+  }
+
   return (
     <>
+      <div>
+        <h1>Pick two strategies. See what $1,000 became.</h1>
+        <p className="lede">
+          Each one invests in the same 13 US stock funds, with {prices} from {formatMonth(first.slice(0, 7))} to{" "}
+          {formatMonth(last.slice(0, 7))}, and pays the same small fee ({costBps / 100}%) every time it moves in or out.
+        </p>
+      </div>
       <section className="slots" aria-label="Your two strategies">
         {SLOTS.map((slot, k) => {
           const s = k === 0 ? a : b;
@@ -132,16 +141,20 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
         </div>
         <p className="headline" data-testid="gap">
           {Math.abs(gap) < 50 ? (
-            <>By {formatDay(last)}, they ended within $50 of each other.</>
+            <>By {formatTime(last)}, they ended within $50 of each other.</>
           ) : (
             <>
-              By {formatDay(last)}, <strong>{ahead.title}</strong> had {formatDollars(Math.abs(gap))} more.
+              By {formatTime(last)}, <strong>{ahead.title}</strong> had {formatDollars(Math.abs(gap))} more.
             </>
           )}
         </p>
         {range !== "All" ? (
           <p className="luck" data-testid="luck">
             Does that make it the better strategy? {SPAN[range]} is too short to tell skill from luck.
+          </p>
+        ) : tooClose === null ? (
+          <p className="luck" data-testid="luck">
+            Does that make it the better strategy? We haven&apos;t tested {label.toLowerCase()} results for luck yet.
           </p>
         ) : close ? (
           <p className="luck" data-testid="luck">
@@ -152,7 +165,7 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
 
       <section className="panel chart-panel" aria-label="Chart">
         <div className="toolbar">
-          <div className="seg" role="group" aria-label="Time range">
+          <div className="seg seg-ranges" role="group" aria-label="Time range">
             {windows.map((w) => (
               <button
                 key={w.range}
@@ -175,6 +188,13 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
             >
               Candles
             </button>
+          </div>
+          <div className="seg" role="group" aria-label="Bar size">
+            {MARKET_IDS.map((m) => (
+              <button key={m} type="button" aria-pressed={m === market} onClick={() => setMarket(m)}>
+                {MARKETS[m].label}
+              </button>
+            ))}
           </div>
           {view.kind === "candles" ? (
             <>
@@ -204,12 +224,12 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
         </div>
         {view.kind === "line" ? (
           <>
-            <LineView base={shown.base} sides={sides} />
-            <p className="muted">Move across the chart to read any day. The dashed line is the $1,000 you started with.</p>
+            <LineView market={market} base={shown.base} sides={sides} />
+            <p className="muted">Move across the chart to read any {unit}. The dashed line is the $1,000 you started with.</p>
           </>
         ) : (
           <>
-            <CandleView fund={view.fund} base={shown.base} sides={sides} trades={view.trades} />
+            <CandleView market={market} fund={view.fund} base={shown.base} sides={sides} trades={view.trades} />
             {view.trades ? (
               <p className="legend" data-testid="trade-legend">
                 {sides.map((side, k) => (
@@ -232,16 +252,16 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
           A strategy can end with more just because it stayed invested while prices rose. Here is how differently these two
           got there.
         </p>
-        <h3>Share of days invested</h3>
-        <Bars sides={sides} values={[stats(a).exposure, stats(b).exposure]} titles={[a.title, b.title]} />
+        <h3>Share of {unit}s invested</h3>
+        <Bars name="exposure" sides={sides} values={[stats(a).exposure, stats(b).exposure]} titles={[a.title, b.title]} />
         <p className="muted">
           {[a, b]
             .filter((s) => stats(s).exposure < 1)
-            .map((s) => `${s.title} sat in cash on ${formatShare(1 - stats(s).exposure)} of days. `)}
+            .map((s) => `${s.title} sat in cash on ${formatShare(1 - stats(s).exposure)} of ${unit}s. `)}
           Cash earns a little interest. It can&apos;t grow with the market, and it can&apos;t fall with it either.
         </p>
         <h3>Biggest fall from a high point</h3>
-        <Bars sides={sides} values={[stats(a).maxDrawdown, stats(b).maxDrawdown]} titles={[a.title, b.title]} />
+        <Bars name="drawdown" sides={sides} values={[stats(a).maxDrawdown, stats(b).maxDrawdown]} titles={[a.title, b.title]} />
         <p className="muted">The share of its value each one lost at its worst moment before recovering.</p>
         {range === "All" && close ? (
           <div className="callout" data-testid="too-close">
@@ -259,7 +279,7 @@ export function PickTwo({ strategies, windows, funds, tooClose, first, last }: P
   );
 }
 
-function Bars({ sides, values, titles }: { sides: Side[]; values: number[]; titles: string[] }) {
+function Bars({ name, sides, values, titles }: { name: string; sides: Side[]; values: number[]; titles: string[] }) {
   return (
     <div className="bars">
       {sides.map((side, k) => (
@@ -268,7 +288,9 @@ function Bars({ sides, values, titles }: { sides: Side[]; values: number[]; titl
           <span className="track">
             <span className="fill" style={{ display: "block", width: `${values[k] * 100}%` }} />
           </span>
-          <span className="value">{formatShare(values[k])}</span>
+          <span className="value" data-testid={`${name}-${side.label}`}>
+            {formatShare(values[k])}
+          </span>
         </div>
       ))}
     </div>

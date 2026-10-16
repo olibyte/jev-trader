@@ -27,7 +27,7 @@ The screen shows these parts, top to bottom:
 6. A card titled "More money is not the whole story." It compares the share of days each strategy was invested and the biggest fall each one took from a high point, over the chosen range. On all years it ends with "So which one is better? We can't tell yet." and says that the gap could be luck.
 7. A collapsed section, "The numbers behind this, for the technically minded", with the exact rules, moves per year, and the setup.
 
-The prototype is at `/preview/` in `web/`. The [screenshots](assets/trade-arena/) show it at 1280 px and 390 px. The [first-screen screenshots](arena/2026-10-14-first-screen/shots/) show the light design that the arena picked.
+The prototype is at `/preview/` in `web/`. The [screenshots](assets/trade-arena/) show both bar sizes at 1280 px and 390 px. `web/scripts/arena-screenshots.mjs` retakes them from a running server. The [first-screen screenshots](arena/2026-10-14-first-screen/shots/) show the light design that the arena picked.
 
 The default pair is the first two strategies in catalog order, never a pair chosen by its result.
 
@@ -48,13 +48,13 @@ Milestone 7 built four strategies: buy and hold, the golden cross, the MACD cros
 
 ## Hourly bars come next
 
-The user approved this plan on 2026-10-14. Milestone 12 in the implementation plan builds it. Nothing here is built yet.
+The user approved this plan on 2026-10-14. Milestone 12 in the implementation plan builds it. PR 12c built the screen below at `/preview/`.
 
 - **A Daily or Hourly switch** sits beside Line or Candles. It changes the whole screen: the two amounts, the line, the candles, and the "More money is not the whole story" card. Daily is the default.
 - **Hourly runs the same strategies on hourly bars.** A rule is written in bars, so the golden cross reads the 50-hour and 200-hour averages. Each strategy decides at the close of an hour and trades at the next hour's open, inside regular hours, and can hold overnight. Each move in or out still costs 0.05%. The 13 funds return to equal parts every hour.
 - **Hourly history is shorter.** One request of 5,000 hourly bars per fund reaches back about 2.8 years, and the first 200 bars warm up the longest average. The setup sentence says "about 2.7 years of hourly prices" with the first and last month. Daily history still starts in 2008. These spans are arithmetic at 7 bars a day until the first hourly fetch measures them.
 - **Ranges.** Daily keeps 1W, 1M, 3M, 1Y, 5Y, and All. Hourly has 1D, 1W, 1M, 3M, 1Y, and All. 1Y is the default on both. The switch keeps the chosen range when the other bar size has it, and falls back to 1Y when it does not.
-- **The candles view shows at most 250 bars.** It shows the last 250 bars of the chosen range, or the whole range when it is shorter, with a note such as "Showing the last 250 hours of this range." The page loads every bar of the fund, so a later step back in time needs no new download. Scrolling stays off until that task.
+- **The candles view shows at most 250 bars**, on both bar sizes. It shows the last 250 bars of the chosen range, or the whole range when it is shorter, with a note such as "Showing the last 250 hours of this range." The page loads every bar of the fund, so a later step back in time needs no new download. Scrolling stays off until that task.
 - **Hourly copy.** The card reads "Share of hours invested" and says a strategy sat in cash on a share "of hours", not "of days". Hourly bars show the time in New York, such as "Oct 9, 2026, 1:30 pm".
 - **No luck claim on hourly.** Hourly bars have no statistics yet, so `comparisons.json` has no hourly result. On hourly All, the answer to "Does that make it the better strategy?" is "We haven't tested hourly results for luck yet." The "could be luck" callout never appears on hourly. Shorter hourly ranges keep "too short to tell skill from luck".
 

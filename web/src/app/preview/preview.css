@@ -559,7 +559,11 @@ body {
 
   .seg {
     display: flex;
-    width: 100%;
+    flex: 1 1 40%;
+  }
+
+  .seg-ranges {
+    flex-basis: 100%;
   }
 
   .seg button {
@@ -569,7 +573,7 @@ body {
   }
 
   .fund-select {
-    flex: 1;
+    flex: 1 1 50%;
     min-width: 0;
   }
 
